@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944638894866",
+    "project_id": "tracktasty-f6ad2",
+    "storage_bucket": "tracktasty-f6ad2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944638894866:android:1fc4c3155857843d5c49cb",
+        "android_client_info": {
+          "package_name": "com.example.fitness"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCegqoO-bRBghuQAjwnXfoluVi-PAF-c8Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

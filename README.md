@@ -1,2 +1,3 @@
 # TrackTasty
-Capstone Project
+
+Capstone Project - Flutter Nutrition Tracker
