@@ -5,16 +5,14 @@ class CircularNutritionProgres extends StatelessWidget {
   final String value;
   final String label;
 
-  const CircularNutritionProgres(
-      {super.key,
-      required this.progress,
-      required this.value,
-      required this.label});
+  const CircularNutritionProgres({super.key, required this.progress, required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+
     return Container(
-      width: 180,
+      width: screenWidth * 0.43,
       height: 120,
       decoration: BoxDecoration(
         color: Color(0xFF262626),
@@ -35,10 +33,7 @@ class CircularNutritionProgres extends StatelessWidget {
                           children: [
                             Text(
                               value,
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 30),
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 30),
                             ),
                             Text(
                               label,

@@ -1,25 +1,30 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/pages/login/startup_page.dart';
-import 'package:fitness/pages/preference/userpreference_1.dart';
-import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-class AuthPage extends StatelessWidget {
-  const AuthPage({super.key});
+Future<String?> handleRedirect(GoRouterState state) async {
+  final user = FirebaseAuth.instance.currentUser;
+  final authPaths = ['/login', '/register', '/startup'];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: StreamBuilder(
-          stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            //user logged in
-            if (snapshot.hasData) {
-              return const Userpreference1();
-            } else {
-              //user is not logged in
-              return const StartupPage();
-            }
-          }),
-    );
+  if (user == null) {
+    return authPaths.contains(state.uri.path) ? null : '/startup';
+  }
+
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.email)
+        .get();
+
+    final preferencesCompleted = doc.data()?['preferencesCompleted'] ?? false;
+
+    if (!preferencesCompleted) return '/preference1';
+
+    if (state.uri.path == '/startup') return '/home';
+
+    return null;
+  } catch (e) {
+    print('Redirect error: $e');
+    return '/startup';
   }
 }

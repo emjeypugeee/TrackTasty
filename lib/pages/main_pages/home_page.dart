@@ -1,5 +1,6 @@
-import 'package:fitness/components/circular_day_progress.dart';
-import 'package:fitness/components/circular_nutrition_progres.dart';
+import 'package:fitness/main_screen_widgets/home_screen/circular_day_progress.dart';
+import 'package:fitness/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class HomePage extends StatelessWidget {
@@ -8,19 +9,8 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0xFF121212),
-        automaticallyImplyLeading: false,
-        title: Text(
-          'TrackTasty',
-          textAlign: TextAlign.left,
-          style: TextStyle(
-            color: Color(0xFFE99797),
-            fontSize: 30,
-          ),
-        ),
-      ),
-      backgroundColor: Color(0xFF121212),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      
       body: Padding(
         padding: EdgeInsets.all(20.0),
         child: Column(
@@ -62,6 +52,18 @@ class HomePage extends StatelessWidget {
                     progress: 0.5, value: '77g', label: 'Fat left'),
               ],
             ),
+            SizedBox(
+              height: 10,
+            ),
+            Row(
+              children: [
+                Text(
+                  'Meals:',
+                  textAlign: TextAlign.start,
+                  style: TextStyle(color: Colors.white, fontSize: 35),
+                ),
+              ],
+            )
           ],
         ),
       ),

@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/components/my_buttons.dart';
+import 'package:fitness/components/friends_container.dart';
+import 'package:fitness/main_screen_widgets/profile_screen/achievement_container.dart';
+import 'package:fitness/main_screen_widgets/profile_screen/profile_container.dart';
+import 'package:fitness/main_screen_widgets/profile_screen/statistics_container.dart';
 import 'package:flutter/material.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -13,18 +16,13 @@ class ProfilePage extends StatelessWidget {
   Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
     return await FirebaseFirestore.instance
         .collection("Users")
-        .doc(currentUser!
-            .email) // Ensure your Firestore uses email as document ID
+        .doc(currentUser!.email) // Ensure your Firestore uses email as document ID
         .get();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF121212),
-      appBar: AppBar(
-        backgroundColor: Color(0xFFFAA4A4),
-      ),
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         future: getUserDetails(),
         builder: (context, snapshot) {
@@ -41,96 +39,53 @@ class ProfilePage extends StatelessWidget {
           // If data is available
           if (snapshot.hasData && snapshot.data!.exists) {
             var userData = snapshot.data!.data();
-            String username = userData?['username'] ??
-                "Unknown User"; // Ensure 'username' field exists
-            int joinedDate = userData?['dateAccountCreated'] ?? "Unknown User";
+            String username = userData?['username'] ?? "Unknown User"; // Ensure 'username' field exists
+            int joinedDate = userData?['dateAccountCreated'];
 
-            return Column(
-              children: [
-                Container(
-                  height: 280,
-                  width: 410,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF262626),
-                        Color(0xFF413939),
-                        Color(0xFF363131),
-                        Color(0xFF302D2D),
-                        Color(0xFF886868),
-                      ],
-                      begin: Alignment.topCenter,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(bottom: Radius.circular(25.0)),
-                  ),
-                  padding: EdgeInsets.all(25.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+            return Scaffold(
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                body: SingleChildScrollView(
+                  child: Padding(
+                      padding: EdgeInsets.all(0),
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  username, // Show the username from Firestore
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                    color: Colors.white,
-                                  ),
+                          ProfileContainer(name: username, joinedDate: joinedDate, ranking: '23', following: '23', userDescription: 'lorem ipsum dipsum dolor'),
+                          Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      height: 10,
+                                    ),
+                                    Text(
+                                      'Achievements',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold),
+                                    ),
+                                    SizedBox(
+                                      height: 10,
+                                    ),
+                                    Row(
+                                      children: [
+                                        Expanded(child: AchievementContainer()),
+                                        SizedBox(
+                                          width: 10,
+                                        ),
+                                        Expanded(child: AchievementContainer()),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: 5),
-                                Text(
-                                  'Joined $joinedDate',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                                SizedBox(height: 5),
-                                Text(
-                                  'Following | Followers',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                                SizedBox(height: 5),
-                                Text(
-                                  'Ranking',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.person,
-                            size: 100,
-                            color: Colors.white,
-                          ),
+                              )),
                         ],
-                      ),
-                      SizedBox(height: 10),
-                      Center(
-                        child: Text(
-                          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum.',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          MyButtons(text: 'Message', onTap: () {}),
-                          SizedBox(width: 10),
-                          MyButtons(text: 'Friends', onTap: () {}),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
+                      )),
+                ));
           }
 
+          //return if no user found
           return Center(child: Text("User not found"));
         },
       ),

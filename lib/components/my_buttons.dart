@@ -1,3 +1,4 @@
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class MyButtons extends StatelessWidget {
@@ -16,7 +17,7 @@ class MyButtons extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFE99797),
+          color: AppColors.buttonBg,
           borderRadius: BorderRadius.circular(50),
         ),
         padding: const EdgeInsets.all(15),

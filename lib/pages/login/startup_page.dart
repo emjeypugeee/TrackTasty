@@ -1,6 +1,8 @@
 import 'package:fitness/components/my_buttons.dart';
 import 'package:fitness/components/square_tile.dart';
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class StartupPage extends StatelessWidget {
 // onTap method to register page
@@ -9,38 +11,24 @@ class StartupPage extends StatelessWidget {
     super.key,
   });
 
-  // sign up method
-  void goToRegister(BuildContext context) {
-    Navigator.pushNamed(context, '/RegisterPage');
-  }
-
-  // login in method
-  void goToLogin(BuildContext context) {
-    Navigator.pushNamed(context, '/LoginPage');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.loginPagesBg,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(25.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              //text
-              const Text(
-                'TrackTasty Logo',
-                style: TextStyle(
-                    fontSize: 50, color: Color(0xFFE99797), height: 3),
-              ),
+              //logo
+              Image.asset('lib/images/TrackTastyLogo.png'),
 
               //Sign Up buttton
               MyButtons(
                 text: 'Sign-up',
                 onTap: () {
-                  goToRegister(context);
+                  context.push('/register');
                 },
               ),
 
@@ -51,11 +39,11 @@ class StartupPage extends StatelessWidget {
               //Already have an account text
               GestureDetector(
                 onTap: () {
-                  goToLogin(context);
+                  context.push('/login');
                 },
                 child: const Text(
                   'I already have an account.',
-                  style: TextStyle(color: Color(0xFFE99797)),
+                  style: TextStyle(color: AppColors.titleText),
                 ),
               ),
 
@@ -78,7 +66,7 @@ class StartupPage extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 10.0),
                       child: Text(
                         'Or continue with',
-                        style: TextStyle(color: Color(0xFFE99797)),
+                        style: TextStyle(color: AppColors.titleText),
                       ),
                     ),
                     Expanded(

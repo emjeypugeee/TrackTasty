@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/components/my_buttons.dart';
+import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 
 class Userpreference6 extends StatefulWidget {
@@ -29,20 +33,39 @@ class _Userpreference6 extends State<Userpreference6> {
 
   Map<String, bool> selectedAllergies = {};
 
+//saving user allergies
+  Future<void> _saveUserAllergies() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final selected = selectedAllergies.entries
+          .where((entry) => entry.value)
+          .map((entry) => entry.key)
+          .toList();
+
+      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
+        'allergies': selected,
+        'preferencesCompleted': true, // Mark as fully completed
+        'lastPreferenceStep': 6, // Indicate this is the final step
+      }, SetOptions(merge: true));
+
+      debugPrint('All preferences completed and saved');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving allergies: $e')),
+        );
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     for (var allergy in allergies) {
       selectedAllergies[allergy] = false;
     }
-  }
-
-  void goToUserpreference5(BuildContext context) {
-    Navigator.pushNamed(context, '/Userpreference5Page');
-  }
-
-  void goToUserpreference7(BuildContext context) {
-    Navigator.pushNamed(context, '/Userpreference7Page');
   }
 
   @override
@@ -118,17 +141,12 @@ class _Userpreference6 extends State<Userpreference6> {
             Row(
               children: [
                 //back button w/ gesture detector
-                GestureDetector(
-                  onTap: () {
-                    goToUserpreference5(context);
-                  },
-                  child: const Text(
-                    'Back',
-                    style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFFE99797)), // Adjust style as needed
-                  ),
-                ),
+                CustomTextButton(
+                    title: 'Back',
+                    onTap: () {
+                      context.push('/preference5');
+                    },
+                    size: 16),
 
                 SizedBox(width: 50),
 
@@ -136,8 +154,11 @@ class _Userpreference6 extends State<Userpreference6> {
                 Expanded(
                   child: MyButtons(
                     text: 'Next',
-                    onTap: () {
-                      goToUserpreference7(context);
+                    onTap: () async {
+                      await _saveUserAllergies();
+                      if (mounted) {
+                        context.go('/home');
+                      }
                     },
                   ),
                 ),

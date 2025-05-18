@@ -1,10 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/components/my_buttons.dart';
 import 'package:fitness/components/my_textfield.dart';
 import 'package:fitness/helper/helper_function.dart';
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -34,15 +38,14 @@ class _LoginPageState extends State<LoginPage> {
 
     // try sign in
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim());
+      await FirebaseAuth.instance.signInWithEmailAndPassword(email: emailController.text.trim(), password: passwordController.text.trim());
 
       //pop loading circle
       if (context.mounted) {
         if (_formKey.currentState!.validate()) {
           Navigator.pop(context);
-          Navigator.pushNamed(context, '/Userpreference1Page');
+          sleep(Durations.medium4);
+          context.push('/preference1');
         }
       }
 
@@ -58,11 +61,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // navigate to forget password page
-  void goToForgetpasswordPage(BuildContext context) {
-    Navigator.pushNamed(context, '/ForgetpasswordPage');
-  }
-
 // -------------------
 // UI build
 // -------------------
@@ -70,14 +68,14 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.loginPagesBg,
       //back button
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppColors.loginPagesBg,
         leading: BackButton(
-          color: const Color(0xFFE99797),
+          color: AppColors.backButton,
           onPressed: () {
-            Navigator.pop(context);
+            context.push('/startup');
           },
         ),
       ),
@@ -89,34 +87,17 @@ class _LoginPageState extends State<LoginPage> {
           child: Form(
             key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 // logo
-                const Icon(
-                  Icons.person,
-                  size: 80,
-                  color: Color(0xFFE99797),
-                ),
-
-                const SizedBox(height: 25),
-
-                // name
-                const Text(
-                  'T R A C K T A S T Y',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                      color: Color(0xFFE99797)),
-                ),
-
-                const SizedBox(height: 25),
+                Image.asset('lib/images/TrackTastyLogo.png'),
 
                 //Email Address text
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Email Address',
-                    style: TextStyle(color: Color(0xFFFFFFFF)),
+                    style: TextStyle(color: AppColors.primaryText),
                   ),
                 ),
 
@@ -142,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'Password',
-                    style: TextStyle(color: Color(0xFFFFFFFF)),
+                    style: TextStyle(color: AppColors.primaryText),
                   ),
                 ),
 
@@ -176,11 +157,11 @@ class _LoginPageState extends State<LoginPage> {
                 //forgot password text
                 GestureDetector(
                   onTap: () {
-                    goToForgetpasswordPage(context);
+                    context.push('/forgetpassword');
                   },
                   child: const Text(
                     'Forgot Password?',
-                    style: TextStyle(color: Color(0xFFE99797)),
+                    style: TextStyle(color: AppColors.titleText),
                   ),
                 ),
               ],

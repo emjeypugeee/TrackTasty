@@ -3,7 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/components/my_buttons.dart';
 import 'package:fitness/components/gender_button.dart';
 import 'package:fitness/components/selectable_Activity_Button.dart';
+import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 
 class Userpreference3 extends StatefulWidget {
@@ -28,16 +31,6 @@ class _Userpreference3 extends State<Userpreference3> {
 
   // Save user preferences to Firestore
   Future<void> saveUserPreferences() async {
-    if (selectedGender == null || selectedIndex == -1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select both gender and goal'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
       await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
@@ -46,16 +39,6 @@ class _Userpreference3 extends State<Userpreference3> {
         'dateAccountCreated': DateTime.now().year,
       }, SetOptions(merge: true));
     }
-  }
-
-  //method to move to userpreference2 page (back button)
-  void goToUserpreference2(BuildContext context) {
-    Navigator.pushNamed(context, '/Userpreference2Page');
-  }
-
-  //method to move to userpreference4 page (continue button)
-  void goToUserpreference4(BuildContext context) {
-    Navigator.pushNamed(context, '/Userpreference4Page');
   }
 
   @override
@@ -78,109 +61,129 @@ class _Userpreference3 extends State<Userpreference3> {
       body: Padding(
         padding: const EdgeInsets.all(25.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //text
-            Text(
-              'Start your Nutrition Journey',
-              textAlign: TextAlign.left,
-              style: TextStyle(color: Colors.white, fontSize: 22),
-            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    //text
+                    Text(
+                      'Start your Nutrition Journey',
+                      textAlign: TextAlign.left,
+                      style: TextStyle(color: Colors.white, fontSize: 22),
+                    ),
 
-            SizedBox(height: 5),
+                    SizedBox(height: 5),
 
-            Text(
-              'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
-              style: TextStyle(color: Colors.grey),
-            ),
+                    Text(
+                      'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
 
-            SizedBox(
-              height: 20,
-            ),
+                    SizedBox(
+                      height: 20,
+                    ),
 
-            Text(
-              'Please select your gender: \n',
-              style: TextStyle(color: Colors.white),
-            ),
+                    Text(
+                      'Please select your gender: \n',
+                      style: TextStyle(color: Colors.white),
+                    ),
 
-            // ---------------------
-            // Gender Selection
-            // ---------------------
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                GenderIcon(
-                    isSelected: selectedGender == Gender.male,
-                    iconData: Icons.male,
-                    onTap: () => setState(() => selectedGender = Gender.male),
-                    selectedColor: Colors.blue[800]!),
-                SizedBox(
-                  width: 40,
+                    // ---------------------
+                    // Gender Selection
+                    // ---------------------
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        GenderIcon(
+                            isSelected: selectedGender == Gender.male,
+                            iconData: Icons.male,
+                            onTap: () =>
+                                setState(() => selectedGender = Gender.male),
+                            selectedColor: Colors.blue[800]!),
+                        SizedBox(
+                          width: 40,
+                        ),
+                        GenderIcon(
+                            isSelected: selectedGender == Gender.female,
+                            iconData: Icons.female,
+                            onTap: () =>
+                                setState(() => selectedGender = Gender.female),
+                            selectedColor: Colors.pink[800]!)
+                      ],
+                    ),
+
+                    SizedBox(
+                      height: 50,
+                    ),
+
+                    Text(
+                      'Select your goal on this application: \n',
+                      style: TextStyle(color: Colors.white),
+                    ),
+
+                    //selectable activity buttons
+                    Column(
+                      children: List.generate(activityLevels.length, (index) {
+                        return Selectableactivitybutton(
+                            title: activityLevels[index]['title']!,
+                            subtitle: activityLevels[index]['subtitle'],
+                            isSelected: selectedIndex == index,
+                            onTap: () {
+                              setState(() {
+                                selectedIndex = index;
+                              });
+                            });
+                      }),
+                    ),
+
+                    SizedBox(
+                      height: 100,
+                    ),
+                  ],
                 ),
-                GenderIcon(
-                    isSelected: selectedGender == Gender.female,
-                    iconData: Icons.female,
-                    onTap: () => setState(() => selectedGender = Gender.female),
-                    selectedColor: Colors.pink[800]!)
-              ],
+              ),
             ),
-
-            SizedBox(
-              height: 50,
-            ),
-
-            Text(
-              'Select your goal on this application: \n',
-              style: TextStyle(color: Colors.white),
-            ),
-
-            //selectable activity buttons
-            Column(
-              children: List.generate(activityLevels.length, (index) {
-                return Selectableactivitybutton(
-                    title: activityLevels[index]['title']!,
-                    subtitle: activityLevels[index]['subtitle'],
-                    isSelected: selectedIndex == index,
-                    onTap: () {
-                      setState(() {
-                        selectedIndex = index;
-                      });
-                    });
-              }),
-            ),
-
-            SizedBox(
-              height: 100,
-            ),
-
             //lower buttons back and continue button
-            Row(
-              children: [
-                //back button with gesture detectore
-                GestureDetector(
-                  onTap: () {
-                    goToUserpreference2(context);
-                  },
-                  child: const Text(
-                    'Back',
-                    style: TextStyle(fontSize: 16, color: Color(0xFFE99797)),
-                  ),
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Row(
+                children: [
+                  //back button with gesture detectore
+                  CustomTextButton(
+                      title: 'Back',
+                      onTap: () {
+                        context.push('/preference2');
+                      },
+                      size: 16),
 
-                SizedBox(width: 50),
+                  SizedBox(width: 50),
 
-                //continue button
-                Expanded(
-                  child: MyButtons(
-                    text: 'Next',
-                    onTap: () async {
-                      await saveUserPreferences();
-                      goToUserpreference4(context);
-                    },
+                  //continue button
+                  Expanded(
+                    child: MyButtons(
+                      text: 'Next',
+                      onTap: () async {
+                        if (selectedIndex == -1 && selectedGender == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Please select your gender and goal'),
+                            backgroundColor: AppColors.snackBarBgError,
+                          ));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Saved!'),
+                            backgroundColor: AppColors.snackBarBgSaved,
+                          ));
+                          await saveUserPreferences();
+                          context.push('/preference4');
+                        }
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

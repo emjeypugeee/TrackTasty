@@ -1,5 +1,6 @@
 import 'package:fitness/components/my_buttons.dart';
 import 'package:fitness/components/my_textfield.dart';
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class ForgetpasswordPage extends StatelessWidget {
@@ -13,17 +14,17 @@ class ForgetpasswordPage extends StatelessWidget {
     return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
-            backgroundColor: const Color(0xFF121212),
+            backgroundColor: AppColors.loginPagesBg,
             appBar: AppBar(
-              backgroundColor: const Color(0xFF121212),
+              backgroundColor: AppColors.loginPagesBg,
               centerTitle: true,
               title: const Text(
                 'Forget Password',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: AppColors.titleText, fontWeight: FontWeight.bold),
               ),
               leading: BackButton(
-                color: const Color(0xFFE99797),
+                color: AppColors.backButton,
                 onPressed: () {
                   Navigator.pop(context);
                 },
@@ -44,7 +45,7 @@ class ForgetpasswordPage extends StatelessWidget {
                     const Text(
                       'Forgot your password?',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.primaryText,
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
@@ -55,7 +56,7 @@ class ForgetpasswordPage extends StatelessWidget {
                     const Text(
                       'Enter the email you use to sign in to TrackTasty.',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.primaryText,
                         fontSize: 13,
                       ),
                     ),
@@ -64,7 +65,8 @@ class ForgetpasswordPage extends StatelessWidget {
                     ),
                     const Text(
                       'Email Address',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                      style:
+                          TextStyle(fontSize: 16, color: AppColors.primaryText),
                     ),
                     const SizedBox(
                       height: 5,
