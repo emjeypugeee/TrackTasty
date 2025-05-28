@@ -1,0 +1,2 @@
+D:/Coding/TrackTasty/android/app/.cxx/Debug/28f4l6i6/x86_64/CMakeFiles/edit_cache.dir
+D:/Coding/TrackTasty/android/app/.cxx/Debug/28f4l6i6/x86_64/CMakeFiles/rebuild_cache.dir
