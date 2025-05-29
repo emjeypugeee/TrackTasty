@@ -4,11 +4,23 @@ class CircularNutritionProgres extends StatelessWidget {
   final double progress;
   final String value;
   final String label;
+  final bool overGoal;
 
-  const CircularNutritionProgres({super.key, required this.progress, required this.value, required this.label});
+  const CircularNutritionProgres({
+    super.key,
+    required this.progress,
+    required this.value,
+    required this.label,
+    this.overGoal = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Base Progress
+    final baseProgress = progress.clamp(0.0, 1.0);
+    // Overflow progress
+    final overflowProgress =
+        progress > 1.0 ? (progress - 1.0).clamp(0.0, 1.0) : 0.0;
     double screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
@@ -22,7 +34,7 @@ class CircularNutritionProgres extends StatelessWidget {
         children: [
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -33,7 +45,10 @@ class CircularNutritionProgres extends StatelessWidget {
                           children: [
                             Text(
                               value,
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 30),
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 30),
                             ),
                             Text(
                               label,
@@ -54,11 +69,25 @@ class CircularNutritionProgres extends StatelessWidget {
             child: SizedBox(
               height: 50,
               width: 50,
-              child: CircularProgressIndicator(
-                value: progress,
-                strokeWidth: 5,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation(Color(0xFFE99797)),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Base progress (up to goal)
+                  CircularProgressIndicator(
+                    value: baseProgress,
+                    strokeWidth: 5,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFFE99797)),
+                  ),
+                  // Overflow progress (over goal, in red)
+                  if (overflowProgress > 0)
+                    CircularProgressIndicator(
+                      value: overflowProgress,
+                      strokeWidth: 5,
+                      backgroundColor: Colors.transparent,
+                      valueColor: const AlwaysStoppedAnimation(Colors.red),
+                    ),
+                ],
               ),
             ),
           ),

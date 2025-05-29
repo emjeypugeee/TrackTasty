@@ -33,37 +33,47 @@ final GoRouter _router = GoRouter(
     GoRoute(path: '/startup', builder: (context, state) => StartupPage()),
     GoRoute(path: '/login', builder: (context, state) => LoginPage()),
     GoRoute(path: '/register', builder: (context, state) => RegisterPage()),
-    GoRoute(path: '/forgetpassword', builder: (context, state) => ForgetpasswordPage()),
-    GoRoute(path: '/preference1', builder: (context, state) => Userpreference1()),
-    GoRoute(path: '/preference2', builder: (context, state) => Userpreference2()),
-    GoRoute(path: '/preference3', builder: (context, state) => Userpreference3()),
-    GoRoute(path: '/preference4', builder: (context, state) => Userpreference4()),
-    GoRoute(path: '/preference5', builder: (context, state) => Userpreference5()),
-    GoRoute(path: '/preference6', builder: (context, state) => Userpreference6()),
+    GoRoute(
+        path: '/forgetpassword',
+        builder: (context, state) => ForgetpasswordPage()),
+    GoRoute(
+        path: '/preference1', builder: (context, state) => Userpreference1()),
+    GoRoute(
+        path: '/preference2', builder: (context, state) => Userpreference2()),
+    GoRoute(
+        path: '/preference3', builder: (context, state) => Userpreference3()),
+    GoRoute(
+        path: '/preference4', builder: (context, state) => Userpreference4()),
+    GoRoute(
+        path: '/preference5', builder: (context, state) => Userpreference5()),
+    GoRoute(
+        path: '/preference6', builder: (context, state) => Userpreference6()),
 
     //shell route for main screen
-    ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: '/chatbot',
-        builder: (context, state) => const ChatBot(),
-      ),
-      GoRoute(
-        path: '/analytics',
-        builder: (context, state) => const AnalyticsPage(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => ProfilePage(),
-      ),
-      GoRoute(
-        path: '/forecasting',
-        builder: (context, state) => ForecastingPage(),
-      ),
-    ])
+    ShellRoute(
+        builder: (context, state, child) => MainScreen(child: child),
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: '/chatbot',
+            builder: (context, state) => const ChatBot(),
+          ),
+          GoRoute(
+            path: '/analytics',
+            builder: (context, state) => const AnalyticsPage(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => ProfilePage(),
+          ),
+          GoRoute(
+            path: '/forecasting',
+            builder: (context, state) => ForecastingPage(),
+          ),
+        ])
   ],
 );
 
@@ -75,7 +85,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      theme: ThemeData(scaffoldBackgroundColor: const Color(0xFF121212), appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
+      theme: ThemeData(
+          scaffoldBackgroundColor: const Color(0xFF121212),
+          appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
     );
