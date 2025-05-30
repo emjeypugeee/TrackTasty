@@ -91,16 +91,17 @@ class StartupPage extends StatelessWidget {
               ),
 
               //google, facebook and apple login
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   //google button
-                  SizedBox(
-                    width: 25,
+                  GestureDetector(
+                    onTap: () {
+                      context.push('/home');
+                    },
+                    child: SquareTile(imagePath: 'lib/images/google.png'),
                   ),
-
-                  //apple button
-                  SquareTile(imagePath: 'lib/images/google.png'),
+                  SizedBox(width: 10),
 
                   SizedBox(
                     width: 10,

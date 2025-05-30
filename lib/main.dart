@@ -27,7 +27,7 @@ void main() async {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/startup',
 
   // routes of the pages
   routes: [
