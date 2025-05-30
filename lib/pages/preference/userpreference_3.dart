@@ -97,21 +97,11 @@ class _Userpreference3 extends State<Userpreference3> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        GenderIcon(
-                            isSelected: selectedGender == Gender.male,
-                            iconData: Icons.male,
-                            onTap: () =>
-                                setState(() => selectedGender = Gender.male),
-                            selectedColor: Colors.blue[800]!),
+                        GenderIcon(isSelected: selectedGender == Gender.male, iconData: Icons.male, onTap: () => setState(() => selectedGender = Gender.male), selectedColor: Colors.blue[800]!),
                         SizedBox(
                           width: 40,
                         ),
-                        GenderIcon(
-                            isSelected: selectedGender == Gender.female,
-                            iconData: Icons.female,
-                            onTap: () =>
-                                setState(() => selectedGender = Gender.female),
-                            selectedColor: Colors.pink[800]!)
+                        GenderIcon(isSelected: selectedGender == Gender.female, iconData: Icons.female, onTap: () => setState(() => selectedGender = Gender.female), selectedColor: Colors.pink[800]!)
                       ],
                     ),
 

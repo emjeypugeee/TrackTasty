@@ -43,46 +43,47 @@ class ProfilePage extends StatelessWidget {
             int joinedDate = userData?['dateAccountCreated'];
 
             return Scaffold(
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                body: SingleChildScrollView(
-                  child: Padding(
-                      padding: EdgeInsets.all(0),
-                      child: Column(
-                        children: [
-                          ProfileContainer(name: username, joinedDate: joinedDate, ranking: '23', following: '23', userDescription: 'lorem ipsum dipsum dolor'),
-                          Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(
-                                      height: 10,
-                                    ),
-                                    Text(
-                                      'Achievements',
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold),
-                                    ),
-                                    SizedBox(
-                                      height: 10,
-                                    ),
-                                    Row(
-                                      children: [
-                                        Expanded(child: AchievementContainer()),
-                                        SizedBox(
-                                          width: 10,
-                                        ),
-                                        Expanded(child: AchievementContainer()),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              )),
-                        ],
-                      )),
-                ));
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              body: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.all(0),
+                  child: Column(
+                    children: [
+                      ProfileContainer(name: username, joinedDate: joinedDate, ranking: '23', following: '23', userDescription: 'lorem ipsum dipsum dolor'),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 10,
+                              ),
+                              Text(
+                                'Achievements',
+                                textAlign: TextAlign.left,
+                                style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(
+                                height: 10,
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(child: AchievementContainer()),
+                                  SizedBox(width: 10),
+                                  Expanded(child: AchievementContainer()),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
           }
 
           //return if no user found

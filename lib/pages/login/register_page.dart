@@ -44,8 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -63,10 +62,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _createUserDocument(UserCredential userCredential) async {
-    await FirebaseFirestore.instance
-        .collection("Users")
-        .doc(userCredential.user!.email)
-        .set({
+    await FirebaseFirestore.instance.collection("Users").doc(userCredential.user!.email).set({
       'email': userCredential.user!.email,
     });
   }
@@ -90,7 +86,7 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.backButton),
-          onPressed: () => context.pop(), // GoRouter back navigation
+          onPressed: () => context.go('/startup'), // GoRouter back navigation
         ),
         backgroundColor: AppColors.loginPagesBg,
       ),
@@ -129,14 +125,12 @@ class _RegisterPageState extends State<RegisterPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Email Address',
-            style: TextStyle(color: AppColors.primaryText)),
+        const Text('Email Address', style: TextStyle(color: AppColors.primaryText)),
         const SizedBox(height: 5),
         MyTextfield(
           controller: _emailController,
           hintText: "Email",
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Enter your email' : null,
+          validator: (value) => value?.isEmpty ?? true ? 'Enter your email' : null,
           obscureText: false,
         ),
       ],
@@ -153,8 +147,7 @@ class _RegisterPageState extends State<RegisterPage> {
           controller: _passwordController,
           hintText: "Password",
           obscureText: true,
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Enter your password' : null,
+          validator: (value) => value?.isEmpty ?? true ? 'Enter your password' : null,
         ),
       ],
     );
@@ -164,15 +157,13 @@ class _RegisterPageState extends State<RegisterPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Confirm Password',
-            style: TextStyle(color: AppColors.primaryText)),
+        const Text('Confirm Password', style: TextStyle(color: AppColors.primaryText)),
         const SizedBox(height: 5),
         MyTextfield(
           controller: _confirmPasswordController,
           hintText: "Confirm Password",
           obscureText: true,
-          validator: (value) =>
-              value != _passwordController.text ? 'Passwords mismatch' : null,
+          validator: (value) => value != _passwordController.text ? 'Passwords mismatch' : null,
         ),
       ],
     );
@@ -185,8 +176,7 @@ class _RegisterPageState extends State<RegisterPage> {
           value: _checkedValue,
           onChanged: (value) => setState(() => _checkedValue = value ?? false),
         ),
-        const Text("I agree to the terms & conditions",
-            style: TextStyle(color: Colors.white)),
+        const Text("I agree to the terms & conditions", style: TextStyle(color: Colors.white)),
       ],
     );
   }

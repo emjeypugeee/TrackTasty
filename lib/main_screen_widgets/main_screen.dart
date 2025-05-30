@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/components/my_buttons.dart';
+import 'package:fitness/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -53,102 +54,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
-      drawer: Drawer(
-        child: Container(
-          color: Color(0xFF121212),
-          child: ListView(
-            children: [
-              DrawerHeader(
-                child: Center(
-                  child: Image.asset('lib/images/TrackTastyLogo.png'),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: Text(
-                  'Edit Profile',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: Text(
-                  'Edit Preference',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.edit),
-                title: Text(
-                  'Edit Goals',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: Text(
-                  'Settings',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: Text(
-                  'Settings',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.settings),
-                title: Text(
-                  'Settings',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.people_rounded),
-                title: Text(
-                  'About Us',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.logout),
-                title: Text(
-                  'Log Out',
-                  style: TextStyle(color: AppColors.primaryText),
-                ),
-                onTap: () => showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    actions: [
-                      Row(
-                        children: [
-                          Expanded(child: CustomTextButton(title: 'Back', onTap: () {}, size: 20)),
-                          Expanded(child: MyButtons(text: 'Log out', onTap: () {})),
-                        ],
-                      )
-                    ],
-                    backgroundColor: AppColors.containerBg,
-                    title: Center(
-                      child: Text(
-                        'Log out?',
-                        style: TextStyle(color: AppColors.primaryText),
-                      ),
-                    ),
-                    content: Text(
-                      'Are you sure you want to log out?',
-                      style: TextStyle(
-                        color: AppColors.secondaryText,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      drawer: CustomDrawer(),
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
@@ -205,7 +111,7 @@ class _MainScreenState extends State<MainScreen> {
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
-            onTap: () async => await FirebaseAuth.instance.signOut(),
+            onTap: () {},
           ),
           SpeedDialChild(
             child: const Icon(Icons.food_bank, color: Colors.white),
