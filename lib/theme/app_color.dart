@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
+  // Primary Colors
+  static const Color primaryColor = Color(0xFFFAA4A4);
+  static const Color buttonColor = Color(0xFFE99797);
+
   // Indicator Colors
   static const Color indicatorBg = Color(0xFFe8def8);
   static const Color indicatorProgress = Color(0xFF65558F);
@@ -9,6 +13,10 @@ class AppColors {
   static const Color primaryText = Colors.white;
   static const Color secondaryText = Colors.grey;
   static const Color errorText = Color(0xFFE99797);
+
+  // Text Input Colors
+  static const Color textInputHint = Colors.white70;
+  static const Color textInputBorder = Colors.white54;
 
   // Title colors
   static const Color titleText = Color(0xFFE99797);

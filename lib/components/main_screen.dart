@@ -1,10 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/components/my_buttons.dart';
+import 'package:fitness/main_screen_widgets/home_screen/macro_input.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/pages/main_pages/home_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -15,11 +19,23 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final List<String> _routes = ['/home', '/chatbot', '/analytics', '/profile', '/forecasting'];
+  final List<String> _routes = [
+    '/home',
+    '/chatbot',
+    '/analytics',
+    '/profile',
+    '/forecasting'
+  ];
 
   int _selectedIndexFromLocation(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
-    final List<String> routes = ['/home', '/chatbot', '/analytics', '/profile', '/forecasting'];
+    final List<String> routes = [
+      '/home',
+      '/chatbot',
+      '/analytics',
+      '/profile',
+      '/forecasting'
+    ];
 
     // Exact match first
     final exactIndex = routes.indexWhere((route) => location == route);
@@ -124,8 +140,11 @@ class _MainScreenState extends State<MainScreen> {
                     actions: [
                       Row(
                         children: [
-                          Expanded(child: CustomTextButton(title: 'Back', onTap: () {}, size: 20)),
-                          Expanded(child: MyButtons(text: 'Log out', onTap: () {})),
+                          Expanded(
+                              child: CustomTextButton(
+                                  title: 'Back', onTap: () {}, size: 20)),
+                          Expanded(
+                              child: MyButtons(text: 'Log out', onTap: () {})),
                         ],
                       )
                     ],
@@ -149,7 +168,9 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
-      body: widget.child,
+      body: _routes[selectedIndex] == '/home'
+          ? HomePage(key: homePageKey) // Render HomePage when on the home route
+          : widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
         onTap: (index) {
@@ -198,7 +219,9 @@ class _MainScreenState extends State<MainScreen> {
         overlayOpacity: 0.4,
         closeManually: false,
         shape: const CircleBorder(),
+        // Various option for meal logging
         children: [
+          // Meal logging through camera
           SpeedDialChild(
             child: const Icon(Icons.camera_alt, color: Colors.white),
             label: 'Scan food',
@@ -207,13 +230,155 @@ class _MainScreenState extends State<MainScreen> {
             backgroundColor: Colors.grey[600],
             onTap: () async => await FirebaseAuth.instance.signOut(),
           ),
+          /*************************************************************
+          *                                                            *
+          *                        MEAL LOGGING                        *
+          *                          THROUGH                           *    
+          *                        MANUAL INPUT                        *
+          *                                                            *
+          **************************************************************/
           SpeedDialChild(
             child: const Icon(Icons.food_bank, color: Colors.white),
             label: 'Add food manually',
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: AppColors.loginPagesBg,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  side: BorderSide(color: AppColors.primaryText, width: 2),
+                ),
+                builder: (context) {
+                  // Controllers for user input
+                  final mealNameController = TextEditingController();
+                  final caloriesController = TextEditingController();
+                  final proteinController = TextEditingController();
+                  final carbsController = TextEditingController();
+                  final fatController = TextEditingController();
+
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 20,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Meal Name Input
+                          TextFormField(
+                            controller: mealNameController,
+                            decoration: InputDecoration(
+                              labelText: 'Meal Name',
+                              filled: true,
+                              fillColor: Colors.grey[850],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              labelStyle: TextStyle(color: Colors.white),
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Macros Input
+                          Row(
+                            children: [
+                              Expanded(
+                                child: MacroInput(
+                                  icon: Icons.local_fire_department,
+                                  label: 'Calories',
+                                  controller: caloriesController,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: MacroInput(
+                                  icon: Icons.set_meal,
+                                  label: 'Protein',
+                                  controller: proteinController,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: MacroInput(
+                                  icon: Icons.grass,
+                                  label: 'Carbs',
+                                  controller: carbsController,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: MacroInput(
+                                  icon: Icons.icecream,
+                                  label: 'Fats',
+                                  controller: fatController,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Add Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor,
+                                foregroundColor: AppColors.primaryText,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              onPressed: () {
+                                // Collect input and pass to HomePage
+                                final meal = {
+                                  'imageUrl':
+                                      'assets/images/meal.jpg', // Default image
+                                  'mealName': mealNameController.text,
+                                  'calories':
+                                      int.tryParse(caloriesController.text) ??
+                                          0,
+                                  'protein':
+                                      int.tryParse(proteinController.text) ?? 0,
+                                  'carbs':
+                                      int.tryParse(carbsController.text) ?? 0,
+                                  'fat': int.tryParse(fatController.text) ?? 0,
+                                  'loggedTime': DateTime.now(),
+                                };
+
+                                // Call the addMeal method in HomePage
+                                print(
+                                    'homePageKey.currentState: ${homePageKey.currentState}');
+                                homePageKey.currentState?.addMeal(meal);
+
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Add',
+                                  style: TextStyle(fontSize: 18)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           ),
+          // Meal logging through searching food database
           SpeedDialChild(
             child: const Icon(Icons.search, color: Colors.white),
             label: 'Search food',
