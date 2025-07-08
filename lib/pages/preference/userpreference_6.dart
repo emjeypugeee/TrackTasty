@@ -186,11 +186,7 @@ class _Userpreference6 extends State<Userpreference6> {
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: AppColors.snackBarBgSaved,
                         ));
-<<<<<<< HEAD
-                        context.go('/home');
-=======
                         context.go('/preference7');
->>>>>>> tracktasty-backup
                       }
                     },
                   ),
