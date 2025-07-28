@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class CircularDayProgress extends StatelessWidget {
   final double progress;
   final String day;
-  const CircularDayProgress({super.key, required this.day, required this.progress});
+  const CircularDayProgress(
+      {super.key, required this.day, required this.progress});
 
   @override
   Widget build(BuildContext context) {

@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/gender_button.dart';
-import 'package:fitness/components/selectable_Activity_Button.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/gender_button.dart';
+import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
@@ -97,11 +97,21 @@ class _Userpreference3 extends State<Userpreference3> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        GenderIcon(isSelected: selectedGender == Gender.male, iconData: Icons.male, onTap: () => setState(() => selectedGender = Gender.male), selectedColor: Colors.blue[800]!),
+                        GenderIcon(
+                            isSelected: selectedGender == Gender.male,
+                            iconData: Icons.male,
+                            onTap: () =>
+                                setState(() => selectedGender = Gender.male),
+                            selectedColor: Colors.blue[800]!),
                         SizedBox(
                           width: 40,
                         ),
-                        GenderIcon(isSelected: selectedGender == Gender.female, iconData: Icons.female, onTap: () => setState(() => selectedGender = Gender.female), selectedColor: Colors.pink[800]!)
+                        GenderIcon(
+                            isSelected: selectedGender == Gender.female,
+                            iconData: Icons.female,
+                            onTap: () =>
+                                setState(() => selectedGender = Gender.female),
+                            selectedColor: Colors.pink[800]!)
                       ],
                     ),
 
@@ -164,6 +174,7 @@ class _Userpreference3 extends State<Userpreference3> {
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text('Saved!'),
+                            behavior: SnackBarBehavior.floating,
                             backgroundColor: AppColors.snackBarBgSaved,
                           ));
                           await saveUserPreferences();

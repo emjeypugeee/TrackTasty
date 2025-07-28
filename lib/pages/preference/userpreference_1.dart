@@ -2,8 +2,8 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/my_textfield.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +22,10 @@ class Userpreference1 extends StatefulWidget {
 class _Userpreference1 extends State<Userpreference1> {
   File? image;
   bool _isLoading = false;
+
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController fullnameController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Image picker
   Future uploadImage(ImageSource source) async {
@@ -61,10 +65,6 @@ class _Userpreference1 extends State<Userpreference1> {
       return null;
     }
   }
-
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController fullnameController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   Future<bool> saveNickname() async {
     try {
@@ -268,6 +268,13 @@ class _Userpreference1 extends State<Userpreference1> {
                                   try {
                                     await saveNickname();
                                     if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(SnackBar(
+                                        content: Text('Saved!'),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor:
+                                            AppColors.snackBarBgSaved,
+                                      ));
                                       context.push('/preference2');
                                     }
                                   } catch (_) {

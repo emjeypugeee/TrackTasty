@@ -1,7 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/main_screen_widgets/custom_drawer.dart';
-import 'package:fitness/widgets/text_button.dart';
+import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
@@ -16,11 +13,23 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final List<String> _routes = ['/home', '/chatbot', '/analytics', '/profile', '/forecasting'];
+  final List<String> _routes = [
+    '/home',
+    '/chatbot',
+    '/analytics',
+    '/profile',
+    '/forecasting'
+  ];
 
   int _selectedIndexFromLocation(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
-    final List<String> routes = ['/home', '/chatbot', '/analytics', '/profile', '/forecasting'];
+    final List<String> routes = [
+      '/home',
+      '/chatbot',
+      '/analytics',
+      '/profile',
+      '/forecasting'
+    ];
 
     // Exact match first
     final exactIndex = routes.indexWhere((route) => location == route);
@@ -83,10 +92,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.auto_graph_rounded),
-            label: 'Forecasting',
           ),
         ],
       ),

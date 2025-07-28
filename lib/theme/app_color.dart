@@ -19,8 +19,9 @@ class AppColors {
   static const Color backButton = Color(0xFFE99797);
   static const Color buttonBg = Color(0xFFE99797);
 
-  // Bottom Navigator Colors
+  // Bottom Navigator/Drawer Colors
   static const Color bottomNavBg = Color(0xFF121212);
+  static const Color drawerBg = Color(0xFF121212);
 
   // Login Pages Colors
   static const Color loginPagesBg = Color(0xFF121212);
@@ -31,4 +32,10 @@ class AppColors {
 
   // Container backgrounds
   static const Color containerBg = Color(0xFF262626);
+
+  // Analytics Colors
+  static const Color graphBg = Color(0xFF262626);
+
+  // Drawer Colors
+  static const Color drawerIcons = Color(0xFF7CB342);
 }

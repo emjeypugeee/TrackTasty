@@ -47,6 +47,9 @@ dependencies:
   image_picker: ^1.1.2
   lottie: ^3.3.1
   intl: ^0.19.0
+  http: ^1.4.0
+  flutter_dotenv: ^5.2.1
+  riverpod: ^2.6.1
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +76,7 @@ flutter:
   assets:
     - lib/images/
     - lib/animations/
+    - .env
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

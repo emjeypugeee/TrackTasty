@@ -1,5 +1,5 @@
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/main_screen_widgets/profile_screen/statistics_container.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/main_screen_widgets/profile_screen/statistics_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
@@ -10,7 +10,13 @@ class ProfileContainer extends StatelessWidget {
   final String following;
   final String userDescription;
 
-  const ProfileContainer({super.key, required this.name, required this.joinedDate, required this.ranking, required this.following, required this.userDescription});
+  const ProfileContainer(
+      {super.key,
+      required this.name,
+      required this.joinedDate,
+      required this.ranking,
+      required this.following,
+      required this.userDescription});
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +48,10 @@ class ProfileContainer extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.titleText),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: AppColors.titleText),
                   ),
                   SizedBox(
                     height: 5,
@@ -68,7 +77,10 @@ class ProfileContainer extends StatelessWidget {
           ),
           Text(
             'Statistics',
-            style: TextStyle(color: AppColors.primaryText, fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                color: AppColors.primaryText,
+                fontSize: 20,
+                fontWeight: FontWeight.bold),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

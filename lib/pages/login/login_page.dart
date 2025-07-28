@@ -3,8 +3,8 @@
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/my_textfield.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/helper/helper_function.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
         if (_formKey.currentState!.validate()) {
           Navigator.pop(context);
           sleep(Durations.medium4);
-          context.push('/preference1');
+          context.push('/home');
         }
       }
 

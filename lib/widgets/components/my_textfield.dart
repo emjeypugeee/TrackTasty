@@ -1,3 +1,4 @@
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class MyTextfield extends StatelessWidget {
@@ -22,14 +23,14 @@ class MyTextfield extends StatelessWidget {
       style: TextStyle(color: Colors.white),
       controller: controller,
       decoration: InputDecoration(
-          enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Color(0xFFFFFFFF)),
-              borderRadius: BorderRadius.circular(12)),
-          hintText: hintText,
-          suffixText: suffixText,
-          hintStyle: const TextStyle(color: Color(0xFFFFFFFF)),
-          errorStyle: TextStyle(color: Colors.red),
-        ),
+        enabledBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: Color(0xFFFFFFFF)),
+            borderRadius: BorderRadius.circular(12)),
+        hintText: hintText,
+        suffixText: suffixText,
+        hintStyle: const TextStyle(color: AppColors.secondaryText),
+        errorStyle: TextStyle(color: Colors.red),
+      ),
       obscureText: obscureText,
       validator: validator,
     );

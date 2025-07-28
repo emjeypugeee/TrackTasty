@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/my_textfield.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -44,7 +44,8 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -52,7 +53,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await _createUserDocument(userCredential);
 
       if (!mounted) return;
-      context.go('/login'); // Redirect to login after success
+      context.go('/preference1'); // Redirect to login after success
       _showSuccess('Account created successfully!');
     } on FirebaseAuthException catch (e) {
       _showError(e.code);
@@ -62,7 +63,10 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _createUserDocument(UserCredential userCredential) async {
-    await FirebaseFirestore.instance.collection("Users").doc(userCredential.user!.email).set({
+    await FirebaseFirestore.instance
+        .collection("Users")
+        .doc(userCredential.user!.email)
+        .set({
       'email': userCredential.user!.email,
     });
   }
@@ -125,12 +129,14 @@ class _RegisterPageState extends State<RegisterPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Email Address', style: TextStyle(color: AppColors.primaryText)),
+        const Text('Email Address',
+            style: TextStyle(color: AppColors.primaryText)),
         const SizedBox(height: 5),
         MyTextfield(
           controller: _emailController,
           hintText: "Email",
-          validator: (value) => value?.isEmpty ?? true ? 'Enter your email' : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Enter your email' : null,
           obscureText: false,
         ),
       ],
@@ -147,7 +153,8 @@ class _RegisterPageState extends State<RegisterPage> {
           controller: _passwordController,
           hintText: "Password",
           obscureText: true,
-          validator: (value) => value?.isEmpty ?? true ? 'Enter your password' : null,
+          validator: (value) =>
+              value?.isEmpty ?? true ? 'Enter your password' : null,
         ),
       ],
     );
@@ -157,13 +164,15 @@ class _RegisterPageState extends State<RegisterPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Confirm Password', style: TextStyle(color: AppColors.primaryText)),
+        const Text('Confirm Password',
+            style: TextStyle(color: AppColors.primaryText)),
         const SizedBox(height: 5),
         MyTextfield(
           controller: _confirmPasswordController,
           hintText: "Confirm Password",
           obscureText: true,
-          validator: (value) => value != _passwordController.text ? 'Passwords mismatch' : null,
+          validator: (value) =>
+              value != _passwordController.text ? 'Passwords mismatch' : null,
         ),
       ],
     );
@@ -176,7 +185,8 @@ class _RegisterPageState extends State<RegisterPage> {
           value: _checkedValue,
           onChanged: (value) => setState(() => _checkedValue = value ?? false),
         ),
-        const Text("I agree to the terms & conditions", style: TextStyle(color: Colors.white)),
+        const Text("I agree to the terms & conditions",
+            style: TextStyle(color: Colors.white)),
       ],
     );
   }

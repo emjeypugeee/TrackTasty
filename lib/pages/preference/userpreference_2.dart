@@ -1,5 +1,5 @@
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/selectable_Activity_Button.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
@@ -135,11 +135,12 @@ class _Userpreference2 extends State<Userpreference2> {
               child: Row(
                 children: [
                   CustomTextButton(
-                      title: 'Back',
-                      onTap: () {
-                        context.push('/preference1');
-                      },
-                      size: 16),
+                    title: 'Back',
+                    onTap: () {
+                      context.push('/preference1');
+                    },
+                    size: 16,
+                  ),
                   SizedBox(width: 50),
                   // Next button (expanded to fill remaining space)
                   Expanded(
@@ -154,6 +155,7 @@ class _Userpreference2 extends State<Userpreference2> {
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text('Saved!'),
+                            behavior: SnackBarBehavior.floating,
                             backgroundColor: AppColors.snackBarBgSaved,
                           ));
                           await saveUserActivityLevel();

@@ -1,6 +1,5 @@
-import 'package:fitness/main_screen_widgets/home_screen/circular_day_progress.dart';
-import 'package:fitness/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
-import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/widgets/components/meal_container.dart';
+import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -89,9 +88,7 @@ class _HomePageState extends State<HomePage> {
                                     : Colors.red))
                             : Colors.grey[850],
                         borderRadius: BorderRadius.circular(12),
-                        border: isSelected
-                            ? Border.all(color: Colors.white, width: 2)
-                            : null,
+                        border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -99,8 +96,7 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             dayFormat.format(date),
                             style: TextStyle(
-                              color:
-                                  isSelected ? Colors.white : Colors.grey[400],
+                              color: isSelected ? Colors.white : Colors.grey[400],
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -109,8 +105,7 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             dateFormat.format(date),
                             style: TextStyle(
-                              color:
-                                  isSelected ? Colors.white : Colors.grey[400],
+                              color: isSelected ? Colors.white : Colors.grey[400],
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -185,7 +180,7 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(color: Colors.white, fontSize: 35),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),

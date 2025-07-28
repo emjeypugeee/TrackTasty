@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/animations/fade_out_page_transition.dart';
-import 'package:fitness/main_screen_widgets/main_screen.dart';
+import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
 import 'package:fitness/firebase_options.dart';
 import 'package:fitness/pages/login/forgetpassword_page.dart';
 import 'package:fitness/pages/login/startup_page.dart';
@@ -19,15 +19,24 @@ import 'package:fitness/pages/preference/userpreference_5.dart';
 import 'package:fitness/pages/preference/userpreference_6.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Load environment variables FIRST
+  await dotenv.load(fileName: ".env");
+
+  // Then initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/startup',
+  initialLocation: '/home',
 
   // routes of the pages
   routes: [
@@ -103,28 +112,30 @@ final GoRouter _router = GoRouter(
     ),
 
     //shell route for main screen
-    ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: '/chatbot',
-        builder: (context, state) => const ChatBot(),
-      ),
-      GoRoute(
-        path: '/analytics',
-        builder: (context, state) => const AnalyticsPage(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => ProfilePage(),
-      ),
-      GoRoute(
-        path: '/forecasting',
-        builder: (context, state) => ForecastingPage(),
-      ),
-    ])
+    ShellRoute(
+        builder: (context, state, child) => MainScreen(child: child),
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: '/chatbot',
+            builder: (context, state) => const ChatBot(),
+          ),
+          GoRoute(
+            path: '/analytics',
+            builder: (context, state) => AnalyticsPage(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => ProfilePage(),
+          ),
+          GoRoute(
+            path: '/forecasting',
+            builder: (context, state) => ForecastingPage(),
+          ),
+        ])
   ],
 );
 
@@ -136,7 +147,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      theme: ThemeData(scaffoldBackgroundColor: const Color(0xFF121212), appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
+      theme: ThemeData(
+          scaffoldBackgroundColor: const Color(0xFF121212),
+          appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
     );
