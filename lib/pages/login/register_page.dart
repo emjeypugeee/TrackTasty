@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/my_textfield.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -53,7 +53,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await _createUserDocument(userCredential);
 
       if (!mounted) return;
-      context.go('/login'); // Redirect to login after success
+      context.go('/preference1'); // Redirect to login after success
       _showSuccess('Account created successfully!');
     } on FirebaseAuthException catch (e) {
       _showError(e.code);
@@ -90,7 +90,7 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.backButton),
-          onPressed: () => context.pop(), // GoRouter back navigation
+          onPressed: () => context.go('/startup'), // GoRouter back navigation
         ),
         backgroundColor: AppColors.loginPagesBg,
       ),

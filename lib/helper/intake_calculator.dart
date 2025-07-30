@@ -53,7 +53,8 @@ class UserNutritionCalculator {
     } else if (userData['goal'] == 'Gain Weight') {
       // Moderate surplus of 20% for weight gain
       calorieTarget = tdee * 1.2;
-    } else { // Maintain weight
+    } else {
+      // Maintain weight
       calorieTarget = tdee;
     }
   }

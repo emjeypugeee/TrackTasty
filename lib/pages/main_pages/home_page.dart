@@ -1,6 +1,5 @@
-import 'package:fitness/main_screen_widgets/home_screen/circular_day_progress.dart';
-import 'package:fitness/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
-import 'package:fitness/main_screen_widgets/home_screen/meals_container.dart';
+import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
+import 'package:fitness/widgets/main_screen_widgets/home_screen/meals_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

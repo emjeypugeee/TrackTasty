@@ -1,9 +1,12 @@
-import 'package:fitness/components/my_buttons.dart';
-import 'package:fitness/components/square_tile.dart';
+import 'dart:io';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:fitness/widgets/components/square_tile.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lottie/lottie.dart';
 
 class StartupPage extends StatefulWidget {
   const StartupPage({super.key});
@@ -16,12 +19,14 @@ class _StartupPageState extends State<StartupPage> {
   @override
   void initState() {
     super.initState();
-    // Example: check auth and redirect
+    // Ensure the user is redirected to home page if already logged in
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       Future.microtask(() => context.go('/home'));
     }
   }
+
+  var duration = const Duration(seconds: 5);
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +45,7 @@ class _StartupPageState extends State<StartupPage> {
               MyButtons(
                 text: 'Sign-up',
                 onTap: () {
-                  context.push('/register');
+                  context.go('/register');
                 },
               ),
 
@@ -50,8 +55,9 @@ class _StartupPageState extends State<StartupPage> {
 
               //Already have an account text
               GestureDetector(
-                onTap: () {
-                  context.push('/login');
+                onTap: () async {
+                  await FirebaseAuth.instance.signOut();
+                  context.go('/login');
                 },
                 child: const Text(
                   'I already have an account.',

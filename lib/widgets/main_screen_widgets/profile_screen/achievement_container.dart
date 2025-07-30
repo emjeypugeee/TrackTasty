@@ -14,7 +14,6 @@ class AchievementContainer extends StatelessWidget {
         color: AppColors.containerBg,
         borderRadius: BorderRadius.circular(20),
       ),
-
     );
   }
 }

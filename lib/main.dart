@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:fitness/components/main_screen.dart';
+import 'package:fitness/animations/fade_out_page_transition.dart';
+import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
 import 'package:fitness/firebase_options.dart';
 import 'package:fitness/pages/login/forgetpassword_page.dart';
 import 'package:fitness/pages/login/startup_page.dart';
@@ -18,36 +19,97 @@ import 'package:fitness/pages/preference/userpreference_5.dart';
 import 'package:fitness/pages/preference/userpreference_6.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Load environment variables FIRST
+  await dotenv.load(fileName: ".env");
+
+  // Then initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/startup',
+  initialLocation: '/home',
 
   // routes of the pages
   routes: [
-    GoRoute(path: '/startup', builder: (context, state) => StartupPage()),
-    GoRoute(path: '/login', builder: (context, state) => LoginPage()),
-    GoRoute(path: '/register', builder: (context, state) => RegisterPage()),
     GoRoute(
-        path: '/forgetpassword',
-        builder: (context, state) => ForgetpasswordPage()),
+      path: '/startup',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: StartupPage(),
+        key: state.pageKey,
+      ),
+    ),
     GoRoute(
-        path: '/preference1', builder: (context, state) => Userpreference1()),
+      path: '/login',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: LoginPage(),
+        key: state.pageKey,
+      ),
+    ),
     GoRoute(
-        path: '/preference2', builder: (context, state) => Userpreference2()),
+      path: '/register',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: RegisterPage(),
+        key: state.pageKey,
+      ),
+    ),
     GoRoute(
-        path: '/preference3', builder: (context, state) => Userpreference3()),
+      path: '/forgetpassword',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: ForgetpasswordPage(),
+        key: state.pageKey,
+      ),
+    ),
     GoRoute(
-        path: '/preference4', builder: (context, state) => Userpreference4()),
+      path: '/preference1',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference1(),
+        key: state.pageKey,
+      ),
+    ),
     GoRoute(
-        path: '/preference5', builder: (context, state) => Userpreference5()),
+      path: '/preference2',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference2(),
+        key: state.pageKey,
+      ),
+    ),
     GoRoute(
-        path: '/preference6', builder: (context, state) => Userpreference6()),
+      path: '/preference3',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference3(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/preference4',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference4(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/preference5',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference5(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/preference6',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference6(),
+        key: state.pageKey,
+      ),
+    ),
 
     //shell route for main screen
     ShellRoute(
@@ -63,7 +125,7 @@ final GoRouter _router = GoRouter(
           ),
           GoRoute(
             path: '/analytics',
-            builder: (context, state) => const AnalyticsPage(),
+            builder: (context, state) => AnalyticsPage(),
           ),
           GoRoute(
             path: '/profile',
