@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -54,6 +56,11 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final selectedIndex = _selectedIndexFromLocation(context);
 
+    /*
+     * +++++++++++++++++++++++++++
+     * SIDE NAVIGATION BAR SECTION
+     * +++++++++++++++++++++++++++
+     */
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -166,6 +173,11 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
+      /*
+       *  +++++++++++++++++++++++++++++
+       *  BOTTOM NAVIGATION BAR SECTION
+       *  +++++++++++++++++++++++++++++
+       */
       body: _routes[selectedIndex] == '/home'
           ? HomePage(key: homePageKey) // Render HomePage when on the home route
           : widget.child,
@@ -204,7 +216,11 @@ class _MainScreenState extends State<MainScreen> {
         ],
       ),
 
-      //FAB
+      /*
+       *  ++++++++++++++++++++++++++++++
+       *  FLOATING ACTION BUTTON SECTION
+       *  ++++++++++++++++++++++++++++++
+       */
       floatingActionButton: SpeedDial(
         icon: Icons.add,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -217,9 +233,18 @@ class _MainScreenState extends State<MainScreen> {
         overlayOpacity: 0.4,
         closeManually: false,
         shape: const CircleBorder(),
-        // Various option for meal logging
+        /*
+         *  VARIOUS MEAL LOGGING OPTIONS
+         *  1. Scan food using camera
+         *  2. Add food manually
+         *  3. Search food in database
+         */
         children: [
-          // Meal logging through camera
+          /*
+           *  +++++++++++++++++++++++++++++++++++
+           *  1. MEAL LOGGING THROUGH CAMERA SCAN
+           *  +++++++++++++++++++++++++++++++++++
+           */
           SpeedDialChild(
             child: const Icon(Icons.camera_alt, color: Colors.white),
             label: 'Scan food',
@@ -228,13 +253,11 @@ class _MainScreenState extends State<MainScreen> {
             backgroundColor: Colors.grey[600],
             onTap: () async => await FirebaseAuth.instance.signOut(),
           ),
-          /*************************************************************
-          *                                                            *
-          *                        MEAL LOGGING                        *
-          *                          THROUGH                           *    
-          *                        MANUAL INPUT                        *
-          *                                                            *
-          **************************************************************/
+          /*
+           *  ++++++++++++++++++++++++++++++++++++
+           *  2. MEAL LOGGING THROUGH MANUAL INPUT
+           *  ++++++++++++++++++++++++++++++++++++
+           */
           SpeedDialChild(
             child: const Icon(Icons.food_bank, color: Colors.white),
             label: 'Add food manually',
@@ -242,6 +265,13 @@ class _MainScreenState extends State<MainScreen> {
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
             onTap: () {
+              // Controllers for user input
+              final mealNameController = TextEditingController();
+              final caloriesController = TextEditingController();
+              final proteinController = TextEditingController();
+              final carbsController = TextEditingController();
+              final fatController = TextEditingController();
+
               showModalBottomSheet(
                 context: context,
                 isScrollControlled: true,
@@ -251,13 +281,6 @@ class _MainScreenState extends State<MainScreen> {
                   side: BorderSide(color: AppColors.primaryText, width: 2),
                 ),
                 builder: (context) {
-                  // Controllers for user input
-                  final mealNameController = TextEditingController();
-                  final caloriesController = TextEditingController();
-                  final proteinController = TextEditingController();
-                  final carbsController = TextEditingController();
-                  final fatController = TextEditingController();
-
                   return Padding(
                     padding: EdgeInsets.only(
                       left: 20,
@@ -289,6 +312,7 @@ class _MainScreenState extends State<MainScreen> {
                           Row(
                             children: [
                               Expanded(
+                                // Calories Input
                                 child: MacroInput(
                                   icon: Icons.local_fire_department,
                                   label: 'Calories',
@@ -297,6 +321,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
+                                // Protein Input
                                 child: MacroInput(
                                   icon: Icons.set_meal,
                                   label: 'Protein',
@@ -309,6 +334,7 @@ class _MainScreenState extends State<MainScreen> {
                           Row(
                             children: [
                               Expanded(
+                                // Carbs Input
                                 child: MacroInput(
                                   icon: Icons.grass,
                                   label: 'Carbs',
@@ -317,6 +343,7 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
+                                // Fats Input
                                 child: MacroInput(
                                   icon: Icons.icecream,
                                   label: 'Fats',
@@ -340,8 +367,32 @@ class _MainScreenState extends State<MainScreen> {
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),
                               ),
-                              onPressed: () {
-                                // Collect input and pass to HomePage
+                              onPressed: () async {
+                                /*
+                                 * SAVING THE FOOD LOG TO FIREBASE
+                                 */
+                                final user = FirebaseAuth.instance.currentUser;
+                                if (user != null) {
+                                  await FirebaseFirestore.instance
+                                      .collection('food_logs')
+                                      .add({
+                                    'userId': user.uid, // Add user reference
+                                    'imageUrl': 'assets/images/meal.jpg',
+                                    'mealName': mealNameController.text,
+                                    'calories':
+                                        int.tryParse(caloriesController.text) ??
+                                            0,
+                                    'protein':
+                                        int.tryParse(proteinController.text) ??
+                                            0,
+                                    'carbs':
+                                        int.tryParse(carbsController.text) ?? 0,
+                                    'fat':
+                                        int.tryParse(fatController.text) ?? 0,
+                                    'loggedTime': DateTime.now(),
+                                  });
+                                }
+                                /*
                                 final meal = {
                                   'imageUrl':
                                       'assets/images/meal.jpg', // Default image
@@ -358,9 +409,8 @@ class _MainScreenState extends State<MainScreen> {
                                 };
 
                                 // Call the addMeal method in HomePage
-                                print(
-                                    'homePageKey.currentState: ${homePageKey.currentState}');
                                 homePageKey.currentState?.addMeal(meal);
+                                */
 
                                 Navigator.pop(context);
                               },
@@ -376,7 +426,11 @@ class _MainScreenState extends State<MainScreen> {
               );
             },
           ),
-          // Meal logging through searching food database
+          /*
+           *  ++++++++++++++++++++++++++++++++++++++++
+           *  3. MEAL LOGGING THROUGH DATABASE SEARCH
+           *  ++++++++++++++++++++++++++++++++++++++++
+           */
           SpeedDialChild(
             child: const Icon(Icons.search, color: Colors.white),
             label: 'Search food',

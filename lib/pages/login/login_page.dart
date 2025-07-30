@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
         if (_formKey.currentState!.validate()) {
           Navigator.pop(context);
           sleep(Durations.medium4);
-          context.push('/preference1');
+          context.push('/home');
         }
       }
 

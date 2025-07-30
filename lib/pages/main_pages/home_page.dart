@@ -4,6 +4,8 @@ import 'package:fitness/main_screen_widgets/home_screen/meals_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final GlobalKey<_HomePageState> homePageKey = GlobalKey<_HomePageState>();
 
@@ -67,7 +69,11 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
-                // Calendar for the last 7 days
+                /*
+                 *  +++++++++++++++++
+                 *  CALENDAR SECTION
+                 *  +++++++++++++++++
+                 */
                 SizedBox(
                   height: 80,
                   child: ListView.builder(
@@ -142,7 +148,11 @@ class _HomePageState extends State<HomePage> {
                     },
                   ),
                 ),
-                // Nutrition progress for selected day
+                /*
+                 *  +++++++++++++++++++++++++++++++
+                 *  NUTRITION PROGRESS BARS SECTION
+                 *  +++++++++++++++++++++++++++++++
+                 */
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -202,7 +212,11 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
 
-                // Meals Section
+                /*
+                 *  +++++++++++++++++
+                 *  MEALS LOG SECTION
+                 *  +++++++++++++++++
+                 */
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -215,20 +229,84 @@ class _HomePageState extends State<HomePage> {
                 ),
 
                 // Render meals dynamically
-                ...meals.map((meal) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: MealsContainer(
-                      imageUrl: meal['imageUrl'],
-                      mealName: meal['mealName'],
-                      calories: meal['calories'],
-                      protein: meal['protein'],
-                      carbs: meal['carbs'],
-                      fat: meal['fat'],
-                      loggedTime: meal['loggedTime'],
-                    ),
-                  );
-                }).toList(),
+                StreamBuilder<User?>(
+                  stream: FirebaseAuth.instance.authStateChanges(),
+                  builder: (context, userSnapshot) {
+                    final user = userSnapshot.data;
+                    if (user == null) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Please log in to see your meals.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      );
+                    }
+
+                    final selectedDay = days[selectedIndex];
+                    final startOfDay = DateTime(
+                        selectedDay.year, selectedDay.month, selectedDay.day);
+                    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('food_logs')
+                          .where('userId', isEqualTo: user.uid)
+                          .where('loggedTime',
+                              isGreaterThanOrEqualTo: startOfDay)
+                          .where('loggedTime', isLessThan: endOfDay)
+                          .orderBy('loggedTime', descending: true)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'Error: ${snapshot.error}',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          );
+                        }
+                        if (!snapshot.hasData) {
+                          return const SizedBox(); // or a loading indicator
+                        }
+                        if (snapshot.data!.docs.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                              'No meals logged yet.',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          );
+                        }
+                        final meals = snapshot.data!.docs;
+                        return Column(
+                          children: meals.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: MealsContainer(
+                                imageUrl: data['imageUrl'] ?? '',
+                                mealName: data['mealName'] ?? '',
+                                calories: data['calories'] ?? 0,
+                                protein: data['protein'] ?? 0,
+                                carbs: data['carbs'] ?? 0,
+                                fat: data['fat'] ?? 0,
+                                loggedTime:
+                                    (data['loggedTime'] as Timestamp).toDate(),
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    );
+                  },
+                ),
               ],
             ),
           ),

@@ -22,9 +22,17 @@ class MealsContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 350;
+    final isMedium = screenWidth < 500;
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isSmall
+          ? 10
+          : isMedium
+              ? 14
+              : 20),
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
@@ -43,8 +51,16 @@ class MealsContainer extends StatelessWidget {
             children: [
               // Meal Image
               Container(
-                width: 64,
-                height: 64,
+                width: isSmall
+                    ? 40
+                    : isMedium
+                        ? 52
+                        : 64,
+                height: isSmall
+                    ? 40
+                    : isMedium
+                        ? 52
+                        : 64,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -56,7 +72,12 @@ class MealsContainer extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(
+                  width: isSmall
+                      ? 6
+                      : isMedium
+                          ? 10
+                          : 16),
               // Meal Info
               Expanded(
                 child: Column(
@@ -65,33 +86,50 @@ class MealsContainer extends StatelessWidget {
                     const SizedBox(height: 4), // for spacing below the time
                     Text(
                       mealName,
-                      style: const TextStyle(
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: isSmall
+                            ? 18
+                            : isMedium
+                                ? 20
+                                : 23,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
                       children: [
                         _MacroChip(
                             label: 'Calories',
                             value: calories,
-                            color: Colors.orange),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
+                            color: Colors.orange,
+                            fontSize: isSmall ? 8 : 10),
                         _MacroChip(
                             label: 'Protein',
                             value: protein,
-                            color: Colors.blue),
+                            color: Colors.blue,
+                            fontSize: isSmall ? 8 : 10),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
                         _MacroChip(
-                            label: 'Carbs', value: carbs, color: Colors.green),
+                            label: 'Carbs',
+                            value: carbs,
+                            color: Colors.green,
+                            fontSize: isSmall ? 8 : 10),
                         _MacroChip(
-                            label: 'Fats', value: fat, color: Colors.purple),
+                            label: 'Fats',
+                            value: fat,
+                            color: Colors.purple,
+                            fontSize: isSmall ? 8 : 10),
                       ],
                     ),
                   ],
@@ -107,7 +145,7 @@ class MealsContainer extends StatelessWidget {
               '${TimeOfDay.fromDateTime(loggedTime).format(context)}',
               style: TextStyle(
                 color: Colors.grey[400],
-                fontSize: 12,
+                fontSize: isSmall ? 10 : 12,
               ),
             ),
           ),
@@ -121,28 +159,30 @@ class _MacroChip extends StatelessWidget {
   final String label;
   final int value;
   final Color color;
+  final double fontSize;
 
   const _MacroChip({
     required this.label,
     required this.value,
     required this.color,
+    this.fontSize = 10,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(right: 8, bottom: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '$label: $value',
+        '$label: $value\g',
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: fontSize,
         ),
       ),
     );

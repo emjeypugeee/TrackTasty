@@ -3,13 +3,25 @@ import 'package:fitness/components/square_tile.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class StartupPage extends StatelessWidget {
-// onTap method to register page
+class StartupPage extends StatefulWidget {
+  const StartupPage({super.key});
 
-  const StartupPage({
-    super.key,
-  });
+  @override
+  State<StartupPage> createState() => _StartupPageState();
+}
+
+class _StartupPageState extends State<StartupPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Example: check auth and redirect
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      Future.microtask(() => context.go('/home'));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
