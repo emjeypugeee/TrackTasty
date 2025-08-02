@@ -3,6 +3,8 @@ import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutriti
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+final GlobalKey<_HomePageState> homePageKey = GlobalKey<_HomePageState>();
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -29,11 +31,23 @@ class _HomePageState extends State<HomePage> {
   final int carbsGoal = 250;
   final int fatGoal = 56;
 
+  // Storing meal data
+  final List<Map<String, dynamic>> meals = [];
+
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     days = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
+  }
+
+  // Method to add a new meal
+  void addMeal(Map<String, dynamic> meal) {
+    setState(() {
+      meals.add(meal);
+      print('Meal added: $meal');
+      print('Current meals: $meals');
+    });
   }
 
   @override
@@ -46,142 +60,151 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            // Calendar for the last 7 days
-            SizedBox(
-              height: 80,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: days.length,
-                itemBuilder: (context, index) {
-                  final date = days[index];
-                  final isSelected = index == selectedIndex;
-                  final dayCalories = nutritionData[index]['calories'] as int;
-                  final dayProtein = nutritionData[index]['protein'] as int;
-                  final dayCarbs = nutritionData[index]['carbs'] as int;
-                  final dayFat = nutritionData[index]['fat'] as int;
-                  // Check if the goal is reached
-                  final reachedGoal = dayCalories >= calorieGoal;
-                  final reachedMacroGoal = reachedGoal &&
-                      dayProtein >= proteinGoal &&
-                      dayCarbs >= carbsGoal &&
-                      dayFat >= fatGoal;
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              // Calendar for the last 7 days
+              SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: days.length,
+                  itemBuilder: (context, index) {
+                    final date = days[index];
+                    final isSelected = index == selectedIndex;
+                    final dayCalories = nutritionData[index]['calories'] as int;
+                    final dayProtein = nutritionData[index]['protein'] as int;
+                    final dayCarbs = nutritionData[index]['carbs'] as int;
+                    final dayFat = nutritionData[index]['fat'] as int;
+                    // Check if the goal is reached
+                    final reachedGoal = dayCalories >= calorieGoal;
+                    final reachedMacroGoal = reachedGoal &&
+                        dayProtein >= proteinGoal &&
+                        dayCarbs >= carbsGoal &&
+                        dayFat >= fatGoal;
 
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        selectedIndex = index;
-                      });
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? (reachedMacroGoal
-                                ? Colors.green
-                                : (reachedGoal
-                                    ? const Color.fromARGB(255, 150, 136, 17)
-                                    : Colors.red))
-                            : Colors.grey[850],
-                        borderRadius: BorderRadius.circular(12),
-                        border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            dayFormat.format(date),
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey[400],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedIndex = index;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? (reachedMacroGoal
+                                  ? Colors.green
+                                  : (reachedGoal
+                                      ? const Color.fromARGB(255, 150, 136, 17)
+                                      : Colors.red))
+                              : Colors.grey[850],
+                          borderRadius: BorderRadius.circular(12),
+                          border: isSelected
+                              ? Border.all(color: Colors.white, width: 2)
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              dayFormat.format(date),
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey[400],
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            dateFormat.format(date),
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey[400],
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                            const SizedBox(height: 4),
+                            Text(
+                              dateFormat.format(date),
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey[400],
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Nutrition progress for selected day
-            Row(
-              children: [
-                // Calories
-                Builder(builder: (context) {
-                  final calorieDiff = calorieGoal - (data['calories'] as int);
-                  final calorieOver = calorieDiff < 0;
-                  return CircularNutritionProgres(
-                    progress: (data['calories'] as int) / calorieGoal,
-                    value: '${calorieOver ? -calorieDiff : calorieDiff}g',
-                    label: calorieOver ? 'Calories over' : 'Calories remaining',
-                    overGoal: (data['calories'] as int) > calorieGoal,
-                  );
-                }),
-                const SizedBox(width: 10),
-                // Protein
-                Builder(builder: (context) {
-                  final proteinDiff = proteinGoal - (data['protein'] as int);
-                  final proteinOver = proteinDiff < 0;
-                  return CircularNutritionProgres(
-                    progress: (data['protein'] as int) / proteinGoal,
-                    value: '${proteinOver ? -proteinDiff : proteinDiff}g',
-                    label: proteinOver ? 'Protein over' : 'Protein remaining',
-                  );
-                }),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                // Carbs
-                Builder(builder: (context) {
-                  final carbsDiff = carbsGoal - (data['carbs'] as int);
-                  final carbsOver = carbsDiff < 0;
-                  return CircularNutritionProgres(
-                    progress: (data['carbs'] as int) / carbsGoal,
-                    value: '${carbsOver ? -carbsDiff : carbsDiff}g',
-                    label: carbsOver ? 'Carbs over' : 'Carbs remaining',
-                  );
-                }),
-                const SizedBox(width: 10),
-                // Fat
-                Builder(builder: (context) {
-                  final fatDiff = fatGoal - (data['fat'] as int);
-                  final fatOver = fatDiff < 0;
-                  return CircularNutritionProgres(
-                    progress: (data['fat'] as int) / fatGoal,
-                    value: '${fatOver ? -fatDiff : fatDiff}g',
-                    label: fatOver ? 'Fat over' : 'Fat remaining',
-                  );
-                }),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  'Meals:',
-                  textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 35),
+                    );
+                  },
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 20),
+              // Nutrition progress for selected day
+              Row(
+                children: [
+                  // Calories
+                  Builder(builder: (context) {
+                    final calorieDiff = calorieGoal - (data['calories'] as int);
+                    final calorieOver = calorieDiff < 0;
+                    return CircularNutritionProgres(
+                      progress: (data['calories'] as int) / calorieGoal,
+                      value: '${calorieOver ? -calorieDiff : calorieDiff}g',
+                      label:
+                          calorieOver ? 'Calories over' : 'Calories remaining',
+                      overGoal: (data['calories'] as int) > calorieGoal,
+                    );
+                  }),
+                  const SizedBox(width: 10),
+                  // Protein
+                  Builder(builder: (context) {
+                    final proteinDiff = proteinGoal - (data['protein'] as int);
+                    final proteinOver = proteinDiff < 0;
+                    return CircularNutritionProgres(
+                      progress: (data['protein'] as int) / proteinGoal,
+                      value: '${proteinOver ? -proteinDiff : proteinDiff}g',
+                      label: proteinOver ? 'Protein over' : 'Protein remaining',
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  // Carbs
+                  Builder(builder: (context) {
+                    final carbsDiff = carbsGoal - (data['carbs'] as int);
+                    final carbsOver = carbsDiff < 0;
+                    return CircularNutritionProgres(
+                      progress: (data['carbs'] as int) / carbsGoal,
+                      value: '${carbsOver ? -carbsDiff : carbsDiff}g',
+                      label: carbsOver ? 'Carbs over' : 'Carbs remaining',
+                    );
+                  }),
+                  const SizedBox(width: 10),
+                  // Fat
+                  Builder(builder: (context) {
+                    final fatDiff = fatGoal - (data['fat'] as int);
+                    final fatOver = fatDiff < 0;
+                    return CircularNutritionProgres(
+                      progress: (data['fat'] as int) / fatGoal,
+                      value: '${fatOver ? -fatDiff : fatDiff}g',
+                      label: fatOver ? 'Fat over' : 'Fat remaining',
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Text(
+                    'Meals:',
+                    textAlign: TextAlign.start,
+                    style: TextStyle(color: Colors.white, fontSize: 35),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
-import 'package:fitness/widgets/components/gender_button.dart';
 import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
@@ -16,17 +15,16 @@ class Userpreference3 extends StatefulWidget {
   State<Userpreference3> createState() => _Userpreference3();
 }
 
-enum Gender { male, female }
-
 class _Userpreference3 extends State<Userpreference3> {
-  Gender? selectedGender;
   int selectedIndex = -1; // Track selected button (-1 means no selection)
 
-  //selectable activity button values
+  //selectable goal button values
   final List<Map<String, String>> activityLevels = [
-    {'title': 'Lose Weight'},
+    {'title': 'Mild Lose Weight', 'subtitle': '0.5 lb (0.25 kg) per week'},
+    {'title': 'Lose Weight', 'subtitle': '1 lb (0.5 kg) per week'},
     {'title': 'Maintain Weight'},
-    {'title': 'Gain Weight'},
+    {'title': 'Mild Gain Weight', 'subtitle': '0.5 lb (0.25 kg) per week'},
+    {'title': 'Gain Weight', 'subtitle': '1 lb (0.5 kg) per week'},
   ];
 
   // Save user preferences to Firestore
@@ -34,7 +32,6 @@ class _Userpreference3 extends State<Userpreference3> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
       await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'gender': selectedGender?.name,
         'goal': activityLevels[selectedIndex]['title'],
         'dateAccountCreated': DateTime.now().year,
       }, SetOptions(merge: true));
@@ -86,45 +83,13 @@ class _Userpreference3 extends State<Userpreference3> {
                     ),
 
                     Text(
-                      'Please select your gender: \n',
-                      style: TextStyle(color: Colors.white),
-                    ),
-
-                    // ---------------------
-                    // Gender Selection
-                    // ---------------------
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        GenderIcon(
-                            isSelected: selectedGender == Gender.male,
-                            iconData: Icons.male,
-                            onTap: () =>
-                                setState(() => selectedGender = Gender.male),
-                            selectedColor: Colors.blue[800]!),
-                        SizedBox(
-                          width: 40,
-                        ),
-                        GenderIcon(
-                            isSelected: selectedGender == Gender.female,
-                            iconData: Icons.female,
-                            onTap: () =>
-                                setState(() => selectedGender = Gender.female),
-                            selectedColor: Colors.pink[800]!)
-                      ],
-                    ),
-
-                    SizedBox(
-                      height: 50,
-                    ),
-
-                    Text(
                       'Select your goal on this application: \n',
                       style: TextStyle(color: Colors.white),
                     ),
 
-                    //selectable activity buttons
+                    // ---------------------
+                    // Weight Goal Selection
+                    // ---------------------
                     Column(
                       children: List.generate(activityLevels.length, (index) {
                         return Selectableactivitybutton(
@@ -166,7 +131,7 @@ class _Userpreference3 extends State<Userpreference3> {
                     child: MyButtons(
                       text: 'Next',
                       onTap: () async {
-                        if (selectedIndex == -1 && selectedGender == null) {
+                        if (selectedIndex == -1) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                             content: Text('Please select your gender and goal'),
                             backgroundColor: AppColors.snackBarBgError,

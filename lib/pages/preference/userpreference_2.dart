@@ -44,13 +44,17 @@ class _Userpreference2 extends State<Userpreference2> {
 
   //selectable acitvity button values
   final List<Map<String, String>> activityLevels = [
-    {'title': 'Not very active', 'subtitle': '(little or no exercise)'},
-    {'title': 'Lightly active', 'subtitle': '(light exercise 1-3 days/week)'},
+    {'title': 'Sedentary', 'subtitle': '(little or no exercise)'},
+    {'title': 'Lightly active', 'subtitle': '(exercise 1-3 days/week)'},
     {
       'title': 'Moderately active',
-      'subtitle': '(moderate exercise 3-5 days/week)'
+      'subtitle': '(moderate exercise 4-5 days/week)'
     },
     {'title': 'Very active', 'subtitle': '(intense exercise 6-7 days/week)'},
+    {
+      'title': 'Extra active',
+      'subtitle': '(very intense exercise, or physical job)'
+    },
   ];
 
   //saving activity levels thru firebase
@@ -110,6 +114,10 @@ class _Userpreference2 extends State<Userpreference2> {
                       style: TextStyle(color: Colors.white),
                     ),
                     SizedBox(height: 30),
+
+                    // ------------------------
+                    // Activity Level Selection
+                    // ------------------------
                     Column(
                       children: List.generate(activityLevels.length, (index) {
                         return Selectableactivitybutton(

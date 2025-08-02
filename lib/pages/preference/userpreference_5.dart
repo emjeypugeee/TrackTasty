@@ -78,6 +78,9 @@ class _Userpreference5 extends State<Userpreference5> {
                       height: 20,
                     ),
 
+                    // ---------------------
+                    // Dietary Preference Input
+                    // ---------------------
                     Text(
                       'Thanks! Now let'
                       's talk about on what is your dietary preferences.',
@@ -86,7 +89,7 @@ class _Userpreference5 extends State<Userpreference5> {
                       ),
                     ),
                     SizedBox(
-                      height: 100,
+                      height: 70,
                     ),
 
                     Column(

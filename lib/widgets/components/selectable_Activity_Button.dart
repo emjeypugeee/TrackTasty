@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fitness/theme/app_color.dart';
 
 class Selectableactivitybutton extends StatelessWidget {
   final String title;
@@ -21,8 +22,12 @@ class Selectableactivitybutton extends StatelessWidget {
       child: Container(
         margin: EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
-          color: isSelected ? Color(0xFF352C4D) : Color(0xFF65558F),
-          borderRadius: BorderRadius.circular(50),
+          color: AppColors.radioButtonColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.buttonColor : Colors.transparent,
+            width: 2,
+          ),
         ),
         padding: const EdgeInsets.all(15),
         child: Center(
