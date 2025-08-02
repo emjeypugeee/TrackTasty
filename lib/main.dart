@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/animations/fade_out_page_transition.dart';
+import 'package:fitness/pages/preference/userpreference_7.dart';
 import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
 import 'package:fitness/firebase_options.dart';
 import 'package:fitness/pages/login/forgetpassword_page.dart';
@@ -107,6 +108,13 @@ final GoRouter _router = GoRouter(
       path: '/preference6',
       pageBuilder: (context, state) => FadeOutPageTransition(
         child: Userpreference6(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/preference7',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: Userpreference7(),
         key: state.pageKey,
       ),
     ),

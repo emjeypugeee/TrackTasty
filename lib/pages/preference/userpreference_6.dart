@@ -116,22 +116,45 @@ class _Userpreference6 extends State<Userpreference6> {
             SizedBox(
               height: 20,
             ),
-            //checkboxes
+
+            // ---------------------
+            // Allergens Input
+            // ---------------------
             Expanded(
                 child: ListView(
               children: allergies.map((allergy) {
-                return CheckboxListTile(
-                  title: Text(allergy, style: TextStyle(color: Colors.white)),
-                  value: selectedAllergies[allergy] ??
-                      false, // Prevents null values
-                  onChanged: (bool? value) {
-                    setState(() {
-                      selectedAllergies[allergy] = value!;
-                    });
-                  },
-                  activeColor: Colors.purpleAccent,
-                  checkColor: Colors.black,
-                );
+                return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Material(
+                      color: const Color.fromARGB(255, 32, 32, 32),
+                      borderRadius: BorderRadius.circular(20.0),
+                      clipBehavior: Clip.antiAlias,
+                      child: CheckboxListTile(
+                        title: Text(allergy,
+                            style: TextStyle(color: Colors.white)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 4.0, horizontal: 20.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          side: BorderSide(
+                            color: selectedAllergies[allergy] ?? false
+                                ? AppColors.primaryColor
+                                : Colors.transparent,
+                            width: 1.5,
+                          ),
+                        ),
+
+                        value: selectedAllergies[allergy] ??
+                            false, // Prevents null values
+                        onChanged: (bool? value) {
+                          setState(() {
+                            selectedAllergies[allergy] = value!;
+                          });
+                        },
+                        activeColor: AppColors.primaryColor,
+                        checkColor: Colors.black,
+                      ),
+                    ));
               }).toList(),
             )),
 
@@ -163,7 +186,7 @@ class _Userpreference6 extends State<Userpreference6> {
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: AppColors.snackBarBgSaved,
                         ));
-                        context.go('/home');
+                        context.go('/preference7');
                       }
                     },
                   ),

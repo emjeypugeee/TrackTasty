@@ -8,7 +8,6 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -231,7 +230,6 @@ class _MainScreenState extends State<MainScreen> {
         buttonSize: const Size.fromRadius(35),
         overlayColor: Colors.black,
         overlayOpacity: 0.4,
-        closeManually: false,
         shape: const CircleBorder(),
         /*
          *  VARIOUS MEAL LOGGING OPTIONS
@@ -251,7 +249,7 @@ class _MainScreenState extends State<MainScreen> {
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
-            onTap: () async => await FirebaseAuth.instance.signOut(),
+            onTap: () => print("Scan food tapped"),
           ),
           /*
            *  ++++++++++++++++++++++++++++++++++++
@@ -271,6 +269,7 @@ class _MainScreenState extends State<MainScreen> {
               final proteinController = TextEditingController();
               final carbsController = TextEditingController();
               final fatController = TextEditingController();
+              print('Add food manually tapped');
 
               showModalBottomSheet(
                 context: context,
@@ -392,7 +391,6 @@ class _MainScreenState extends State<MainScreen> {
                                     'loggedTime': DateTime.now(),
                                   });
                                 }
-                                /*
                                 final meal = {
                                   'imageUrl':
                                       'assets/images/meal.jpg', // Default image
@@ -410,7 +408,6 @@ class _MainScreenState extends State<MainScreen> {
 
                                 // Call the addMeal method in HomePage
                                 homePageKey.currentState?.addMeal(meal);
-                                */
 
                                 Navigator.pop(context);
                               },
@@ -437,6 +434,9 @@ class _MainScreenState extends State<MainScreen> {
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
+            onTap: () {
+              print('Search food tapped');
+            },
           ),
         ],
       ),
