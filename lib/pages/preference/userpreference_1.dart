@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:fitness/widgets/components/gender_button.dart';
 
 class Userpreference1 extends StatefulWidget {
   const Userpreference1({super.key});
@@ -19,12 +20,15 @@ class Userpreference1 extends StatefulWidget {
   State<Userpreference1> createState() => _Userpreference1();
 }
 
+enum Gender { male, female }
+
 class _Userpreference1 extends State<Userpreference1> {
+  Gender? selectedGender;
   File? image;
   bool _isLoading = false;
 
   final TextEditingController usernameController = TextEditingController();
-  final TextEditingController fullnameController = TextEditingController();
+  final TextEditingController ageController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Image picker
@@ -103,7 +107,8 @@ class _Userpreference1 extends State<Userpreference1> {
 
       await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
         'username': usernameController.text,
-        'fullname': fullnameController.text,
+        'age': ageController.text,
+        'gender': selectedGender?.name,
         'profileImage': imageUrl,
       }, SetOptions(merge: true));
 
@@ -154,74 +159,14 @@ class _Userpreference1 extends State<Userpreference1> {
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        'First, how would you want us to address you?',
+                        'What should we call you and how old are you?',
                         style: TextStyle(color: AppColors.primaryText),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
-                        'Profile Picture',
-                        style: TextStyle(color: AppColors.primaryText),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Center(
-                            child: image != null
-                                ? ClipOval(
-                                    child: Image.file(
-                                      image!,
-                                      width: 110,
-                                      height: 110,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Container(
-                                    height: 110,
-                                    width: 110,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey,
-                                      borderRadius: BorderRadius.circular(80),
-                                    ),
-                                  ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                MyButtons(
-                                    text: 'Upload photo',
-                                    onTap: () {
-                                      uploadImage(ImageSource.gallery);
-                                    }),
-                                const SizedBox(height: 5),
-                                MyButtons(
-                                    text: 'Take a picture',
-                                    onTap: () {
-                                      uploadImage(ImageSource.camera);
-                                    })
-                              ],
-                            ),
-                          )
-                        ],
-                      ),
-                      const SizedBox(height: 30),
-                      const Text(
-                        'Full Name',
-                        style: TextStyle(color: AppColors.primaryText),
-                      ),
-                      const SizedBox(height: 5),
-                      MyTextfield(
-                        hintText: 'Enter your name',
-                        obscureText: false,
-                        controller: fullnameController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
+
+                      // ---------------------
+                      // Username Input
+                      // ---------------------
                       const Text(
                         'Username',
                         style: TextStyle(color: AppColors.primaryText),
@@ -239,6 +184,64 @@ class _Userpreference1 extends State<Userpreference1> {
                         },
                       ),
                       const SizedBox(height: 20),
+
+                      // ---------------------
+                      // Age Input
+                      // ---------------------
+                      const Text(
+                        'Age',
+                        style: TextStyle(color: AppColors.primaryText),
+                      ),
+                      const SizedBox(height: 5),
+                      MyTextfield(
+                        hintText: 'Enter your age',
+                        obscureText: false,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        controller: ageController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your age';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ---------------------
+                      // Gender Selection
+                      // ---------------------
+                      Text(
+                        'Please select your gender: \n',
+                        style: TextStyle(color: Colors.white),
+                      ),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          GenderIcon(
+                              isSelected: selectedGender == Gender.male,
+                              iconData: Icons.male,
+                              onTap: () =>
+                                  setState(() => selectedGender = Gender.male),
+                              selectedColor: Colors.blue[800]!),
+                          SizedBox(
+                            width: 40,
+                          ),
+                          GenderIcon(
+                              isSelected: selectedGender == Gender.female,
+                              iconData: Icons.female,
+                              onTap: () => setState(
+                                  () => selectedGender = Gender.female),
+                              selectedColor: Colors.pink[800]!)
+                        ],
+                      ),
+
+                      SizedBox(
+                        height: 50,
+                      ),
                     ],
                   ),
                 ),
@@ -267,7 +270,7 @@ class _Userpreference1 extends State<Userpreference1> {
                                   setState(() => _isLoading = true);
                                   try {
                                     await saveNickname();
-                                    if (mounted) {
+                                    if (mounted && selectedGender != null) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
                                         content: Text('Saved!'),

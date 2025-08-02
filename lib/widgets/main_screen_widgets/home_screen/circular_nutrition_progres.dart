@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class CircularNutritionProgres extends StatelessWidget {
+class CircularNutritionProgres extends StatefulWidget {
   final double progress;
   final String value;
   final String label;
@@ -15,19 +15,64 @@ class CircularNutritionProgres extends StatelessWidget {
   });
 
   @override
+  State<CircularNutritionProgres> createState() =>
+      _CircularNutritionProgresState();
+}
+
+class _CircularNutritionProgresState extends State<CircularNutritionProgres>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  double _oldProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _oldProgress = widget.progress;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _animation =
+        Tween<double>(begin: _oldProgress, end: widget.progress).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant CircularNutritionProgres oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _oldProgress = oldWidget.progress;
+      _animation =
+          Tween<double>(begin: _oldProgress, end: widget.progress).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      );
+      _controller
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Base Progress
-    final baseProgress = progress.clamp(0.0, 1.0);
-    // Overflow progress
+    final baseProgress = widget.progress.clamp(0.0, 1.0);
     final overflowProgress =
-        progress > 1.0 ? (progress - 1.0).clamp(0.0, 1.0) : 0.0;
+        widget.progress > 1.0 ? (widget.progress - 1.0).clamp(0.0, 1.0) : 0.0;
     double screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
       width: screenWidth * 0.43,
       height: 120,
       decoration: BoxDecoration(
-        color: Color(0xFF262626),
+        color: const Color(0xFF262626),
         borderRadius: BorderRadius.circular(25.0),
       ),
       child: Row(
@@ -44,14 +89,14 @@ class CircularNutritionProgres extends StatelessWidget {
                         child: Column(
                           children: [
                             Text(
-                              value,
-                              style: TextStyle(
+                              widget.value,
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 30),
                             ),
                             Text(
-                              label,
+                              widget.label,
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.grey[600],
@@ -69,25 +114,33 @@ class CircularNutritionProgres extends StatelessWidget {
             child: SizedBox(
               height: 50,
               width: 50,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Base progress (up to goal)
-                  CircularProgressIndicator(
-                    value: baseProgress,
-                    strokeWidth: 5,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFFE99797)),
-                  ),
-                  // Overflow progress (over goal, in red)
-                  if (overflowProgress > 0)
-                    CircularProgressIndicator(
-                      value: overflowProgress,
-                      strokeWidth: 5,
-                      backgroundColor: Colors.transparent,
-                      valueColor: const AlwaysStoppedAnimation(Colors.red),
-                    ),
-                ],
+              child: AnimatedBuilder(
+                animation: _animation,
+                builder: (context, child) {
+                  final animatedBase = _animation.value.clamp(0.0, 1.0);
+                  final animatedOverflow = _animation.value > 1.0
+                      ? (_animation.value - 1.0).clamp(0.0, 1.0)
+                      : 0.0;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: animatedBase,
+                        strokeWidth: 5,
+                        backgroundColor: Colors.grey[200],
+                        valueColor:
+                            const AlwaysStoppedAnimation(Color(0xFFE99797)),
+                      ),
+                      if (animatedOverflow > 0)
+                        CircularProgressIndicator(
+                          value: animatedOverflow,
+                          strokeWidth: 5,
+                          backgroundColor: Colors.transparent,
+                          valueColor: const AlwaysStoppedAnimation(Colors.red),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ),

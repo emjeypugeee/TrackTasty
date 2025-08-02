@@ -3,10 +3,16 @@ import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+const List<Widget> units = <Widget>[
+  Text('US'),
+  Text('Metric'),
+];
 
 class Userpreference4 extends StatefulWidget {
   const Userpreference4({super.key});
@@ -24,6 +30,10 @@ class _Userpreference4 extends State<Userpreference4> {
   final TextEditingController weightController = TextEditingController();
   final TextEditingController goalWeightController = TextEditingController();
 
+  //to track the measurement system
+  final List<bool> _selectedUnits = <bool>[true, false];
+  bool isMetric = false;
+
   //saving user height, weight and goalweight
   //saving username and fullname
   Future<void> saveUserGoal() async {
@@ -33,6 +43,7 @@ class _Userpreference4 extends State<Userpreference4> {
         'height': heightController.text,
         'weight': weightController.text,
         'goalWeight': goalWeightController.text,
+        'measurementSystem': isMetric ? 'Metric' : 'US',
       }, SetOptions(merge: true));
     }
   }
@@ -85,7 +96,7 @@ class _Userpreference4 extends State<Userpreference4> {
                       ),
 
                       Text(
-                        'Next, what is your goal in using this application?',
+                        'Next, what is your height, weight, and your weight goal in using this application?',
                         style: TextStyle(
                           color: Colors.white,
                         ),
@@ -95,10 +106,49 @@ class _Userpreference4 extends State<Userpreference4> {
                         height: 20,
                       ),
 
+                      // -------------------------------------
+                      // Toggle Buttons for Measurement System
+                      // -------------------------------------
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ToggleButtons(
+                            onPressed: (int index) {
+                              setState(() {
+                                // The button that is tapped is set to true, and the others to false.
+                                for (int i = 0;
+                                    i < _selectedUnits.length;
+                                    i++) {
+                                  _selectedUnits[i] = i == index;
+                                }
+                              });
+
+                              isMetric = _selectedUnits[1];
+                              print(isMetric ? "Using Metric" : "Using US");
+                            },
+                            borderRadius:
+                                const BorderRadius.all(Radius.circular(8)),
+                            selectedBorderColor: AppColors.secondaryColor,
+                            selectedColor: Colors.white,
+                            fillColor: AppColors.primaryColor,
+                            color: Colors.red[400],
+                            constraints: const BoxConstraints(
+                              minHeight: 40.0,
+                              minWidth: 80.0,
+                            ),
+                            isSelected: _selectedUnits,
+                            children: units,
+                          ),
+                        ],
+                      ),
+
                       SizedBox(
                         height: 30,
                       ),
 
+                      // ---------------------
+                      // Height Input
+                      // ---------------------
                       Text(
                         'Height',
                         style: TextStyle(
@@ -117,8 +167,10 @@ class _Userpreference4 extends State<Userpreference4> {
                             child: MyTextfield(
                               hintText: 'Value',
                               obscureText: false,
-                              suffixText: 'cm',
                               controller: heightController,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your height';
@@ -131,13 +183,14 @@ class _Userpreference4 extends State<Userpreference4> {
                             width: 25,
                           ),
                           Container(
+                            width: 70,
                             decoration: BoxDecoration(
                               color: Color(0xFFe99797),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             padding: EdgeInsets.all(15),
                             child: Center(
-                              child: Text('   cm   '),
+                              child: Text(isMetric ? '   cm   ' : '    in    '),
                             ),
                           )
                         ],
@@ -147,6 +200,9 @@ class _Userpreference4 extends State<Userpreference4> {
                         height: 25,
                       ),
 
+                      // ---------------------
+                      // Weight Input
+                      // ---------------------
                       Text(
                         'Weight',
                         style: TextStyle(color: Colors.white),
@@ -163,7 +219,9 @@ class _Userpreference4 extends State<Userpreference4> {
                             child: MyTextfield(
                               hintText: 'Value',
                               obscureText: false,
-                              suffixText: 'kg',
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                               controller: weightController,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -177,13 +235,14 @@ class _Userpreference4 extends State<Userpreference4> {
                             width: 25,
                           ),
                           Container(
+                            width: 70,
                             decoration: BoxDecoration(
                               color: Color(0xFFe99797),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             padding: EdgeInsets.all(15),
                             child: Center(
-                              child: Text('   kg   '),
+                              child: Text(isMetric ? '   kg   ' : '   lb   '),
                             ),
                           )
                         ],
@@ -193,6 +252,9 @@ class _Userpreference4 extends State<Userpreference4> {
                         height: 30,
                       ),
 
+                      // ---------------------
+                      // Weight Goal Input
+                      // ---------------------
                       Text(
                         'What is your goal weight?',
                         style: TextStyle(color: Colors.white),
@@ -210,6 +272,9 @@ class _Userpreference4 extends State<Userpreference4> {
                             hintText: 'Value',
                             obscureText: false,
                             controller: goalWeightController,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Please your desired weight';
@@ -218,16 +283,17 @@ class _Userpreference4 extends State<Userpreference4> {
                             },
                           )),
                           SizedBox(
-                            width: 30,
+                            width: 25,
                           ),
                           Container(
+                            width: 70,
                             decoration: BoxDecoration(
                               color: Color(0xFFe99797),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             padding: EdgeInsets.all(15),
                             child: Center(
-                              child: Text('   kg   '),
+                              child: Text(isMetric ? 'kg' : 'lb'),
                             ),
                           )
                         ],
