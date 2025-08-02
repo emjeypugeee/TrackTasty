@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -7,11 +6,8 @@ import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:fitness/widgets/components/gender_button.dart';
 
 class Userpreference7 extends StatefulWidget {
   const Userpreference7({super.key});
@@ -113,20 +109,6 @@ class _Userpreference7 extends State<Userpreference7> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMacroItem(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 16)),
-          Text(value,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ],
       ),
     );
   }
