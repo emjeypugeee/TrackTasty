@@ -55,148 +55,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final selectedIndex = _selectedIndexFromLocation(context);
 
-    void _addFoodManually(BuildContext context) {
-      // Controllers for user input
-      final mealNameController = TextEditingController();
-      final caloriesController = TextEditingController();
-      final proteinController = TextEditingController();
-      final carbsController = TextEditingController();
-      final fatController = TextEditingController();
-
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: AppColors.loginPagesBg,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          side: BorderSide(color: AppColors.primaryText, width: 2),
-        ),
-        builder: (context) {
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Meal Name Input
-                  TextFormField(
-                    controller: mealNameController,
-                    decoration: InputDecoration(
-                      labelText: 'Meal Name',
-                      filled: true,
-                      fillColor: Colors.grey[850],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      labelStyle: const TextStyle(color: Colors.white),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Macros Input
-                  Row(
-                    children: [
-                      // Calories Input
-                      MacroInput(
-                        icon: Icons.local_fire_department,
-                        label: 'Calories',
-                        controller: caloriesController,
-                      ),
-                      const SizedBox(width: 10),
-                      // Protein Input
-                      MacroInput(
-                        icon: Icons.set_meal,
-                        label: 'Protein',
-                        controller: proteinController,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      // Carbs Input
-                      MacroInput(
-                        icon: Icons.grass,
-                        label: 'Carbs',
-                        controller: carbsController,
-                      ),
-                      const SizedBox(width: 10),
-                      // Fats Input
-                      MacroInput(
-                        icon: Icons.icecream,
-                        label: 'Fats',
-                        controller: fatController,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Add Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryColor,
-                        foregroundColor: AppColors.primaryText,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: () async {
-                        /*
-                       * SAVING THE FOOD LOG TO FIREBASE
-                       */
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user != null) {
-                          await FirebaseFirestore.instance
-                              .collection('food_logs')
-                              .add({
-                            'userId': user.uid, // Add user reference
-                            'imageUrl': 'assets/images/meal.jpg',
-                            'mealName': mealNameController.text,
-                            'calories':
-                                int.tryParse(caloriesController.text) ?? 0,
-                            'protein':
-                                int.tryParse(proteinController.text) ?? 0,
-                            'carbs': int.tryParse(carbsController.text) ?? 0,
-                            'fat': int.tryParse(fatController.text) ?? 0,
-                            'loggedTime': DateTime.now(),
-                          });
-                        }
-                        final meal = {
-                          'imageUrl': 'assets/images/meal.jpg', // Default image
-                          'mealName': mealNameController.text,
-                          'calories':
-                              int.tryParse(caloriesController.text) ?? 0,
-                          'protein': int.tryParse(proteinController.text) ?? 0,
-                          'carbs': int.tryParse(carbsController.text) ?? 0,
-                          'fat': int.tryParse(fatController.text) ?? 0,
-                          'loggedTime': DateTime.now(),
-                        };
-
-                        // Call the addMeal method in HomePage
-                        homePageKey.currentState?.addMeal(meal);
-
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Add', style: TextStyle(fontSize: 18)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    }
-
     /*
      * +++++++++++++++++++++++++++
      * SIDE NAVIGATION BAR SECTION
@@ -364,9 +222,6 @@ class _MainScreenState extends State<MainScreen> {
        */
       floatingActionButton: SpeedDial(
         icon: Icons.add,
-        onOpen: () => print('Speed Dial Opened'),
-        onClose: () => print('Speed Dial Closed'),
-        onPress: () => print('Speed Dial Pressed'),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         activeIcon: Icons.close,
@@ -376,33 +231,212 @@ class _MainScreenState extends State<MainScreen> {
         overlayColor: Colors.black,
         overlayOpacity: 0.4,
         shape: const CircleBorder(),
+        /*
+         *  VARIOUS MEAL LOGGING OPTIONS
+         *  1. Scan food using camera
+         *  2. Add food manually
+         *  3. Search food in database
+         */
         children: [
+          /*
+           *  +++++++++++++++++++++++++++++++++++
+           *  1. MEAL LOGGING THROUGH CAMERA SCAN
+           *  +++++++++++++++++++++++++++++++++++
+           */
           SpeedDialChild(
-            child: GestureDetector(
-              onTap: () => print('Additional tap action'),
-              child: const Icon(Icons.camera_alt, color: Colors.white),
-            ),
+            child: const Icon(Icons.camera_alt, color: Colors.white),
             label: 'Scan food',
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
-            onTap: () => print('Scan food Opened'),
+            onTap: () => print("Scan food tapped"),
           ),
+          /*
+           *  ++++++++++++++++++++++++++++++++++++
+           *  2. MEAL LOGGING THROUGH MANUAL INPUT
+           *  ++++++++++++++++++++++++++++++++++++
+           */
           SpeedDialChild(
             child: const Icon(Icons.food_bank, color: Colors.white),
             label: 'Add food manually',
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
-            onTap: () => _addFoodManually(context),
+            onTap: () {
+              // Controllers for user input
+              final mealNameController = TextEditingController();
+              final caloriesController = TextEditingController();
+              final proteinController = TextEditingController();
+              final carbsController = TextEditingController();
+              final fatController = TextEditingController();
+              print('Add food manually tapped');
+
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: AppColors.loginPagesBg,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  side: BorderSide(color: AppColors.primaryText, width: 2),
+                ),
+                builder: (context) {
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 20,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Meal Name Input
+                          TextFormField(
+                            controller: mealNameController,
+                            decoration: InputDecoration(
+                              labelText: 'Meal Name',
+                              filled: true,
+                              fillColor: Colors.grey[850],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              labelStyle: TextStyle(color: Colors.white),
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Macros Input
+                          Row(
+                            children: [
+                              Expanded(
+                                // Calories Input
+                                child: MacroInput(
+                                  icon: Icons.local_fire_department,
+                                  label: 'Calories',
+                                  controller: caloriesController,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                // Protein Input
+                                child: MacroInput(
+                                  icon: Icons.set_meal,
+                                  label: 'Protein',
+                                  controller: proteinController,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                // Carbs Input
+                                child: MacroInput(
+                                  icon: Icons.grass,
+                                  label: 'Carbs',
+                                  controller: carbsController,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                // Fats Input
+                                child: MacroInput(
+                                  icon: Icons.icecream,
+                                  label: 'Fats',
+                                  controller: fatController,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Add Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor,
+                                foregroundColor: AppColors.primaryText,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              onPressed: () async {
+                                /*
+                                 * SAVING THE FOOD LOG TO FIREBASE
+                                 */
+                                final user = FirebaseAuth.instance.currentUser;
+                                if (user != null) {
+                                  await FirebaseFirestore.instance
+                                      .collection('food_logs')
+                                      .add({
+                                    'userId': user.uid, // Add user reference
+                                    'imageUrl': 'assets/images/meal.jpg',
+                                    'mealName': mealNameController.text,
+                                    'calories':
+                                        int.tryParse(caloriesController.text) ??
+                                            0,
+                                    'protein':
+                                        int.tryParse(proteinController.text) ??
+                                            0,
+                                    'carbs':
+                                        int.tryParse(carbsController.text) ?? 0,
+                                    'fat':
+                                        int.tryParse(fatController.text) ?? 0,
+                                    'loggedTime': DateTime.now(),
+                                  });
+                                }
+                                final meal = {
+                                  'imageUrl':
+                                      'assets/images/meal.jpg', // Default image
+                                  'mealName': mealNameController.text,
+                                  'calories':
+                                      int.tryParse(caloriesController.text) ??
+                                          0,
+                                  'protein':
+                                      int.tryParse(proteinController.text) ?? 0,
+                                  'carbs':
+                                      int.tryParse(carbsController.text) ?? 0,
+                                  'fat': int.tryParse(fatController.text) ?? 0,
+                                  'loggedTime': DateTime.now(),
+                                };
+
+                                // Call the addMeal method in HomePage
+                                homePageKey.currentState?.addMeal(meal);
+
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Add',
+                                  style: TextStyle(fontSize: 18)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           ),
+          /*
+           *  ++++++++++++++++++++++++++++++++++++++++
+           *  3. MEAL LOGGING THROUGH DATABASE SEARCH
+           *  ++++++++++++++++++++++++++++++++++++++++
+           */
           SpeedDialChild(
             child: const Icon(Icons.search, color: Colors.white),
             label: 'Search food',
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
-            onTap: () => print('Search food tapped'),
+            onTap: () {
+              print('Search food tapped');
+            },
           ),
         ],
       ),
