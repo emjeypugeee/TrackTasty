@@ -102,44 +102,36 @@ class _MainScreenState extends State<MainScreen> {
                   // Macros Input
                   Row(
                     children: [
-                      Expanded(
-                        // Calories Input
-                        child: MacroInput(
-                          icon: Icons.local_fire_department,
-                          label: 'Calories',
-                          controller: caloriesController,
-                        ),
+                      // Calories Input
+                      MacroInput(
+                        icon: Icons.local_fire_department,
+                        label: 'Calories',
+                        controller: caloriesController,
                       ),
                       const SizedBox(width: 10),
-                      Expanded(
-                        // Protein Input
-                        child: MacroInput(
-                          icon: Icons.set_meal,
-                          label: 'Protein',
-                          controller: proteinController,
-                        ),
+                      // Protein Input
+                      MacroInput(
+                        icon: Icons.set_meal,
+                        label: 'Protein',
+                        controller: proteinController,
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
-                        // Carbs Input
-                        child: MacroInput(
-                          icon: Icons.grass,
-                          label: 'Carbs',
-                          controller: carbsController,
-                        ),
+                      // Carbs Input
+                      MacroInput(
+                        icon: Icons.grass,
+                        label: 'Carbs',
+                        controller: carbsController,
                       ),
                       const SizedBox(width: 10),
-                      Expanded(
-                        // Fats Input
-                        child: MacroInput(
-                          icon: Icons.icecream,
-                          label: 'Fats',
-                          controller: fatController,
-                        ),
+                      // Fats Input
+                      MacroInput(
+                        icon: Icons.icecream,
+                        label: 'Fats',
+                        controller: fatController,
                       ),
                     ],
                   ),
