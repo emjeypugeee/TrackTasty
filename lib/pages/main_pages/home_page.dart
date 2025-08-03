@@ -5,6 +5,8 @@ import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutriti
 import 'package:fitness/widgets/main_screen_widgets/home_screen/meals_container.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final GlobalKey<_HomePageState> homePageKey = GlobalKey<_HomePageState>();
 
@@ -62,238 +64,186 @@ class _HomePageState extends State<HomePage> {
     final data = nutritionData[selectedIndex];
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              // Calendar for the last 7 days
-              SizedBox(
-                height: 80,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: days.length,
-                  itemBuilder: (context, index) {
-                    final date = days[index];
-                    final isSelected = index == selectedIndex;
-                    final dayCalories = nutritionData[index]['calories'] as int;
-                    final dayProtein = nutritionData[index]['protein'] as int;
-                    final dayCarbs = nutritionData[index]['carbs'] as int;
-                    final dayFat = nutritionData[index]['fat'] as int;
-                    // Check if the goal is reached
-                    final reachedGoal = dayCalories >= calorieGoal;
-                    final reachedMacroGoal = reachedGoal &&
-                        dayProtein >= proteinGoal &&
-                        dayCarbs >= carbsGoal &&
-                        dayFat >= fatGoal;
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                /*
+                 *  +++++++++++++++++
+                 *  CALENDAR SECTION
+                 *  +++++++++++++++++
+                 */
+                SizedBox(
+                  height: 80,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: days.length,
+                    itemBuilder: (context, index) {
+                      final date = days[index];
+                      final isSelected = index == selectedIndex;
+                      final dayCalories =
+                          nutritionData[index]['calories'] as int;
+                      final dayProtein = nutritionData[index]['protein'] as int;
+                      final dayCarbs = nutritionData[index]['carbs'] as int;
+                      final dayFat = nutritionData[index]['fat'] as int;
+                      // Check if the goal is reached
+                      final reachedGoal = dayCalories >= calorieGoal;
+                      final reachedMacroGoal = reachedGoal &&
+                          dayProtein >= proteinGoal &&
+                          dayCarbs >= carbsGoal &&
+                          dayFat >= fatGoal;
 
-                    return GestureDetector(
-                      onTap: () {
-                        print("Selected day: ${dayFormat.format(date)}");
-                        setState(() {
-                          selectedIndex = index;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? (reachedMacroGoal
-                                  ? Colors.green
-                                  : (reachedGoal
-                                      ? const Color.fromARGB(255, 150, 136, 17)
-                                      : Colors.red))
-                              : Colors.grey[850],
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected
-                              ? Border.all(color: Colors.white, width: 2)
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              dayFormat.format(date),
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.grey[400],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                      return GestureDetector(
+                        onTap: () {
+                          print("Selected day: ${dayFormat.format(date)}");
+                          setState(() {
+                            selectedIndex = index;
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (reachedMacroGoal
+                                    ? Colors.green
+                                    : (reachedGoal
+                                        ? const Color.fromARGB(
+                                            255, 150, 136, 17)
+                                        : Colors.red))
+                                : Colors.grey[850],
+                            borderRadius: BorderRadius.circular(12),
+                            border: isSelected
+                                ? Border.all(color: Colors.white, width: 2)
+                                : null,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                dayFormat.format(date),
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey[400],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              dateFormat.format(date),
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : Colors.grey[400],
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(height: 4),
+                              Text(
+                                dateFormat.format(date),
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey[400],
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Nutrition progress for selected day
-              Row(
-                children: [
-                  // Calories
-                  Builder(builder: (context) {
-                    final calorieDiff = calorieGoal - (data['calories'] as int);
-                    final calorieOver = calorieDiff < 0;
-                    return CircularNutritionProgres(
-                      progress: (data['calories'] as int) / calorieGoal,
-                      value: '${calorieOver ? -calorieDiff : calorieDiff}g',
-                      label:
-                          calorieOver ? 'Calories over' : 'Calories remaining',
-                      overGoal: (data['calories'] as int) > calorieGoal,
-                    );
-                  }),
-                  const SizedBox(width: 10),
-                  // Protein
-                  Builder(builder: (context) {
-                    final proteinDiff = proteinGoal - (data['protein'] as int);
-                    final proteinOver = proteinDiff < 0;
-                    return CircularNutritionProgres(
-                      progress: (data['protein'] as int) / proteinGoal,
-                      value: '${proteinOver ? -proteinDiff : proteinDiff}g',
-                      label: proteinOver ? 'Protein over' : 'Protein remaining',
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  // Carbs
-                  Builder(builder: (context) {
-                    final carbsDiff = carbsGoal - (data['carbs'] as int);
-                    final carbsOver = carbsDiff < 0;
-                    return CircularNutritionProgres(
-                      progress: (data['carbs'] as int) / carbsGoal,
-                      value: '${carbsOver ? -carbsDiff : carbsDiff}g',
-                      label: carbsOver ? 'Carbs over' : 'Carbs remaining',
-                    );
-                  }),
-                  const SizedBox(width: 10),
-                  // Fat
-                  Builder(builder: (context) {
-                    final fatDiff = fatGoal - (data['fat'] as int);
-                    final fatOver = fatDiff < 0;
-                    return CircularNutritionProgres(
-                      progress: (data['fat'] as int) / fatGoal,
-                      value: '${fatOver ? -fatDiff : fatDiff}g',
-                      label: fatOver ? 'Fat over' : 'Fat remaining',
-                    );
-                  }),
-                ],
-              ),
-              const SizedBox(height: 10),
-              /*
+                const SizedBox(height: 20),
+                // Nutrition progress for selected day
+                Row(
+                  children: [
+                    // Calories
+                    Builder(builder: (context) {
+                      final calorieDiff =
+                          calorieGoal - (data['calories'] as int);
+                      final calorieOver = calorieDiff < 0;
+                      return CircularNutritionProgres(
+                        progress: (data['calories'] as int) / calorieGoal,
+                        value: '${calorieOver ? -calorieDiff : calorieDiff}g',
+                        label: calorieOver
+                            ? 'Calories over'
+                            : 'Calories remaining',
+                        overGoal: (data['calories'] as int) > calorieGoal,
+                      );
+                    }),
+                    const SizedBox(width: 10),
+                    // Protein
+                    Builder(builder: (context) {
+                      final proteinDiff =
+                          proteinGoal - (data['protein'] as int);
+                      final proteinOver = proteinDiff < 0;
+                      return CircularNutritionProgres(
+                        progress: (data['protein'] as int) / proteinGoal,
+                        value: '${proteinOver ? -proteinDiff : proteinDiff}g',
+                        label:
+                            proteinOver ? 'Protein over' : 'Protein remaining',
+                      );
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    // Carbs
+                    Builder(builder: (context) {
+                      final carbsDiff = carbsGoal - (data['carbs'] as int);
+                      final carbsOver = carbsDiff < 0;
+                      return CircularNutritionProgres(
+                        progress: (data['carbs'] as int) / carbsGoal,
+                        value: '${carbsOver ? -carbsDiff : carbsDiff}g',
+                        label: carbsOver ? 'Carbs over' : 'Carbs remaining',
+                      );
+                    }),
+                    const SizedBox(width: 10),
+                    // Fat
+                    Builder(builder: (context) {
+                      final fatDiff = fatGoal - (data['fat'] as int);
+                      final fatOver = fatDiff < 0;
+                      return CircularNutritionProgres(
+                        progress: (data['fat'] as int) / fatGoal,
+                        value: '${fatOver ? -fatDiff : fatDiff}g',
+                        label: fatOver ? 'Fat over' : 'Fat remaining',
+                      );
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                /*
                  *  +++++++++++++++++
                  *  MEALS LOG SECTION
                  *  +++++++++++++++++
                  */
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text(
-                    'Meals:',
-                    textAlign: TextAlign.start,
-                    style: TextStyle(color: Colors.white, fontSize: 35),
-                  ),
-                ],
-              ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text(
+                      'Meals:',
+                      textAlign: TextAlign.start,
+                      style: TextStyle(color: Colors.white, fontSize: 35),
+                    ),
+                  ],
+                ),
 
-              // Render meals dynamically
-              StreamBuilder<User?>(
-                stream: FirebaseAuth.instance.authStateChanges(),
-                builder: (context, userSnapshot) {
-                  final user = userSnapshot.data;
-                  if (user == null) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text(
-                        'Please log in to see your meals.',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    );
-                  }
-
-                  final selectedDay = days[selectedIndex];
-                  final startOfDay = DateTime(
-                      selectedDay.year, selectedDay.month, selectedDay.day);
-                  final endOfDay = startOfDay.add(const Duration(days: 1));
-
-                  return StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('food_logs')
-                        .where('userId', isEqualTo: user.uid)
-                        .where('loggedTime', isGreaterThanOrEqualTo: startOfDay)
-                        .where('loggedTime', isLessThan: endOfDay)
-                        .orderBy('loggedTime', descending: true)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Text(
-                            'Error: ${snapshot.error}',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        );
-                      }
-                      if (!snapshot.hasData) {
-                        return const SizedBox(); // or a loading indicator
-                      }
-                      if (snapshot.data!.docs.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text(
-                            'No meals logged yet.',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        );
-                      }
-                      final meals = snapshot.data!.docs;
-                      return Column(
-                        children: meals.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: MealsContainer(
-                              imageUrl: data['imageUrl'] ?? '',
-                              mealName: data['mealName'] ?? '',
-                              calories: data['calories'] ?? 0,
-                              protein: data['protein'] ?? 0,
-                              carbs: data['carbs'] ?? 0,
-                              fat: data['fat'] ?? 0,
-                              loggedTime:
-                                  (data['loggedTime'] as Timestamp).toDate(),
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
+                // Render meals dynamically
+                ...meals.map((meal) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: MealsContainer(
+                      imageUrl: meal['imageUrl'],
+                      mealName: meal['mealName'],
+                      calories: meal['calories'],
+                      protein: meal['protein'],
+                      carbs: meal['carbs'],
+                      fat: meal['fat'],
+                      loggedTime: meal['loggedTime'],
+                    ),
                   );
-                },
-              ),
-            ],
+                }).toList(),
+              ],
+            ),
           ),
-        ),
-      ),
-    );
+        ));
   }
 }
