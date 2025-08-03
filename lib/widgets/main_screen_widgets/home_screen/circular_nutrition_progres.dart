@@ -63,7 +63,9 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
 
   @override
   Widget build(BuildContext context) {
+    // Clamping the progress value to ensure it doesn't go over 1.0
     final baseProgress = widget.progress.clamp(0.0, 1.0);
+    // If the progress exceeds 1.0, calculate the overflow part
     final overflowProgress =
         widget.progress > 1.0 ? (widget.progress - 1.0).clamp(0.0, 1.0) : 0.0;
     double screenWidth = MediaQuery.of(context).size.width;
@@ -93,7 +95,7 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 30),
+                                  fontSize: 25),
                             ),
                             Text(
                               widget.label,
@@ -124,6 +126,7 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
                   return Stack(
                     alignment: Alignment.center,
                     children: [
+                      // Base progress circle
                       CircularProgressIndicator(
                         value: animatedBase,
                         strokeWidth: 5,
@@ -131,6 +134,7 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
                         valueColor:
                             const AlwaysStoppedAnimation(Color(0xFFE99797)),
                       ),
+                      // Display the overflow progress if it exists
                       if (animatedOverflow > 0)
                         CircularProgressIndicator(
                           value: animatedOverflow,

@@ -7,13 +7,25 @@ import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class StartupPage extends StatelessWidget {
-// onTap method to register page
+class StartupPage extends StatefulWidget {
+  const StartupPage({super.key});
 
-  StartupPage({
-    super.key,
-  });
+  @override
+  State<StartupPage> createState() => _StartupPageState();
+}
+
+class _StartupPageState extends State<StartupPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Example: check auth and redirect
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      Future.microtask(() => context.go('/home'));
+    }
+  }
 
   var duration = const Duration(seconds: 5);
 
