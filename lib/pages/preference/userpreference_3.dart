@@ -51,7 +51,7 @@ class _Userpreference3 extends State<Userpreference3> {
             child: LinearPercentIndicator(
               backgroundColor: Color(0xFFe8def8),
               progressColor: Color(0xFF65558F),
-              percent: 0.5,
+              percent: 0.32,
               barRadius: Radius.circular(5),
             ),
           )),
@@ -137,11 +137,6 @@ class _Userpreference3 extends State<Userpreference3> {
                             backgroundColor: AppColors.snackBarBgError,
                           ));
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Saved!'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: AppColors.snackBarBgSaved,
-                          ));
                           await saveUserPreferences();
                           context.push('/preference4');
                         }

@@ -34,6 +34,9 @@ class _Userpreference4 extends State<Userpreference4> {
   final List<bool> _selectedUnits = <bool>[true, false];
   bool isMetric = false;
 
+  // Goal
+  String? _goal = 'Maintain Weight';
+
   //saving user height, weight and goalweight
   //saving username and fullname
   Future<void> saveUserGoal() async {
@@ -45,6 +48,44 @@ class _Userpreference4 extends State<Userpreference4> {
         'goalWeight': goalWeightController.text,
         'measurementSystem': isMetric ? 'Metric' : 'US',
       }, SetOptions(merge: true));
+    }
+  }
+
+  void initState() {
+    super.initState();
+    _fetchGoalData();
+
+    // listener to sync values with the current weight
+    weightController.addListener(() {
+      if (_goal == 'Maintain Weight') {
+        goalWeightController.text = weightController.text;
+      }
+    });
+  }
+
+  Future<void> _fetchGoalData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(user.email)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        // Retrieve user data
+        _goal = data['goal'] ?? 'Maintain Weight';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching user data: $e')),
+        );
+      }
+      debugPrint('Error fetching user data: $e');
     }
   }
 
@@ -61,7 +102,7 @@ class _Userpreference4 extends State<Userpreference4> {
             child: LinearPercentIndicator(
               backgroundColor: Color(0xFFe8def8),
               progressColor: Color(0xFF65558F),
-              percent: 0.7,
+              percent: 0.48,
               barRadius: Radius.circular(5),
             ),
           )),
@@ -165,15 +206,26 @@ class _Userpreference4 extends State<Userpreference4> {
                         children: [
                           Expanded(
                             child: MyTextfield(
-                              hintText: 'Value',
+                              hintText: isMetric
+                                  ? 'Height (50-300 cm)'
+                                  : 'Height (20-120 in)',
                               obscureText: false,
                               controller: heightController,
+                              keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true),
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your height';
+                                }
+                                final height = double.tryParse(value) ?? 0;
+                                if (isMetric && (height < 50 || height > 300)) {
+                                  return 'Height should be around 50-300 cm';
+                                } else if (!isMetric &&
+                                    (height < 20 || height > 120)) {
+                                  return 'Height should be around 20-120 in';
                                 }
                                 return null;
                               },
@@ -217,7 +269,9 @@ class _Userpreference4 extends State<Userpreference4> {
                         children: [
                           Expanded(
                             child: MyTextfield(
-                              hintText: 'Value',
+                              hintText: isMetric
+                                  ? 'Weight (20-300 kg)'
+                                  : 'Height (40-660 lbs)',
                               obscureText: false,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
@@ -226,6 +280,13 @@ class _Userpreference4 extends State<Userpreference4> {
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your weight';
+                                }
+                                final weight = double.tryParse(value) ?? 0;
+                                if (isMetric && (weight < 20 || weight > 300)) {
+                                  return 'Weight should be around 20-300 kg';
+                                } else if (!isMetric &&
+                                    (weight < 40 || weight > 660)) {
+                                  return 'Weight should be around 40-660 lbs';
                                 }
                                 return null;
                               },
@@ -255,6 +316,7 @@ class _Userpreference4 extends State<Userpreference4> {
                       // ---------------------
                       // Weight Goal Input
                       // ---------------------
+
                       Text(
                         'What is your goal weight?',
                         style: TextStyle(color: Colors.white),
@@ -269,7 +331,9 @@ class _Userpreference4 extends State<Userpreference4> {
                         children: [
                           Expanded(
                               child: MyTextfield(
-                            hintText: 'Value',
+                            hintText: isMetric
+                                ? 'Weight (20-300 kg)'
+                                : 'Height (40-660 lbs)',
                             obscureText: false,
                             controller: goalWeightController,
                             inputFormatters: [
@@ -278,6 +342,32 @@ class _Userpreference4 extends State<Userpreference4> {
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Please your desired weight';
+                              }
+                              // Validate the weight input based on the measurement system
+                              final weight = double.tryParse(value) ?? 0;
+                              if (isMetric && (weight < 20 || weight > 300)) {
+                                return 'Weight should be around 20-300 kg';
+                              } else if (!isMetric &&
+                                  (weight < 40 || weight > 660)) {
+                                return 'Weight should be around 40-660 lbs';
+                              }
+                              // Validate the weight input based on the goal
+                              if (goalWeightController.text.isNotEmpty &&
+                                  weightController.text.isNotEmpty) {
+                                final goalWeight =
+                                    double.parse(goalWeightController.text);
+                                final currentWeight =
+                                    double.parse(weightController.text);
+                                if (_goal == 'Maintain Weight' &&
+                                    goalWeight != currentWeight) {
+                                  return 'Goal weight should be equal to the current weight';
+                                } else if (_goal == 'Lose Weight' &&
+                                    goalWeight >= currentWeight) {
+                                  return 'Goal weight should be less than current weight';
+                                } else if (_goal == 'Gain Weight' &&
+                                    goalWeight <= currentWeight) {
+                                  return 'Goal weight should be more than current weight';
+                                }
                               }
                               return null;
                             },
@@ -328,11 +418,6 @@ class _Userpreference4 extends State<Userpreference4> {
                         onTap: () async {
                           await saveUserGoal();
                           if (_formKey.currentState!.validate()) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Saved!'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: AppColors.snackBarBgSaved,
-                            ));
                             context.push('/preference5');
                           }
                         },

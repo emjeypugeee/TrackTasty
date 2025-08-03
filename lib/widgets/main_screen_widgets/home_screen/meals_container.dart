@@ -1,3 +1,4 @@
+import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class MealsContainer extends StatelessWidget {
@@ -106,12 +107,12 @@ class MealsContainer extends StatelessWidget {
                         _MacroChip(
                             label: 'Calories',
                             value: calories,
-                            color: Colors.orange,
+                            color: AppColors.caloriesColor,
                             fontSize: isSmall ? 8 : 10),
                         _MacroChip(
                             label: 'Protein',
                             value: protein,
-                            color: Colors.blue,
+                            color: AppColors.proteinColor,
                             fontSize: isSmall ? 8 : 10),
                       ],
                     ),
@@ -123,12 +124,12 @@ class MealsContainer extends StatelessWidget {
                         _MacroChip(
                             label: 'Carbs',
                             value: carbs,
-                            color: Colors.green,
+                            color: AppColors.carbsColor,
                             fontSize: isSmall ? 8 : 10),
                         _MacroChip(
                             label: 'Fats',
                             value: fat,
-                            color: Colors.purple,
+                            color: AppColors.fatColor,
                             fontSize: isSmall ? 8 : 10),
                       ],
                     ),
