@@ -48,7 +48,7 @@ class _Userpreference5 extends State<Userpreference5> {
           title: LinearPercentIndicator(
             backgroundColor: Color(0xFFe8def8),
             progressColor: Color(0xFF65558F),
-            percent: 0.8,
+            percent: 0.64,
             barRadius: Radius.circular(5),
           )),
       body: Padding(

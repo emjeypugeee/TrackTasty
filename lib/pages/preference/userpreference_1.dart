@@ -176,6 +176,11 @@ class _Userpreference1 extends State<Userpreference1> {
                         hintText: 'Enter your username',
                         obscureText: false,
                         controller: usernameController,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z ]')), // Letters + spaces only
+                          LengthLimitingTextInputFormatter(30), // Max 30 chars
+                        ],
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your username';
@@ -196,6 +201,7 @@ class _Userpreference1 extends State<Userpreference1> {
                       MyTextfield(
                         hintText: 'Enter your age',
                         obscureText: false,
+                        keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
@@ -203,6 +209,13 @@ class _Userpreference1 extends State<Userpreference1> {
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your age';
+                          }
+                          final age = int.tryParse(value);
+                          if (age == null) {
+                            return 'Please enter a valid number';
+                          }
+                          if (age < 10 || age > 120) {
+                            return 'Please enter a valid age (10-120)';
                           }
                           return null;
                         },
@@ -268,16 +281,29 @@ class _Userpreference1 extends State<Userpreference1> {
                             : () async {
                                 if (_formKey.currentState!.validate()) {
                                   setState(() => _isLoading = true);
+
+                                  if (selectedGender == null) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      content:
+                                          Text('Please select your gender'),
+                                      backgroundColor:
+                                          AppColors.snackBarBgError,
+                                    ));
+                                  }
                                   try {
                                     await saveNickname();
+
                                     if (mounted && selectedGender != null) {
+                                      /*
+                                      // Show success message
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
                                         content: Text('Saved!'),
                                         behavior: SnackBarBehavior.floating,
                                         backgroundColor:
                                             AppColors.snackBarBgSaved,
-                                      ));
+                                      ));*/
                                       context.push('/preference2');
                                     }
                                   } catch (_) {

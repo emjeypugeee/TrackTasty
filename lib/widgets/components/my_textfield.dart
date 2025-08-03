@@ -6,7 +6,10 @@ class MyTextfield extends StatelessWidget {
   final String hintText;
   final bool obscureText;
   final TextEditingController controller;
+  final TextInputType? keyboardType;
   final String? suffixText;
+  final bool? enabled;
+  final String? initialValue;
   final String? Function(String?)? validator;
   final List<TextInputFormatter>? inputFormatters;
 
@@ -17,6 +20,9 @@ class MyTextfield extends StatelessWidget {
       required this.controller,
       this.suffixText,
       this.validator,
+      this.keyboardType,
+      this.enabled,
+      this.initialValue,
       this.inputFormatters});
 
   @override
@@ -43,7 +49,10 @@ class MyTextfield extends StatelessWidget {
         errorStyle: TextStyle(color: Colors.red),
       ),
       obscureText: obscureText,
+      keyboardType: keyboardType ?? TextInputType.text,
       validator: validator,
+      enabled: enabled ?? true,
+      initialValue: initialValue,
       inputFormatters: inputFormatters,
     );
   }

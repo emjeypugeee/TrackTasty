@@ -50,4 +50,10 @@ class AppColors {
   // Button Colors
   static const Color buttonColor = Color(0xFFE99797);
   static const Color radioButtonColor = Color.fromARGB(255, 32, 32, 32);
+
+  // Macro Colors
+  static const Color caloriesColor = Colors.orange;
+  static const Color proteinColor = Colors.blue;
+  static const Color carbsColor = Colors.green;
+  static const Color fatColor = Colors.purple;
 }
