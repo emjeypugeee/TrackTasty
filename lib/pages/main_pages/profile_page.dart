@@ -14,8 +14,7 @@ class ProfilePage extends StatelessWidget {
   Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
     return await FirebaseFirestore.instance
         .collection("Users")
-        .doc(currentUser!
-            .email) // Ensure your Firestore uses email as document ID
+        .doc(currentUser!.email) // Ensure your Firestore uses email as document ID
         .get();
   }
 
@@ -38,8 +37,8 @@ class ProfilePage extends StatelessWidget {
           // If data is available
           if (snapshot.hasData && snapshot.data!.exists) {
             var userData = snapshot.data!.data();
-            String username = userData?['username'] ??
-                "Unknown User"; // Ensure 'username' field exists
+            String username =
+                userData?['username'] ?? "Unknown User"; // Ensure 'username' field exists
             int joinedDate = userData?['dateAccountCreated'];
 
             return Scaffold(
@@ -69,9 +68,7 @@ class ProfilePage extends StatelessWidget {
                                 'Achievements',
                                 textAlign: TextAlign.left,
                                 style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 25,
-                                    fontWeight: FontWeight.bold),
+                                    color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold),
                               ),
                               SizedBox(
                                 height: 10,

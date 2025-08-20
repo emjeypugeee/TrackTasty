@@ -1,4 +1,4 @@
-import 'package:fitness/widgets/components/meal_container.dart';
+import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

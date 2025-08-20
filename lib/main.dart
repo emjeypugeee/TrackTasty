@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/animations/fade_out_page_transition.dart';
+import 'package:fitness/pages/main_pages/food_page.dart';
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
 import 'package:fitness/firebase_options.dart';
 import 'package:fitness/pages/login/forgetpassword_page.dart';
@@ -20,6 +22,7 @@ import 'package:fitness/pages/preference/userpreference_6.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +39,7 @@ void main() async {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/chatbot',
 
   // routes of the pages
   routes: [
@@ -110,32 +113,37 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
+    GoRoute(
+      path: '/food_page',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: FoodPage(),
+        key: state.pageKey,
+      ),
+    ),
 
     //shell route for main screen
-    ShellRoute(
-        builder: (context, state, child) => MainScreen(child: child),
-        routes: [
-          GoRoute(
-            path: '/home',
-            builder: (context, state) => const HomePage(),
-          ),
-          GoRoute(
-            path: '/chatbot',
-            builder: (context, state) => const ChatBot(),
-          ),
-          GoRoute(
-            path: '/analytics',
-            builder: (context, state) => AnalyticsPage(),
-          ),
-          GoRoute(
-            path: '/profile',
-            builder: (context, state) => ProfilePage(),
-          ),
-          GoRoute(
-            path: '/forecasting',
-            builder: (context, state) => ForecastingPage(),
-          ),
-        ])
+    ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
+      GoRoute(
+        path: '/home',
+        builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: '/chatbot',
+        builder: (context, state) => const ChatBot(),
+      ),
+      GoRoute(
+        path: '/analytics',
+        builder: (context, state) => AnalyticsPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => ProfilePage(),
+      ),
+      GoRoute(
+        path: '/forecasting',
+        builder: (context, state) => ForecastingPage(),
+      ),
+    ])
   ],
 );
 
@@ -146,12 +154,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      theme: ThemeData(
-          scaffoldBackgroundColor: const Color(0xFF121212),
-          appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
-      debugShowCheckedModeBanner: false,
-      routerConfig: _router,
+    return ChangeNotifierProvider(
+      create: (context) => UserProvider(),
+      child: MaterialApp.router(
+        theme: ThemeData(
+            scaffoldBackgroundColor: const Color(0xFF121212),
+            appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
+        debugShowCheckedModeBanner: false,
+        routerConfig: _router,
+      ),
     );
   }
 }

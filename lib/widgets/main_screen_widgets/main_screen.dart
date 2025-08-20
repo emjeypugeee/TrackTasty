@@ -13,23 +13,11 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final List<String> _routes = [
-    '/home',
-    '/chatbot',
-    '/analytics',
-    '/profile',
-    '/forecasting'
-  ];
+  final List<String> _routes = ['/home', '/chatbot', '/analytics', '/profile', '/forecasting'];
 
   int _selectedIndexFromLocation(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
-    final List<String> routes = [
-      '/home',
-      '/chatbot',
-      '/analytics',
-      '/profile',
-      '/forecasting'
-    ];
+    final List<String> routes = ['/home', '/chatbot', '/analytics', '/profile', '/forecasting'];
 
     // Exact match first
     final exactIndex = routes.indexWhere((route) => location == route);
@@ -131,6 +119,7 @@ class _MainScreenState extends State<MainScreen> {
             labelStyle: const TextStyle(color: Colors.white),
             labelBackgroundColor: Colors.grey[600],
             backgroundColor: Colors.grey[600],
+            onTap: () => context.push('/food_page'),
           ),
         ],
       ),

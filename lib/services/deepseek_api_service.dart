@@ -3,29 +3,30 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class DeepSeekApi {
-  static const String _apiUrl = "https://api.deepseek.com/v1/chat/completions";
+  // Updated URL for OpenRouter
+  static const String _apiUrl = "https://openrouter.ai/api/v1/chat/completions";
 
-  // NEW: Enhanced version with conversation history
   static Future<String> getChatResponse({
     required String prompt,
     required List<Map<String, String>> history,
     double temperature = 0.7,
   }) async {
     try {
-      final apiKey = dotenv.env['DEEPSEEK_API_KEY'];
-      if (apiKey == null) throw Exception('API key not configured');
+      final apiKey = dotenv.env['OPENROUTER_API_KEY'];
+      if (apiKey == null) throw Exception('OpenRouter API key not found');
 
       final response = await http.post(
         Uri.parse(_apiUrl),
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $apiKey',
+          'HTTP-Referer': 'http://localhost',
+          'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          "model": "deepseek-chat",
+          "model": "deepseek/deepseek-chat-v3-0324:free",
           "messages": [
-            ...history,
-            {"role": "user", "content": prompt}
+            ...history.map((msg) => {"role": msg["role"], "content": msg["content"]}),
+            {"role": "user", "content": prompt},
           ],
           "temperature": temperature,
         }),
@@ -35,18 +36,18 @@ class DeepSeekApi {
         final data = jsonDecode(response.body);
         return data['choices'][0]['message']['content'];
       } else {
-        throw Exception('API Error ${response.statusCode}: ${response.body}');
+        throw Exception('OpenRouter Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
       throw Exception('Request failed: $e');
     }
   }
 
-  // OLD: Keep this for backward compatibility
+  // Backward compatibility
   static Future<String> getResponse(String prompt) async {
     return getChatResponse(
       prompt: prompt,
-      history: [], // Empty history for single messages
+      history: [],
     );
   }
 }

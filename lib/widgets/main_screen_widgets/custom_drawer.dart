@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -15,40 +15,10 @@ class CustomDrawer extends StatefulWidget {
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  Future<void> signOutUser() async {
-    await FirebaseAuth.instance.signOut();
-  }
 
   // Editting username
   void _showEditUsernameDialog(BuildContext context) {
     TextEditingController usernameController = TextEditingController();
-
-    Future<bool> saveNickname() async {
-      try {
-        User? user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No user logged in!')),
-          );
-          return false;
-        }
-
-        // → Critical Fix: Use user.uid as document ID
-        await FirebaseFirestore.instance.collection("Users").doc(user.email).set(
-          {
-            'username': usernameController.text,
-          },
-          SetOptions(merge: true), // ← Preserves existing fields
-        );
-
-        return true;
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-        return false;
-      }
-    }
 
     showDialog(
       context: context,
@@ -80,13 +50,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: MyButtons(
                   text: 'Save',
                   onTap: () async {
-                    bool success = await saveNickname();
-                    if (success && context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nickname updated successfully!')),
-                      );
-                    }
+                    await context.read<UserProvider>().updateUsername(usernameController.text);
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Nickname updated successfully!')),
+                    );
                   },
                 ),
               ),
@@ -104,18 +72,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
     TextEditingController goalWeightController = TextEditingController();
 
     String dropDownValue = 'Maintain Weight';
-
-    Future<bool> saveUserPreferences() async {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && user.email != null) {
-        await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-          'goalWeight': goalWeightController.text,
-          'goal': dropDownValue,
-        }, SetOptions(merge: true));
-        return true;
-      }
-      return false;
-    }
 
     showDialog(
       context: context,
@@ -211,13 +167,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         child: MyButtons(
                           text: 'Save',
                           onTap: () async {
-                            bool success = await saveUserPreferences();
-                            if (success && context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Goals updated successfully!')),
-                              );
-                            }
+                            context
+                                .read<UserProvider>()
+                                .saveUserPreferences(goalWeightController.text, dropDownValue);
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Goals updated successfully!')),
+                            );
                           },
                         ),
                       ),
@@ -252,7 +208,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: MyButtons(
                   text: 'Log out',
                   onTap: () {
-                    signOutUser();
+                    context.read<UserProvider>().logout();
                     context.push('/login');
                   },
                 ),
