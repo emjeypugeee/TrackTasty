@@ -6,23 +6,19 @@ import 'package:flutter/material.dart';
 class ProfileContainer extends StatelessWidget {
   final String name;
   final int joinedDate;
-  final String ranking;
-  final String following;
-  final String userDescription;
 
-  const ProfileContainer(
-      {super.key,
-      required this.name,
-      required this.joinedDate,
-      required this.ranking,
-      required this.following,
-      required this.userDescription});
+  const ProfileContainer({
+    super.key,
+    required this.name,
+    required this.joinedDate,
+  });
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
     return Container(
-      width: 410,
-      height: 280,
+      width: screenWidth,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -33,65 +29,57 @@ class ProfileContainer extends StatelessWidget {
               Color(0xFF886868),
             ],
             begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(25.0))),
-      padding: EdgeInsets.all(25.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                  child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                        color: AppColors.titleText),
-                  ),
-                  SizedBox(
-                    height: 5,
-                  ),
-                  Text(
-                    'Joined $joinedDate',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  SizedBox(
-                    height: 5,
-                  ),
-                ],
-              )),
-              Icon(
-                Icons.person_outline,
-                size: 100,
-                color: Colors.white,
-              )
-            ],
-          ),
-          SizedBox(
-            height: 10,
-          ),
+          // User Info
           Text(
+            name,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+              color: AppColors.titleText,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'Joined: $joinedDate',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 10),
+
+          // Statistics Section
+          const Text(
             'Statistics',
             style: TextStyle(
-                color: AppColors.primaryText,
-                fontSize: 20,
-                fontWeight: FontWeight.bold),
+              color: AppColors.primaryText,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              StatisticsContainer(),
-              SizedBox(
-                width: 10,
-              ),
-              StatisticsContainer()
-            ],
-          )
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Days Streak
+                const StatisticsContainer(
+                  daysStreak: 30,
+                  description: 'Day(s) Streak',
+                ),
+                const SizedBox(width: 10),
+                // Highest Days Streak
+                const StatisticsContainer(
+                  daysStreak: 50,
+                  description: 'Highest Streak',
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

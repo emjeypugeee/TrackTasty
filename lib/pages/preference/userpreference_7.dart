@@ -33,11 +33,20 @@ class _Userpreference7 extends State<Userpreference7> {
   double fatsPercentage = 30;
   double proteinPercentage = 20;
 
+  // lock feature
+  bool _lockCarbs = false;
+  bool _lockFats = false;
+  bool _lockProtein = false;
+  double _lockedCarbsValue = 50;
+  double _lockedFatsValue = 30;
+  double _lockedProteinValue = 20;
+
   // macronutrient values
   double carbsGram = 0;
   double fatsGram = 0;
   double proteinGram = 0;
 
+  @override
   void initState() {
     super.initState();
     _fetchUserData();
@@ -57,11 +66,17 @@ class _Userpreference7 extends State<Userpreference7> {
         final data = doc.data() as Map<String, dynamic>;
 
         // Retrieve user data
-        final age = int.tryParse(data['age'] ?? '0') ?? 0;
+        final age = data['age'] is int
+            ? data['age'] as int
+            : int.tryParse(data['age'] ?? '0') ?? 0;
         final measurementSystem = data['measurementSystem'] ?? 'metric';
         final gender = data['gender'] ?? 'male';
-        final weight = double.tryParse(data['weight'] ?? '0') ?? 0;
-        final height = double.tryParse(data['height'] ?? '0') ?? 0;
+        final weight = data['weight'] is double
+            ? data['weight'] as double
+            : double.tryParse(data['weight']?.toString() ?? '0') ?? 0;
+        final height = data['height'] is double
+            ? data['height'] as double
+            : double.tryParse(data['height']?.toString() ?? '0') ?? 0;
         final activityLevel = data['activitylevel'] ?? 'Sedentary';
         final goal = data['goal'] ?? 'Maintain Weight';
 
@@ -138,6 +153,36 @@ class _Userpreference7 extends State<Userpreference7> {
     fatsGram = (dailyCalories * (fatsPercentage / 100)) / 9; // 9 cal per gram
     proteinGram =
         (dailyCalories * (proteinPercentage / 100)) / 4; // 4 cal per gram
+  }
+
+  void _normalizeMacros() {
+    double total = carbsPercentage + fatsPercentage + proteinPercentage;
+    if (total != 100) {
+      // Calculate how much we need to adjust
+      double adjustment = 100 - total;
+
+      // Count how many macros are unlocked
+      int unlockedCount =
+          (_lockCarbs ? 0 : 1) + (_lockFats ? 0 : 1) + (_lockProtein ? 0 : 1);
+
+      if (unlockedCount > 0) {
+        // Distribute adjustment evenly among unlocked macros
+        double perMacroAdjustment = adjustment / unlockedCount;
+
+        if (!_lockCarbs) {
+          carbsPercentage += perMacroAdjustment;
+          carbsPercentage = carbsPercentage.clamp(40.0, 60.0);
+        }
+        if (!_lockFats) {
+          fatsPercentage += perMacroAdjustment;
+          fatsPercentage = fatsPercentage.clamp(20.0, 35.0);
+        }
+        if (!_lockProtein) {
+          proteinPercentage += perMacroAdjustment;
+          proteinPercentage = proteinPercentage.clamp(20.0, 35.0);
+        }
+      }
+    }
   }
 
   @override
@@ -265,59 +310,211 @@ class _Userpreference7 extends State<Userpreference7> {
                       ),
                       const SizedBox(height: 10),
 
-                      // Slider for Carbohydrates
-                      PercentageSlider(
-                        value: carbsPercentage,
+                      // Slider for Carbs
+                      _buildMacroSlider(
                         label: 'Carbs',
-                        activeColor: AppColors.carbsColor,
-                        labelColor: AppColors.primaryText,
+                        color: AppColors.carbsColor,
+                        currentValue: carbsPercentage,
+                        lockedValue: _lockedCarbsValue,
+                        isLocked: _lockCarbs,
+                        onLockToggle: () {
+                          setState(() {
+                            _lockCarbs = !_lockCarbs;
+                            if (_lockCarbs) _lockedCarbsValue = carbsPercentage;
+                          });
+                        },
+                        onValueChanged: (newValue) {
+                          if (_lockCarbs) return;
+
+                          // Count locked sliders
+                          final lockedCount =
+                              (_lockFats ? 1 : 0) + (_lockProtein ? 1 : 0);
+
+                          // Check if adjustment is allowed
+                          if (_lockCarbs ||
+                              (lockedCount == 2 &&
+                                  (carbsPercentage +
+                                              fatsPercentage +
+                                              proteinPercentage)
+                                          .round() ==
+                                      100)) {
+                            return; // Prevent changes
+                          }
+
+                          setState(() {
+                            double newCarbs = newValue.clamp(40.0, 60.0);
+                            double delta = newCarbs - carbsPercentage;
+
+                            // Calculate available adjustment in other macros
+                            double availableFats =
+                                _lockFats ? 0 : (fatsPercentage - 20);
+                            double availableProtein =
+                                _lockProtein ? 0 : (proteinPercentage - 20);
+                            double totalAvailable =
+                                availableFats + availableProtein;
+
+                            if (totalAvailable > 0) {
+                              if (!_lockFats) {
+                                fatsPercentage -=
+                                    delta * (availableFats / totalAvailable);
+                                fatsPercentage =
+                                    fatsPercentage.clamp(20.0, 35.0);
+                              }
+                              if (!_lockProtein) {
+                                proteinPercentage -=
+                                    delta * (availableProtein / totalAvailable);
+                                proteinPercentage =
+                                    proteinPercentage.clamp(20.0, 35.0);
+                              }
+                            }
+
+                            carbsPercentage = newCarbs;
+                            _normalizeMacros();
+                            _calculateMacros();
+                          });
+                        },
                         min: 40.0,
                         max: 60.0,
-                        onChanged: (value) {
-                          setState(() {
-                            final remaining =
-                                100 - proteinPercentage - fatsPercentage;
-                            carbsPercentage = value.clamp(0, remaining);
-                            _calculateMacros();
-                          });
-                        },
                       ),
+                      const SizedBox(height: 10),
 
                       // Slider for Fats
-                      PercentageSlider(
-                        value: fatsPercentage,
+                      _buildMacroSlider(
                         label: 'Fats',
-                        activeColor: AppColors.fatColor,
-                        labelColor: AppColors.primaryText,
-                        min: 20.0,
-                        max: 35.0,
-                        onChanged: (value) {
+                        color: AppColors.fatColor,
+                        currentValue: fatsPercentage,
+                        lockedValue: _lockedFatsValue,
+                        isLocked: _lockFats,
+                        onLockToggle: () {
                           setState(() {
-                            final remaining =
-                                100 - proteinPercentage - carbsPercentage;
-                            fatsPercentage = value.clamp(0, remaining);
+                            _lockFats = !_lockFats;
+                            if (_lockFats) _lockedFatsValue = fatsPercentage;
+                          });
+                        },
+                        onValueChanged: (newValue) {
+                          if (_lockFats) return;
+
+                          // Count locked sliders
+                          final lockedCount =
+                              (_lockCarbs ? 1 : 0) + (_lockProtein ? 1 : 0);
+
+                          // Check if adjustment is allowed
+                          if (_lockFats ||
+                              (lockedCount == 2 &&
+                                  (carbsPercentage +
+                                              fatsPercentage +
+                                              proteinPercentage)
+                                          .round() ==
+                                      100)) {
+                            return; // Prevent changes
+                          }
+                          setState(() {
+                            double newFats = newValue.clamp(20.0, 35.0);
+                            double delta = newFats - fatsPercentage;
+
+                            // Calculate available adjustment in other macros
+                            double availableCarbs =
+                                _lockCarbs ? 0 : (carbsPercentage - 40);
+                            double availableProtein =
+                                _lockProtein ? 0 : (proteinPercentage - 20);
+                            double totalAvailable =
+                                availableCarbs + availableProtein;
+
+                            if (totalAvailable > 0) {
+                              if (!_lockCarbs) {
+                                carbsPercentage -=
+                                    delta * (availableCarbs / totalAvailable);
+                                carbsPercentage =
+                                    carbsPercentage.clamp(40.0, 60.0);
+                              }
+                              if (!_lockProtein) {
+                                proteinPercentage -=
+                                    delta * (availableProtein / totalAvailable);
+                                proteinPercentage =
+                                    proteinPercentage.clamp(20.0, 35.0);
+                              }
+                            }
+
+                            fatsPercentage = newFats;
+                            _normalizeMacros();
                             _calculateMacros();
                           });
                         },
+                        min: 20.0,
+                        max: 35.0,
                       ),
+                      const SizedBox(height: 10),
 
                       // Slider for Protein
-                      PercentageSlider(
-                        value: proteinPercentage,
+                      _buildMacroSlider(
                         label: 'Protein',
-                        activeColor: AppColors.proteinColor,
-                        labelColor: AppColors.primaryText,
-                        min: 20.0,
-                        max: 35.0,
-                        onChanged: (value) {
+                        color: AppColors.proteinColor,
+                        currentValue: proteinPercentage,
+                        lockedValue: _lockedProteinValue,
+                        isLocked: _lockProtein,
+                        onLockToggle: () {
                           setState(() {
-                            final remaining =
-                                100 - carbsPercentage - fatsPercentage;
-                            proteinPercentage = value.clamp(0, remaining);
+                            _lockProtein = !_lockProtein;
+                            if (_lockProtein) {
+                              _lockedProteinValue = proteinPercentage;
+                            }
+                          });
+                        },
+                        onValueChanged: (newValue) {
+                          if (_lockProtein) return;
+
+                          // Count locked sliders
+                          final lockedCount =
+                              (_lockFats ? 1 : 0) + (_lockCarbs ? 1 : 0);
+
+                          // Check if adjustment is allowed
+                          if (_lockProtein ||
+                              (lockedCount == 2 &&
+                                  (carbsPercentage +
+                                              fatsPercentage +
+                                              proteinPercentage)
+                                          .round() ==
+                                      100)) {
+                            return; // Prevent changes
+                          }
+
+                          setState(() {
+                            double newProtein = newValue.clamp(20.0, 35.0);
+                            double delta = newProtein - proteinPercentage;
+
+                            // Calculate available adjustment in other macros
+                            double availableCarbs =
+                                _lockCarbs ? 0 : (carbsPercentage - 40);
+                            double availableFats =
+                                _lockFats ? 0 : (fatsPercentage - 20);
+                            double totalAvailable =
+                                availableCarbs + availableFats;
+
+                            if (totalAvailable > 0) {
+                              if (!_lockCarbs) {
+                                carbsPercentage -=
+                                    delta * (availableCarbs / totalAvailable);
+                                carbsPercentage =
+                                    carbsPercentage.clamp(40.0, 60.0);
+                              }
+                              if (!_lockFats) {
+                                fatsPercentage -=
+                                    delta * (availableFats / totalAvailable);
+                                fatsPercentage =
+                                    fatsPercentage.clamp(20.0, 35.0);
+                              }
+                            }
+
+                            proteinPercentage = newProtein;
+                            _normalizeMacros();
                             _calculateMacros();
                           });
                         },
+                        min: 20.0,
+                        max: 35.0,
                       ),
+
+                      // END OF MACROS SLIDERS
                     ],
                   ),
                 ),
@@ -382,6 +579,32 @@ class _Userpreference7 extends State<Userpreference7> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMacroSlider({
+    required String label,
+    required Color color,
+    required double currentValue,
+    required double lockedValue,
+    required bool isLocked,
+    required VoidCallback onLockToggle,
+    required ValueChanged<double> onValueChanged,
+    required double min,
+    required double max,
+  }) {
+    final displayValue = isLocked ? lockedValue : currentValue;
+
+    return PercentageSlider(
+      value: displayValue,
+      label: label,
+      activeColor: color,
+      labelColor: AppColors.primaryText,
+      min: min,
+      max: max,
+      isLocked: isLocked,
+      onLockToggle: onLockToggle,
+      onChanged: (dynamic value) => onValueChanged(value.toDouble()),
     );
   }
 }

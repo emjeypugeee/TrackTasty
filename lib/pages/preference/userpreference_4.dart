@@ -5,6 +5,7 @@ import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,6 +31,11 @@ class _Userpreference4 extends State<Userpreference4> {
   final TextEditingController weightController = TextEditingController();
   final TextEditingController goalWeightController = TextEditingController();
 
+  bool _isMetric = false;
+  final FocusNode _heightFocusNode = FocusNode();
+  final FocusNode _weightFocusNode = FocusNode();
+  final FocusNode _goalWeightFocusNode = FocusNode();
+
   //to track the measurement system
   final List<bool> _selectedUnits = <bool>[true, false];
   bool isMetric = false;
@@ -42,15 +48,32 @@ class _Userpreference4 extends State<Userpreference4> {
   Future<void> saveUserGoal() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
+      final weight = double.tryParse(weightController.text);
+      final height = double.tryParse(heightController.text);
+      final goalWeight = double.tryParse(goalWeightController.text);
+      final today = DateTime.now();
+
+      // save current weight to history
+      await FirebaseFirestore.instance
+          .collection('weight_history')
+          .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
+          .set({
+        'userId': user.uid,
+        'weight': weight,
+        'date': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      // update user profile
       await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'height': heightController.text,
-        'weight': weightController.text,
-        'goalWeight': goalWeightController.text,
+        'height': height,
+        'weight': weight,
+        'goalWeight': goalWeight,
         'measurementSystem': isMetric ? 'Metric' : 'US',
       }, SetOptions(merge: true));
     }
   }
 
+  @override
   void initState() {
     super.initState();
     _fetchGoalData();
@@ -61,6 +84,25 @@ class _Userpreference4 extends State<Userpreference4> {
         goalWeightController.text = weightController.text;
       }
     });
+
+    _heightFocusNode.addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    if (_heightFocusNode.hasFocus) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    heightController.dispose();
+    weightController.dispose();
+    goalWeightController.dispose();
+    _heightFocusNode.dispose();
+    _weightFocusNode.dispose();
+    _goalWeightFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchGoalData() async {
@@ -155,17 +197,35 @@ class _Userpreference4 extends State<Userpreference4> {
                         children: [
                           ToggleButtons(
                             onPressed: (int index) {
+                              final hadFocus = _heightFocusNode.hasFocus;
+
+                              // 1. Immediately update the state
                               setState(() {
-                                // The button that is tapped is set to true, and the others to false.
                                 for (int i = 0;
                                     i < _selectedUnits.length;
                                     i++) {
                                   _selectedUnits[i] = i == index;
                                 }
+                                _isMetric = _selectedUnits[1];
+                                isMetric = _selectedUnits[1];
                               });
 
-                              isMetric = _selectedUnits[1];
-                              print(isMetric ? "Using Metric" : "Using US");
+                              // 2. Force keyboard refresh if field was focused
+                              if (hadFocus) {
+                                // Unfocus and refocus with a small delay
+                                _heightFocusNode.unfocus();
+
+                                // Using a 50ms delay seems to be the sweet spot for reliability
+                                Future.delayed(const Duration(milliseconds: 50),
+                                    () {
+                                  if (mounted) {
+                                    _heightFocusNode.requestFocus();
+                                  }
+                                });
+                              }
+
+                              debugPrint(
+                                  isMetric ? "Using Metric" : "Using US");
                             },
                             borderRadius:
                                 const BorderRadius.all(Radius.circular(8)),
@@ -205,46 +265,90 @@ class _Userpreference4 extends State<Userpreference4> {
                       Row(
                         children: [
                           Expanded(
-                            child: MyTextfield(
-                              hintText: isMetric
-                                  ? 'Height (50-300 cm)'
-                                  : 'Height (20-120 in)',
-                              obscureText: false,
-                              controller: heightController,
-                              keyboardType: TextInputType.numberWithOptions(
-                                  decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your height';
+                            child: Focus(
+                              onFocusChange: (hasFocus) {
+                                if (hasFocus) {
+                                  setState(() {});
                                 }
-                                final height = double.tryParse(value) ?? 0;
-                                if (isMetric && (height < 50 || height > 300)) {
-                                  return 'Height should be around 50-300 cm';
-                                } else if (!isMetric &&
-                                    (height < 20 || height > 120)) {
-                                  return 'Height should be around 20-120 in';
-                                }
-                                return null;
                               },
+                              child: MyTextfield(
+                                hintText: isMetric
+                                    ? 'Height (50-300 cm)'
+                                    : 'Height (20-120 in)',
+                                obscureText: false,
+                                controller: heightController,
+                                suffixText: isMetric ? 'cm' : 'in',
+                                keyboardType: _isMetric
+                                    ? TextInputType.numberWithOptions(
+                                        decimal: true)
+                                    : TextInputType.text,
+                                focusNode: _heightFocusNode,
+                                textInputAction: TextInputAction.next,
+                                onFieldSubmitted: (_) {
+                                  _weightFocusNode.requestFocus();
+                                },
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r"[0-9\']")),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your height';
+                                  }
+
+                                  if (isMetric) {
+                                    // Metric validation (unchanged)
+                                    final height = double.tryParse(value) ?? 0;
+                                    if (height < 50 || height > 300) {
+                                      return 'Height should be between 50-300 cm';
+                                    }
+                                  } else {
+                                    // feet'inches support
+                                    double totalInches;
+
+                                    if (value.contains("'")) {
+                                      // Handle feet'inches format (e.g. 5'3, 5'11.5)
+                                      final parts = value.split("'");
+                                      if (parts.length != 2 ||
+                                          parts[1].isEmpty) {
+                                        return 'Use format: feet\'inches (e.g. 5\'3)';
+                                      }
+
+                                      final feet =
+                                          double.tryParse(parts[0]) ?? -1;
+                                      final inches =
+                                          double.tryParse(parts[1]) ?? -1;
+
+                                      if (feet < 1 || feet > 10) {
+                                        return 'Feet should be between 1-10';
+                                      }
+                                      if (inches < 0 || inches >= 12) {
+                                        return 'Inches should be between 0-11.99';
+                                      }
+
+                                      totalInches = feet * 12 + inches;
+                                    } else {
+                                      // Handle plain inches
+                                      totalInches = double.tryParse(value) ?? 0;
+                                    }
+
+                                    // Update the controller with the computed inches (if feet'inches format was used)
+                                    if (value.contains("'")) {
+                                      final formattedValue =
+                                          totalInches.toStringAsFixed(
+                                              totalInches % 1 == 0 ? 0 : 1);
+                                      heightController.text = formattedValue;
+                                    }
+
+                                    if (totalInches < 20 || totalInches > 120) {
+                                      return 'Height should be between 20-120 inches';
+                                    }
+                                  }
+                                  return null;
+                                },
+                              ),
                             ),
                           ),
-                          SizedBox(
-                            width: 25,
-                          ),
-                          Container(
-                            width: 70,
-                            decoration: BoxDecoration(
-                              color: Color(0xFFe99797),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: EdgeInsets.all(15),
-                            child: Center(
-                              child: Text(isMetric ? '   cm   ' : '    in    '),
-                            ),
-                          )
                         ],
                       ),
 
@@ -273,9 +377,17 @@ class _Userpreference4 extends State<Userpreference4> {
                                   ? 'Weight (20-300 kg)'
                                   : 'Height (40-660 lbs)',
                               obscureText: false,
+                              focusNode: _weightFocusNode,
+                              suffixText: isMetric ? 'kg' : 'lb',
+                              textInputAction: TextInputAction.next,
+                              onFieldSubmitted: (_) {
+                                _goalWeightFocusNode.requestFocus();
+                              },
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
+                              keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true),
                               controller: weightController,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -292,20 +404,6 @@ class _Userpreference4 extends State<Userpreference4> {
                               },
                             ),
                           ),
-                          SizedBox(
-                            width: 25,
-                          ),
-                          Container(
-                            width: 70,
-                            decoration: BoxDecoration(
-                              color: Color(0xFFe99797),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: EdgeInsets.all(15),
-                            child: Center(
-                              child: Text(isMetric ? '   kg   ' : '   lb   '),
-                            ),
-                          )
                         ],
                       ),
 
@@ -335,10 +433,18 @@ class _Userpreference4 extends State<Userpreference4> {
                                 ? 'Weight (20-300 kg)'
                                 : 'Height (40-660 lbs)',
                             obscureText: false,
+                            suffixText: isMetric ? 'kg' : 'lb',
                             controller: goalWeightController,
+                            focusNode: _goalWeightFocusNode,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) {
+                              _goalWeightFocusNode.unfocus();
+                            },
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
                             ],
+                            keyboardType:
+                                TextInputType.numberWithOptions(decimal: true),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Please your desired weight';
@@ -372,6 +478,9 @@ class _Userpreference4 extends State<Userpreference4> {
                               return null;
                             },
                           )),
+
+                          /*
+                          OLD CODE FOR WEIGHT UNIT SELECTION
                           SizedBox(
                             width: 25,
                           ),
@@ -386,6 +495,7 @@ class _Userpreference4 extends State<Userpreference4> {
                               child: Text(isMetric ? 'kg' : 'lb'),
                             ),
                           )
+                          */
                         ],
                       ),
 

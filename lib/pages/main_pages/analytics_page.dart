@@ -5,9 +5,14 @@ import 'package:fitness/widgets/main_screen_widgets/analytics_screen/line_graph_
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
-class AnalyticsPage extends StatelessWidget {
+class AnalyticsPage extends StatefulWidget {
   AnalyticsPage({super.key});
 
+  @override
+  State<AnalyticsPage> createState() => _AnalyticsPageState();
+}
+
+class _AnalyticsPageState extends State<AnalyticsPage> {
   // Current logged-in user
   final User? currentUser = FirebaseAuth.instance.currentUser;
 
@@ -33,14 +38,13 @@ class AnalyticsPage extends StatelessWidget {
 
             // If there's an error
             if (snapshot.hasError) {
-              return Center(child: Text("Error loading profile"));
+              return Center(
+                  child: Text("Error loading profile",
+                      style: TextStyle(color: AppColors.primaryText)));
             }
 
             if (snapshot.hasData && snapshot.data!.exists) {
               var userData = snapshot.data!.data();
-              double userWeight =
-                  double.tryParse(userData?['weight']?.toString() ?? '0') ??
-                      0.0;
               double userGoalWeight =
                   double.tryParse(userData?['goalWeight']?.toString() ?? '0') ??
                       0.0;
@@ -56,32 +60,50 @@ class AnalyticsPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Weight',
+                          'Nutrition Analysis',
                           style: TextStyle(
-                              color: AppColors.primaryText, fontSize: 30),
+                            color: AppColors.primaryText,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        //space
+                        SizedBox(
+                          height: 20,
+                        ),
+                        Text(
+                          'Calorie Intake',
+                          style: TextStyle(
+                            color: AppColors.primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(
+                          height: 10,
+                        ),
+                        BarGraphContainer(
+                          calorieGoal:
+                              userData?['dailyCalories']?.toDouble() ?? 2000,
+                        ),
+                        SizedBox(
+                          height: 30,
+                        ),
+                        Text(
+                          'Weight Progress',
+                          style: TextStyle(
+                            color: AppColors.primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         SizedBox(
                           height: 10,
                         ),
                         LineGraphContainer(
                           goalWeight: userGoalWeight,
-                          weight: userWeight,
                           goal: userGoal,
                         ),
-
-                        //space
-                        SizedBox(
-                          height: 10,
-                        ),
-                        Text(
-                          'Calorie Intake',
-                          style: TextStyle(
-                              color: AppColors.primaryText, fontSize: 30),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        BarGraphContainer()
                       ],
                     ),
                   ),

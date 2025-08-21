@@ -30,6 +30,8 @@ class _Userpreference1 extends State<Userpreference1> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final FocusNode _usernameFocusNode = FocusNode();
+  final FocusNode _ageFocusNode = FocusNode();
 
   // Image picker
   Future uploadImage(ImageSource source) async {
@@ -176,6 +178,12 @@ class _Userpreference1 extends State<Userpreference1> {
                         hintText: 'Enter your username',
                         obscureText: false,
                         controller: usernameController,
+                        focusNode: _usernameFocusNode,
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) {
+                          _ageFocusNode.requestFocus();
+                        },
+                        keyboardType: TextInputType.text,
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
                               RegExp(r'[a-zA-Z ]')), // Letters + spaces only
@@ -202,6 +210,11 @@ class _Userpreference1 extends State<Userpreference1> {
                         hintText: 'Enter your age',
                         obscureText: false,
                         keyboardType: TextInputType.number,
+                        focusNode: _ageFocusNode,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) {
+                          _ageFocusNode.unfocus();
+                        },
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
@@ -214,8 +227,8 @@ class _Userpreference1 extends State<Userpreference1> {
                           if (age == null) {
                             return 'Please enter a valid number';
                           }
-                          if (age < 10 || age > 120) {
-                            return 'Please enter a valid age (10-120)';
+                          if (age < 14 || age > 80) {
+                            return 'Please enter a valid age (14-80)';
                           }
                           return null;
                         },

@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/animations/fade_out_page_transition.dart';
 import 'package:fitness/pages/preference/userpreference_7.dart';
+import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
 import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
 import 'package:fitness/firebase_options.dart';
 import 'package:fitness/pages/login/forgetpassword_page.dart';
@@ -9,7 +10,7 @@ import 'package:fitness/pages/login/login_page.dart';
 import 'package:fitness/pages/login/register_page.dart';
 import 'package:fitness/pages/main_pages/analytics_page.dart';
 import 'package:fitness/pages/main_pages/chat_bot.dart';
-import 'package:fitness/pages/main_pages/forecasting_page.dart';
+import 'package:fitness/pages/main_pages/admin_page.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/pages/preference/userpreference_2.dart';
@@ -21,6 +22,7 @@ import 'package:fitness/pages/preference/userpreference_6.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +35,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => MealsState(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 final GoRouter _router = GoRouter(
@@ -118,7 +125,13 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
-
+    GoRoute(
+      path: '/feedback',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: SendFeedbackPage(),
+        key: state.pageKey,
+      ),
+    ),
     //shell route for main screen
     ShellRoute(
         builder: (context, state, child) => MainScreen(child: child),
@@ -140,10 +153,12 @@ final GoRouter _router = GoRouter(
             builder: (context, state) => ProfilePage(),
           ),
           GoRoute(
-            path: '/forecasting',
-            builder: (context, state) => ForecastingPage(),
+            path: '/adminonly',
+            builder: (context, state) => AdminPage(),
           ),
         ])
+
+    //shell route for sidebar pages
   ],
 );
 
@@ -155,6 +170,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
+      title: 'TrackTasty',
       theme: ThemeData(
           scaffoldBackgroundColor: const Color(0xFF121212),
           appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),

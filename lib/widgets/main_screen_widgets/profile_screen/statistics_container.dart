@@ -2,7 +2,13 @@ import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class StatisticsContainer extends StatelessWidget {
-  const StatisticsContainer({super.key});
+  final int daysStreak;
+  final String description;
+  const StatisticsContainer({
+    super.key,
+    required this.daysStreak,
+    required this.description,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -10,7 +16,7 @@ class StatisticsContainer extends StatelessWidget {
 
     return Container(
       height: 80,
-      width: screenWidth * 0.42,
+      width: (screenWidth - 60) / 1.5,
       decoration: BoxDecoration(
         color: AppColors.containerBg,
         borderRadius: BorderRadius.circular(20),
@@ -28,13 +34,17 @@ class StatisticsContainer extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '30',
-                style: TextStyle(color: Colors.white, fontSize: 15),
+              Text(
+                '$daysStreak',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold),
               ),
-              const Text(
-                'Day(s) Streak',
+              Text(
+                description,
                 style: TextStyle(color: Colors.white, fontSize: 12),
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

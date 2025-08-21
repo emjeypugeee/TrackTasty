@@ -5,7 +5,9 @@ import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -15,8 +17,34 @@ class CustomDrawer extends StatefulWidget {
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
+  // get user data
+  bool isMetric = false;
   Future<void> signOutUser() async {
     await FirebaseAuth.instance.signOut();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentMeasurement();
+  }
+
+  Future<void> _loadCurrentMeasurement() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.email)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        final measurementSystem = doc.data()?['measurementSystem'];
+        debugPrint("User's measurement System: $measurementSystem");
+        isMetric = measurementSystem == "Metric";
+      });
+    }
   }
 
   // Editting username
@@ -34,7 +62,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
         }
 
         // → Critical Fix: Use user.uid as document ID
-        await FirebaseFirestore.instance.collection("Users").doc(user.email).set(
+        await FirebaseFirestore.instance
+            .collection("Users")
+            .doc(user.email)
+            .set(
           {
             'username': usernameController.text,
           },
@@ -84,7 +115,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     if (success && context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nickname updated successfully!')),
+                        const SnackBar(
+                            content: Text('Nickname updated successfully!')),
                       );
                     }
                   },
@@ -97,18 +129,169 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
-  // Editting goal and goal weight
+  //
+  // EDIT WEIGHT DIALOG
+  //
+  void _showEditWeightDialog(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+
+    final formKey = GlobalKey<FormState>();
+
+    TextEditingController editWeightController = TextEditingController();
+    FocusNode editWeightNode = FocusNode();
+
+    final today = DateTime.now();
+
+    Future<bool> saveUserPreferences(double weight) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.email != null) {
+        await FirebaseFirestore.instance
+            .collection("Users")
+            .doc(user.email)
+            .set({
+          'goalWeight': weight,
+        }, SetOptions(merge: true));
+
+        await FirebaseFirestore.instance
+            .collection('weight_history')
+            .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
+            .set({
+          'userId': user.uid,
+          'weight': weight,
+          'date': Timestamp.now(),
+        }, SetOptions(merge: true));
+        return true;
+      }
+      return false;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: AppColors.containerBg,
+            title: Text(
+              'Update Weight',
+              style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 27),
+            ),
+            content: Form(
+              key: formKey,
+              child: SizedBox(
+                width: screenWidth * 1,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Weight:',
+                            style: TextStyle(
+                                color: AppColors.primaryText, fontSize: 20),
+                            textAlign: TextAlign.left,
+                          ),
+                        ],
+                      ),
+                      MyTextfield(
+                        hintText: isMetric
+                            ? 'Weight (20-300 kg)'
+                            : 'Weight (40-660 lbs)',
+                        obscureText: false,
+                        focusNode: editWeightNode,
+                        suffixText: isMetric ? 'kg' : 'lb',
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) {
+                          editWeightNode.unfocus();
+                        },
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
+                        controller: editWeightController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your weight';
+                          }
+                          final weight = double.tryParse(value) ?? 0;
+
+                          if (isMetric && (weight < 20 || weight > 300)) {
+                            return 'Weight should be around 20-300 kg';
+                          } else if (!isMetric &&
+                              (weight < 40 || weight > 660)) {
+                            return 'Weight should be around 40-660 lbs';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(
+                        height: 30,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: MyButtons(
+                              text: 'Save',
+                              onTap: () async {
+                                // validate the form
+                                if (formKey.currentState!.validate()) {
+                                  bool success = await saveUserPreferences(
+                                      double.tryParse(
+                                              editWeightController.text) ??
+                                          0.0);
+                                  if (success && context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Goals updated successfully!')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    // end of alertdialog
+  }
+
+  //
+  // CHANGE GOAL WEIGHT DIALOG
+  //
   void _showEditGoalDialog(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
 
+    final formKey = GlobalKey<FormState>();
+
     TextEditingController goalWeightController = TextEditingController();
+    FocusNode goalWeightNode = FocusNode();
 
     String dropDownValue = 'Maintain Weight';
 
     Future<bool> saveUserPreferences() async {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && user.email != null) {
-        await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
+        await FirebaseFirestore.instance
+            .collection("Users")
+            .doc(user.email)
+            .set({
           'goalWeight': goalWeightController.text,
           'goal': dropDownValue,
         }, SetOptions(merge: true));
@@ -125,105 +308,155 @@ class _CustomDrawerState extends State<CustomDrawer> {
             backgroundColor: AppColors.containerBg,
             title: Text(
               'Edit your goals',
-              style: TextStyle(color: AppColors.primaryText),
+              style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 27),
             ),
-            content: SizedBox(
-              height: 250,
-              width: screenWidth * 1,
-              child: Column(
-                children: [
-                  Row(
+            content: Form(
+              key: formKey,
+              child: SizedBox(
+                width: screenWidth * 1,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Goal Weight:',
-                        style: TextStyle(color: AppColors.primaryText, fontSize: 20),
-                        textAlign: TextAlign.left,
+                      Row(
+                        children: [
+                          Text(
+                            'Goal Weight:',
+                            style: TextStyle(
+                                color: AppColors.primaryText, fontSize: 20),
+                            textAlign: TextAlign.left,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  MyTextfield(
-                      hintText: 'goal weight (kg)',
-                      obscureText: false,
-                      controller: goalWeightController),
-                  SizedBox(
-                    height: 10,
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        'Goal:',
-                        style: TextStyle(color: AppColors.primaryText, fontSize: 20),
+                      MyTextfield(
+                        hintText: isMetric
+                            ? 'Weight (20-300 kg)'
+                            : 'Weight (40-660 lbs)',
+                        obscureText: false,
+                        focusNode: goalWeightNode,
+                        suffixText: isMetric ? 'kg' : 'lb',
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) {
+                          goalWeightNode.unfocus();
+                        },
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
+                        controller: goalWeightController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your weight';
+                          }
+                          final weight = double.tryParse(value) ?? 0;
+                          if (isMetric && (weight < 20 || weight > 300)) {
+                            return 'Weight should be around 20-300 kg';
+                          } else if (!isMetric &&
+                              (weight < 40 || weight > 660)) {
+                            return 'Weight should be around 40-660 lbs';
+                          }
+                          return null;
+                        },
                       ),
-                    ],
-                  ),
-                  DropdownButton<String>(
-                    isExpanded: true,
-                    value: dropDownValue,
-                    dropdownColor: AppColors.containerBg,
-                    hint: Text(
-                      'Goal',
-                      style: TextStyle(color: AppColors.primaryText),
-                    ),
-                    icon: Icon(Icons.arrow_downward),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        dropDownValue = newValue!;
-                      });
-                    },
-                    items: [
-                      DropdownMenuItem(
-                        value: 'Lose Weight',
-                        child: Text(
-                          'Lose Weight',
+                      SizedBox(
+                        height: 30,
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            'Goal:',
+                            style: TextStyle(
+                                color: AppColors.primaryText, fontSize: 20),
+                          ),
+                        ],
+                      ),
+                      DropdownButton<String>(
+                        isExpanded: true,
+                        value: dropDownValue,
+                        dropdownColor: const Color.fromARGB(255, 15, 15, 15),
+                        hint: Text(
+                          'Goal',
                           style: TextStyle(color: AppColors.primaryText),
                         ),
+                        icon: Icon(Icons.arrow_downward),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            dropDownValue = newValue!;
+                          });
+                        },
+                        items: [
+                          DropdownMenuItem(
+                            value: 'Mild Lose Weight',
+                            child: Text(
+                              'Mild Lose Weight',
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Lose Weight',
+                            child: Text(
+                              'Lose Weight',
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Maintain Weight',
+                            child: Text(
+                              'Maintain Weight',
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Mild Gain Weight',
+                            child: Text(
+                              'Mild Gain Weight',
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Gain Weight',
+                            child: Text(
+                              'Gain Weight',
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                          )
+                        ],
                       ),
-                      DropdownMenuItem(
-                        value: 'Maintain Weight',
-                        child: Text(
-                          'Maintain Weight',
-                          style: TextStyle(color: AppColors.primaryText),
-                        ),
+                      SizedBox(
+                        height: 30,
                       ),
-                      DropdownMenuItem(
-                        value: 'Gain Weight',
-                        child: Text(
-                          'Gain Weight',
-                          style: TextStyle(color: AppColors.primaryText),
-                        ),
-                      )
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: MyButtons(
+                              text: 'Save',
+                              onTap: () async {
+                                // validate the form
+                                if (formKey.currentState!.validate()) {
+                                  bool success = await saveUserPreferences();
+                                  if (success && context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Goals updated successfully!')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  SizedBox(
-                    height: 20,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(
-                        child: CustomTextButton(
-                          title: 'Back',
-                          onTap: () => Navigator.pop(context),
-                          size: 20,
-                        ),
-                      ),
-                      Expanded(
-                        child: MyButtons(
-                          text: 'Save',
-                          onTap: () async {
-                            bool success = await saveUserPreferences();
-                            if (success && context.mounted) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Goals updated successfully!')),
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           );
@@ -232,6 +465,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  //
+  // LOGOUT DIALOG
+  //
   void _showlogout(BuildContext context) {
     showDialog(
       context: context,
@@ -277,72 +513,391 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  //
+  // ABOUT US DIALOG
+  //
   void _showAboutUs(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.containerBg,
-        content: SizedBox(
-          height: 250,
-          width: screenWidth * 1,
-          child: Column(
-            children: [
-              Center(
-                child: Text(
-                  'Mission',
-                  style: TextStyle(
-                      color: AppColors.primaryText, fontSize: 25, fontWeight: FontWeight.bold),
+      backgroundColor: AppColors.containerBg,
+      isScrollControlled: true, // Allows the sheet to expand to needed height
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Takes only needed space
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Center(
+              child: Text(
+                'About Us',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
                 ),
               ),
-              Text(
-                'To empower individuals to live healthier lives by making food tracking simple, smart, and supportive through technology and community.',
-                style: TextStyle(color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+
+            // Divider
+            Divider(
+              color: AppColors.primaryText.withOpacity(0.3),
+              thickness: 1,
+            ),
+            const SizedBox(height: 20),
+
+            // Mission Section
+            Text(
+              'OUR MISSION',
+              style: TextStyle(
+                color: AppColors.primaryText,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
               ),
-              SizedBox(
-                height: 5,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'To empower individuals to live healthier lives by making food tracking simple, smart, and supportive through innovative technology and a caring community.',
+              style: TextStyle(
+                color: AppColors.secondaryText,
+                fontSize: 16,
+                height: 1.5,
+                fontWeight: FontWeight.w400,
               ),
-              Center(
-                child: Text(
-                  'Vision',
-                  style: TextStyle(
-                      color: AppColors.primaryText, fontSize: 25, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.left,
+            ),
+            const SizedBox(height: 24),
+
+            // Vision Section
+            Text(
+              'OUR VISION',
+              style: TextStyle(
+                color: AppColors.primaryText,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'To become the essential wellness companion that helps people build lasting healthy habits — one meal, one step, one goal at a time.',
+              style: TextStyle(
+                color: AppColors.secondaryText,
+                fontSize: 16,
+                height: 1.5,
+                fontWeight: FontWeight.w400,
+              ),
+              textAlign: TextAlign.left,
+            ),
+            const SizedBox(height: 24),
+
+            // Closing statement
+            Center(
+              child: Text(
+                'Join us on this journey to better health!',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              Text(
-                'To become the go-to wellness companion that helps people build lasting healthy habits — one meal, one step, one goal at a time.',
-                style: TextStyle(color: AppColors.secondaryText),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
   }
 
+  //
+  // T&C DIALOG
+  //
   void _showTermsAndCondition(BuildContext context) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.containerBg,
-        title: Center(
-          child: Text(
-            'T&C',
-            style: TextStyle(color: AppColors.primaryText),
-          ),
+      backgroundColor: AppColors.containerBg,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
         ),
-        content: SizedBox(
-          height: 500,
-          width: screenWidth * 1,
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Header
+              // Drag handle
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Center(
+                child: Text(
+                  'Terms & Conditions',
+                  style: TextStyle(
+                    color: AppColors.primaryText,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Divider(
+                color: AppColors.primaryText.withOpacity(0.3),
+                thickness: 1,
+              ),
+              const SizedBox(height: 20),
+
+              // 1. Acceptance of Terms
               Text(
-                '1. Acceptance of Terms \nBy using TrackTasty, you agree to follow these Terms and Conditions. If you do not agree, please do not use the app. \n\n 2. Purpose of the App \n TrackTasty is designed to help users track food intake, calories burned, and support healthy living. It is for informational purposes only and not a substitute for medical advice.',
-                style: TextStyle(color: AppColors.secondaryText),
-              )
+                '1. ACCEPTANCE OF TERMS',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'By accessing or using TrackTasty ("the App"), you agree to be bound by these Terms and Conditions. If you do not agree to all terms, please discontinue use immediately. Continued use constitutes acceptance of any modifications.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 2. Service Description
+              Text(
+                '2. SERVICE DESCRIPTION',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'TrackTasty is a macro-nutrient tracking application designed to help beginners monitor food intake, calculate nutritional requirements, and support weight management goals. The App provides personalized macro calculations based on user-provided information including age, gender assigned at birth, weight, height, activity level, weight goals, dietary preferences, and allergies.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 3. User Responsibilities
+              Text(
+                '3. USER RESPONSIBILITIES',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '• You must provide accurate and complete information for macro calculations\n• You are responsible for maintaining the confidentiality of your account\n• You agree to use the App only for lawful purposes\n• You must be at least 13 years old to use the App (16 in EU)\n• You acknowledge that results may vary based on individual adherence',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 4. Medical Disclaimer
+              Text(
+                '4. MEDICAL DISCLAIMER',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'TrackTasty provides nutritional information and tracking tools for informational purposes only. The App is not intended to diagnose, treat, cure, or prevent any disease or health condition. Always consult with a qualified healthcare professional before making significant changes to your diet or exercise routine. The macro calculations are estimates and should be used as guidelines rather than strict prescriptions.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 5. Data Collection and Privacy
+              Text(
+                '5. DATA COLLECTION AND PRIVACY',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'We collect personal information including health metrics, dietary preferences, and usage data to provide personalized services. Your data is stored securely and handled in accordance with our Privacy Policy. By using TrackTasty, you consent to the collection and processing of your data as described in our Privacy Policy.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 6. Intellectual Property
+              Text(
+                '6. INTELLECTUAL PROPERTY',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'All content, features, and functionality of TrackTasty are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works without explicit permission.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 7. Limitation of Liability
+              Text(
+                '7. LIMITATION OF LIABILITY',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'TrackTasty and its developers shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use or inability to use the App. This includes but is not limited to errors in macro calculations, nutritional information, or any health-related outcomes.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 8. Modifications to Terms
+              Text(
+                '8. MODIFICATIONS TO TERMS',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'We reserve the right to modify these Terms and Conditions at any time. Continued use of the App after changes constitutes acceptance of the modified terms. Users will be notified of significant changes through the App or via email.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 9. Termination
+              Text(
+                '9. TERMINATION',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'We may terminate or suspend your access to TrackTasty immediately, without prior notice, for conduct that we believe violates these Terms or is harmful to other users or the App\'s operation.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 10. Governing Law
+              Text(
+                '10. GOVERNING LAW',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'These Terms shall be governed by and construed in accordance with the laws of the jurisdiction where TrackTasty is operated, without regard to its conflict of law provisions.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Acceptance Note
+              Center(
+                child: Text(
+                  'By using TrackTasty, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
+                  style: TextStyle(
+                    color: AppColors.primaryText,
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -350,6 +905,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
+  //
+  // SIDE BAR UI
+  //
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -363,21 +921,22 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
             ),
             ExpansionTile(
-              childrenPadding: EdgeInsets.only(left: 50),
+              childrenPadding: EdgeInsets.only(left: 20),
               leading: Icon(
                 Icons.person,
                 color: AppColors.drawerIcons,
               ),
               title: Text(
                 'User Profile',
-                style: TextStyle(color: AppColors.primaryText),
+                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
               children: [
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Username',
-                    style: TextStyle(color: AppColors.primaryText),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () => _showEditUsernameDialog(context),
                 ),
@@ -385,7 +944,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Goals',
-                    style: TextStyle(color: AppColors.primaryText),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () => _showEditGoalDialog(context),
                 ),
@@ -393,8 +953,18 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Food Preference',
-                    style: TextStyle(color: AppColors.primaryText),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.edit),
+                  title: Text(
+                    'Edit Weight',
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
+                  ),
+                  onTap: () => _showEditWeightDialog(context),
                 ),
               ],
             ),
@@ -405,7 +975,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               title: Text(
                 'Terms and Conditions',
-                style: TextStyle(color: AppColors.primaryText),
+                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
               onTap: () => _showTermsAndCondition(context),
             ),
@@ -413,30 +983,35 @@ class _CustomDrawerState extends State<CustomDrawer> {
               leading: Icon(Icons.feedback, color: AppColors.drawerIcons),
               title: Text(
                 'Feedback',
-                style: TextStyle(color: AppColors.primaryText),
+                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+                context.push('/feedback'); // Navigate to feedback page
+              },
             ),
             ListTile(
               leading: Icon(Icons.settings, color: AppColors.drawerIcons),
               title: Text(
                 'Settings',
-                style: TextStyle(color: AppColors.primaryText),
+                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
             ),
             ListTile(
               leading: Icon(Icons.people_rounded, color: AppColors.drawerIcons),
               title: Text(
                 'About Us',
-                style: TextStyle(color: AppColors.primaryText),
+                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
               onTap: () => _showAboutUs(context),
             ),
+            SizedBox(height: 20),
+            Divider(),
             ListTile(
               leading: Icon(Icons.logout, color: Colors.red),
-              contentPadding: EdgeInsets.only(top: 320, left: 20),
               title: Text(
                 'Log Out',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(color: Colors.red, fontSize: 16),
               ),
               onTap: () => _showlogout(context),
             ),
