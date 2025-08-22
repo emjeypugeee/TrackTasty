@@ -17,16 +17,35 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   bool _checkedValue = false;
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers for text fields
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // Focus nodes for text fields
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _confirmPasswordFocusNode = FocusNode();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Load saved email if available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(_emailFocusNode);
+    });
   }
 
   Future<void> _registerUser() async {
@@ -134,7 +153,13 @@ class _RegisterPageState extends State<RegisterPage> {
         const SizedBox(height: 5),
         MyTextfield(
           controller: _emailController,
-          hintText: "Email",
+          focusNode: _emailFocusNode,
+          hintText: "Enter a valid email address",
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) {
+            _passwordFocusNode.requestFocus();
+          },
           validator: (value) =>
               value?.isEmpty ?? true ? 'Enter your email' : null,
           obscureText: false,
@@ -151,7 +176,13 @@ class _RegisterPageState extends State<RegisterPage> {
         const SizedBox(height: 5),
         MyTextfield(
           controller: _passwordController,
-          hintText: "Password",
+          focusNode: _passwordFocusNode,
+          showVisibilityIcon: true,
+          hintText: "Enter your password (6+ characters)",
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) {
+            _confirmPasswordFocusNode.requestFocus();
+          },
           obscureText: true,
           validator: (value) =>
               value?.isEmpty ?? true ? 'Enter your password' : null,
@@ -169,8 +200,14 @@ class _RegisterPageState extends State<RegisterPage> {
         const SizedBox(height: 5),
         MyTextfield(
           controller: _confirmPasswordController,
+          focusNode: _confirmPasswordFocusNode,
+          showVisibilityIcon: true,
           hintText: "Confirm Password",
           obscureText: true,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) {
+            _confirmPasswordFocusNode.unfocus();
+          },
           validator: (value) =>
               value != _passwordController.text ? 'Passwords mismatch' : null,
         ),

@@ -1,1 +1,0 @@
-D:\Coding\TrackTasty\build\app\intermediates\cxx\RelWithDebInfo\3r1m41n5\obj\arm64-v8a

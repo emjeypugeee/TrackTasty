@@ -24,8 +24,29 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+
   //to track state
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Load saved email if available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(_emailFocusNode);
+    });
+  }
 
   // log in method
   void login() async {
@@ -69,7 +90,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.loginPagesBg,
       //back button
       appBar: AppBar(
@@ -88,85 +108,102 @@ class _LoginPageState extends State<LoginPage> {
           //form
           child: Form(
             key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // logo
-                Image.asset('lib/images/TrackTastyLogo.png'),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  // logo
+                  Image.asset('lib/images/TrackTastyLogo.png'),
 
-                //Email Address text
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Email Address',
-                    style: TextStyle(color: AppColors.primaryText),
+                  //Email Address text
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Email Address',
+                      style: TextStyle(color: AppColors.primaryText),
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 5),
+                  const SizedBox(height: 5),
 
-                // username tb
-                MyTextfield(
-                  hintText: "Value",
-                  obscureText: false,
-                  controller: emailController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a email';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 10),
-
-                //Password Text
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Password',
-                    style: TextStyle(color: AppColors.primaryText),
+                  // username tb
+                  MyTextfield(
+                    hintText: "Enter your email",
+                    obscureText: false,
+                    controller: emailController,
+                    focusNode: _emailFocusNode,
+                    textInputAction: TextInputAction.next,
+                    keyboardType: TextInputType.emailAddress,
+                    onFieldSubmitted: (_) {
+                      _passwordFocusNode.requestFocus();
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a valid email address';
+                      }
+                      return null;
+                    },
                   ),
-                ),
 
-                // password tb
-                MyTextfield(
-                  hintText: "Value",
-                  obscureText: true,
-                  controller: passwordController,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    return null;
-                  },
-                ),
+                  const SizedBox(height: 10),
 
-                const SizedBox(height: 25),
+                  //Password Text
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Password',
+                      style: TextStyle(color: AppColors.primaryText),
+                    ),
+                  ),
 
-                // login button
-                MyButtons(
-                    text: "Login",
-                    onTap: () {
+                  // password tb
+                  MyTextfield(
+                    hintText: "Enter your password",
+                    obscureText: true,
+                    showVisibilityIcon: true,
+                    controller: passwordController,
+                    focusNode: _passwordFocusNode,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) {
                       if (_formKey.currentState!.validate()) {
                         // Proceed with login if all fields are valid
                         login();
                       }
-                    }),
-
-                const SizedBox(height: 10),
-
-                //forgot password text
-                GestureDetector(
-                  onTap: () {
-                    context.push('/forgetpassword');
-                  },
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(color: AppColors.titleText),
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a password';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 25),
+
+                  // login button
+                  MyButtons(
+                      text: "Login",
+                      onTap: () {
+                        if (_formKey.currentState!.validate()) {
+                          // Proceed with login if all fields are valid
+                          login();
+                        }
+                      }),
+
+                  const SizedBox(height: 10),
+
+                  //forgot password text
+                  GestureDetector(
+                    onTap: () {
+                      context.push('/forgetpassword');
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(color: AppColors.titleText),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

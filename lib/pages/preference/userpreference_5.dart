@@ -21,10 +21,10 @@ class _Userpreference5 extends State<Userpreference5> {
 
   //selectable button values
   final List<Map<String, String>> dietaryPreference = [
-    {'title': 'Vegetarian'},
-    {'title': 'Vegan'},
-    {'title': 'Pescatarian'},
-    {'title': 'Omnivore'}
+    {'title': 'Vegetarian', 'subtitle': 'No meat, includes dairy & eggs'},
+    {'title': 'Vegan', 'subtitle': 'No animal products whatsoever'},
+    {'title': 'Pescatarian', 'subtitle': 'Vegetarian + fish & seafood'},
+    {'title': 'Omnivore', 'subtitle': 'All food groups included'}
   ];
 
   //saving user dietary preference
@@ -48,7 +48,7 @@ class _Userpreference5 extends State<Userpreference5> {
           title: LinearPercentIndicator(
             backgroundColor: Color(0xFFe8def8),
             progressColor: Color(0xFF65558F),
-            percent: 0.8,
+            percent: 0.64,
             barRadius: Radius.circular(5),
           )),
       body: Padding(

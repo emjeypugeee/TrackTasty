@@ -50,4 +50,18 @@ class AppColors {
   // Button Colors
   static const Color buttonColor = Color(0xFFE99797);
   static const Color radioButtonColor = Color.fromARGB(255, 32, 32, 32);
+  static const Color textFieldBg = Color(0xFF1E1E1E);
+
+  // Macro Colors
+  static const Color caloriesColor = Colors.orange;
+  static const Color proteinColor = Colors.blue;
+  static const Color carbsColor = Colors.green;
+  static const Color fatColor = Colors.purple;
+
+  // Star Colors
+  static const Color fiveStarColor = Color(0xFFB9F2FF);
+  static const Color fourStarColor = Color(0xFF50C878);
+  static const Color threeStarColor = Color(0xFFFFD700);
+  static const Color twoStarColor = Color.fromARGB(255, 212, 206, 206);
+  static const Color oneStarColor = Color(0xFFCD7F32);
 }

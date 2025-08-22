@@ -30,6 +30,8 @@ class _Userpreference1 extends State<Userpreference1> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final FocusNode _usernameFocusNode = FocusNode();
+  final FocusNode _ageFocusNode = FocusNode();
 
   // Image picker
   Future uploadImage(ImageSource source) async {
@@ -176,6 +178,17 @@ class _Userpreference1 extends State<Userpreference1> {
                         hintText: 'Enter your username',
                         obscureText: false,
                         controller: usernameController,
+                        focusNode: _usernameFocusNode,
+                        textInputAction: TextInputAction.next,
+                        onFieldSubmitted: (_) {
+                          _ageFocusNode.requestFocus();
+                        },
+                        keyboardType: TextInputType.text,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z ]')), // Letters + spaces only
+                          LengthLimitingTextInputFormatter(30), // Max 30 chars
+                        ],
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your username';
@@ -196,6 +209,12 @@ class _Userpreference1 extends State<Userpreference1> {
                       MyTextfield(
                         hintText: 'Enter your age',
                         obscureText: false,
+                        keyboardType: TextInputType.number,
+                        focusNode: _ageFocusNode,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) {
+                          _ageFocusNode.unfocus();
+                        },
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
@@ -203,6 +222,13 @@ class _Userpreference1 extends State<Userpreference1> {
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your age';
+                          }
+                          final age = int.tryParse(value);
+                          if (age == null) {
+                            return 'Please enter a valid number';
+                          }
+                          if (age < 14 || age > 80) {
+                            return 'Please enter a valid age (14-80)';
                           }
                           return null;
                         },
@@ -268,16 +294,29 @@ class _Userpreference1 extends State<Userpreference1> {
                             : () async {
                                 if (_formKey.currentState!.validate()) {
                                   setState(() => _isLoading = true);
+
+                                  if (selectedGender == null) {
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      content:
+                                          Text('Please select your gender'),
+                                      backgroundColor:
+                                          AppColors.snackBarBgError,
+                                    ));
+                                  }
                                   try {
                                     await saveNickname();
+
                                     if (mounted && selectedGender != null) {
+                                      /*
+                                      // Show success message
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
                                         content: Text('Saved!'),
                                         behavior: SnackBarBehavior.floating,
                                         backgroundColor:
                                             AppColors.snackBarBgSaved,
-                                      ));
+                                      ));*/
                                       context.push('/preference2');
                                     }
                                   } catch (_) {
