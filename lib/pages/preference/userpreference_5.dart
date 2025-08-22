@@ -21,10 +21,10 @@ class _Userpreference5 extends State<Userpreference5> {
 
   //selectable button values
   final List<Map<String, String>> dietaryPreference = [
-    {'title': 'Vegetarian'},
-    {'title': 'Vegan'},
-    {'title': 'Pescatarian'},
-    {'title': 'Omnivore'}
+    {'title': 'Vegetarian', 'subtitle': 'No meat, includes dairy & eggs'},
+    {'title': 'Vegan', 'subtitle': 'No animal products whatsoever'},
+    {'title': 'Pescatarian', 'subtitle': 'Vegetarian + fish & seafood'},
+    {'title': 'Omnivore', 'subtitle': 'All food groups included'}
   ];
 
   //saving user dietary preference

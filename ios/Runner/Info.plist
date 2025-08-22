@@ -47,6 +47,14 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 <string>Need camera access to take pictures</string>
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>https</string>
+    <string>http</string>
+    <string>mailto</string>
+    <string>sms</string>
+    <string>tel</string>
+</array>
 <key>NSPhotoLibraryUsageDescription</key>
 <string>Need photo library access to select pictures</string>
 <key>NSMicrophoneUsageDescription</key>

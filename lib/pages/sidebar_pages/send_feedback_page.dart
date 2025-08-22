@@ -15,6 +15,7 @@ class SendFeedbackPage extends StatefulWidget {
 class _SendFeedbackPageState extends State<SendFeedbackPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _feedbackController = TextEditingController();
+  FocusNode _feedbackNode = FocusNode();
   String _selectedCategory = 'Bug';
   bool _isSubmitting = false;
 
@@ -96,7 +97,7 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
         centerTitle: true,
         elevation: 0,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
@@ -162,6 +163,12 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
                 controller: _feedbackController,
                 maxLines: 8,
                 maxLength: 1000,
+                keyboardType: TextInputType.text,
+                focusNode: _feedbackNode,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) {
+                  _feedbackNode.unfocus();
+                },
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Please describe your feedback in detail...',

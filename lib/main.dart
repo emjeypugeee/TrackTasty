@@ -1,28 +1,42 @@
+import 'package:fitness/provider/user_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:fitness/animations/fade_out_page_transition.dart';
-import 'package:fitness/pages/preference/userpreference_7.dart';
-import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
-import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
 import 'package:fitness/firebase_options.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
+
+// WIDGETS & ANIMATIONS
+import 'package:fitness/widgets/main_screen_widgets/main_screen.dart';
+import 'package:fitness/animations/fade_out_page_transition.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+// SIDEBAR PAGES
+import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
+import 'package:fitness/pages/sidebar_pages/recalculate_macros_page.dart';
+import 'package:fitness/pages/sidebar_pages/edit_food_preference.dart';
+
+// LOGIN PAGES
 import 'package:fitness/pages/login/forgetpassword_page.dart';
 import 'package:fitness/pages/login/startup_page.dart';
 import 'package:fitness/pages/login/login_page.dart';
 import 'package:fitness/pages/login/register_page.dart';
+
+// MAIN PAGES
 import 'package:fitness/pages/main_pages/analytics_page.dart';
 import 'package:fitness/pages/main_pages/chat_bot.dart';
 import 'package:fitness/pages/main_pages/admin_page.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:fitness/pages/main_pages/profile_page.dart';
+import 'package:fitness/pages/main_pages/food_page.dart';
+
+// FOOD PREFERENCE PAGES
 import 'package:fitness/pages/preference/userpreference_2.dart';
 import 'package:fitness/pages/preference/userpreference_1.dart';
 import 'package:fitness/pages/preference/userpreference_3.dart';
 import 'package:fitness/pages/preference/userpreference_4.dart';
 import 'package:fitness/pages/preference/userpreference_5.dart';
 import 'package:fitness/pages/preference/userpreference_6.dart';
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:provider/provider.dart';
+import 'package:fitness/pages/preference/userpreference_7.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,6 +146,47 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
+    GoRoute(
+      path: '/food_page',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: FoodPage(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/adminonly',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: AdminPage(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/editfoodpreference',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: EditFoodPreferencePage(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/recalcmacros',
+      pageBuilder: (context, state) {
+        // Safely cast state.extra to Map<String, dynamic>?
+        final extraData = state.extra as Map<String, dynamic>?;
+
+        // Extract parameters with null safety
+        final Map<String, dynamic> userData = extraData?['userData'] ?? {};
+        final String selectedGoal =
+            extraData?['selectedGoal'] ?? 'Maintain Weight';
+
+        return FadeOutPageTransition(
+          child: RecalculateMacrosPage(
+            userData: userData,
+            selectedGoal: selectedGoal,
+          ),
+          key: state.pageKey,
+        );
+      },
+    ),
     //shell route for main screen
     ShellRoute(
         builder: (context, state, child) => MainScreen(child: child),
@@ -169,13 +224,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'TrackTasty',
-      theme: ThemeData(
-          scaffoldBackgroundColor: const Color(0xFF121212),
-          appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
-      debugShowCheckedModeBanner: false,
-      routerConfig: _router,
+    return ChangeNotifierProvider(
+      create: (context) => UserProvider(),
+      child: MaterialApp.router(
+        theme: ThemeData(
+            scaffoldBackgroundColor: const Color(0xFF121212),
+            appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
+        debugShowCheckedModeBanner: false,
+        routerConfig: _router,
+      ),
     );
   }
 }

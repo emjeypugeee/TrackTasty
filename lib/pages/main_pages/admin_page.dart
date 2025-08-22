@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -35,49 +36,39 @@ class _AdminPageState extends State<AdminPage> {
           ),
         ),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         centerTitle: true,
         elevation: 0,
       ),
-      body: Row(
-        children: [
-          // Sidebar Navigation
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
-            },
-            labelType: NavigationRailLabelType.selected,
-            backgroundColor: Colors.grey[900],
-            selectedLabelTextStyle: const TextStyle(color: Colors.white),
-            unselectedLabelTextStyle: TextStyle(color: Colors.grey[400]),
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard, color: Colors.grey),
-                selectedIcon: Icon(Icons.dashboard, color: Colors.white),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.people, color: Colors.grey),
-                selectedIcon: Icon(Icons.people, color: Colors.white),
-                label: Text('Accounts'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.chat, color: Colors.grey),
-                selectedIcon: Icon(Icons.chat, color: Colors.white),
-                label: Text('Chatbot'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.feedback, color: Colors.grey),
-                selectedIcon: Icon(Icons.feedback, color: Colors.white),
-                label: Text('Feedback'),
-              ),
-            ],
+      body: _adminSections[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        backgroundColor: Colors.grey[900],
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.grey[400],
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
           ),
-          const VerticalDivider(width: 1, thickness: 1),
-
-          // Main Content
-          Expanded(
-            child: _adminSections[_selectedIndex],
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Accounts',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chatbot',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.feedback),
+            label: 'Feedback',
           ),
         ],
       ),
@@ -85,7 +76,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 }
 
-// System Metrics Service
+// System Metrics Service (unchanged)
 class SystemMetricsService {
   static Future<Map<String, dynamic>> getFirebaseHealthStatus() async {
     try {
@@ -169,7 +160,7 @@ class SystemMetricsService {
   }
 }
 
-// Dashboard Section with real metrics
+// Dashboard Section with mobile-friendly layout
 class DashboardSection extends StatefulWidget {
   const DashboardSection({super.key});
 
@@ -186,7 +177,6 @@ class _DashboardSectionState extends State<DashboardSection> {
   void initState() {
     super.initState();
     _loadMetrics();
-    // Refresh metrics every 30 seconds
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _loadMetrics();
     });
@@ -241,7 +231,7 @@ class _DashboardSectionState extends State<DashboardSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -252,7 +242,7 @@ class _DashboardSectionState extends State<DashboardSection> {
                 'System Metrics',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -262,7 +252,7 @@ class _DashboardSectionState extends State<DashboardSection> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else if (_metrics == null)
@@ -285,51 +275,33 @@ class _DashboardSectionState extends State<DashboardSection> {
     return GridView.count(
       shrinkWrap: true,
       crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.2,
       children: [
         _buildMetricCard(
           'Server Status',
           '${_getStatusIcon(firebaseMetrics['status'])} ${firebaseMetrics['status']}',
           Icons.cloud,
           _getStatusColor(firebaseMetrics['status']),
-          subtitle:
-              'Last checked: ${_formatDateTime(firebaseMetrics['last_checked'])}',
         ),
         _buildMetricCard(
-          'Database Health',
+          'Database',
           '${_getStatusIcon(firebaseMetrics['firestore_status'])} ${firebaseMetrics['firestore_status']}',
           Icons.storage,
           _getStatusColor(firebaseMetrics['firestore_status']),
-          subtitle: 'Response: ${firebaseMetrics['response_time_ms']}ms',
         ),
         _buildMetricCard(
-          'Authentication',
-          '${_getStatusIcon(firebaseMetrics['auth_status'])} ${firebaseMetrics['auth_status']}',
-          Icons.security,
-          _getStatusColor(firebaseMetrics['auth_status']),
-        ),
-        _buildMetricCard(
-          'Registered Users',
+          'Users',
           '${firebaseMetrics['users_count']}',
           Icons.people,
           Colors.blue,
-          subtitle: 'Active accounts',
         ),
         _buildMetricCard(
           'Food Logs',
           '${firebaseMetrics['food_logs_count']}',
           Icons.restaurant,
           Colors.purple,
-          subtitle: 'Total entries',
-        ),
-        _buildMetricCard(
-          'Connection',
-          '${_getStatusIcon(metrics['connection_type'])} ${metrics['connection_type']}',
-          Icons.wifi,
-          _getStatusColor(metrics['connection_type']),
-          subtitle: 'Network status',
         ),
       ],
     );
@@ -339,73 +311,96 @@ class _DashboardSectionState extends State<DashboardSection> {
     String title,
     String value,
     IconData icon,
-    Color color, {
-    String subtitle = '',
-  }) {
+    Color color,
+  ) {
     return Card(
       color: Colors.grey[850],
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
+            Icon(icon, color: color, size: 20),
             const SizedBox(height: 8),
             Text(
               value,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
               ),
-            ],
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
     );
   }
-
-  String _formatDateTime(dynamic dateTime) {
-    if (dateTime is DateTime) {
-      return '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } else if (dateTime is String) {
-      return dateTime;
-    }
-    return 'N/A';
-  }
 }
 
-// The rest of your classes (AccountManagementSection, ChatbotManagementSection,
-// FeedbackManagementSection) remain unchanged from your original code...
-// Account Management Section
-class AccountManagementSection extends StatelessWidget {
+// Account Management Section with functionality
+class AccountManagementSection extends StatefulWidget {
   const AccountManagementSection({super.key});
+
+  @override
+  State<AccountManagementSection> createState() =>
+      _AccountManagementSectionState();
+}
+
+class _AccountManagementSectionState extends State<AccountManagementSection> {
+  final TextEditingController _emailController = TextEditingController();
+
+  Future<void> _createAdminAccount() async {
+    if (_emailController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter an email address')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(_emailController.text)
+          .set({
+        'isAdmin': true,
+        'email': _emailController.text,
+        'adminGrantedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Admin privileges granted to ${_emailController.text}')),
+      );
+      _emailController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Future<void> _viewAllUsers() async {
+    // This would navigate to a detailed user list page
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Opening user list...')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -413,72 +408,45 @@ class AccountManagementSection extends StatelessWidget {
             'Account Management',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                ),
-                child: const Text('Create Admin Account'),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                ),
-                child: const Text('View All Users'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('Users')
-                  .limit(10)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No users found'));
-                }
+          const SizedBox(height: 16),
 
-                return ListView.builder(
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    final user = snapshot.data!.docs[index];
-                    final data = user.data() as Map<String, dynamic>;
-
-                    return ListTile(
-                      title: Text(
-                        data['username'] ?? 'No username',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      subtitle: Text(
-                        data['email'] ?? 'No email',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () {},
-                      ),
-                    );
-                  },
-                );
-              },
+          // Create Admin Account
+          TextFormField(
+            controller: _emailController,
+            decoration: InputDecoration(
+              labelText: 'User Email',
+              labelStyle: const TextStyle(color: Colors.grey),
+              filled: true,
+              fillColor: Colors.grey[800],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
+            style: const TextStyle(color: Colors.white),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _createAdminAccount,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('Grant Admin Privileges'),
+          ),
+
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _viewAllUsers,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('View All Users'),
           ),
         ],
       ),
@@ -581,14 +549,177 @@ class ChatbotManagementSection extends StatelessWidget {
   }
 }
 
-// Feedback Management Section
-class FeedbackManagementSection extends StatelessWidget {
+// Feedback Management Section with enhanced functionality
+class FeedbackManagementSection extends StatefulWidget {
   const FeedbackManagementSection({super.key});
+
+  @override
+  State<FeedbackManagementSection> createState() =>
+      _FeedbackManagementSectionState();
+}
+
+class _FeedbackManagementSectionState extends State<FeedbackManagementSection> {
+  String? _selectedCategory;
+  String? _selectedStatus;
+  final List<String> _categories = [
+    'Bug',
+    'Suggestion',
+    'Inquiry',
+    'Feature Request',
+    'Complaint',
+    'Other'
+  ];
+  final List<String> _statuses = ['new', 'in-progress', 'resolved', 'ignore'];
+
+  void _showFeedbackDetails(Map<String, dynamic> feedback) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      isScrollControlled: true,
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Feedback Details',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildDetailRow('Category', feedback['category'] ?? 'Unknown'),
+            _buildDetailRow('User', feedback['userEmail'] ?? 'Unknown'),
+            _buildDetailRow('Status', feedback['status'] ?? 'new'),
+            _buildDetailRow('Date', _formatTimestamp(feedback['timestamp'])),
+            const SizedBox(height: 16),
+            Text(
+              'Message:',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              feedback['message'] ?? 'No message',
+              style: TextStyle(color: Colors.grey[300]),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _respondToFeedback(feedback),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                minimumSize: const Size(double.infinity, 48),
+              ),
+              child: const Text('Respond via Email'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            value,
+            style: TextStyle(color: Colors.grey[300]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      return timestamp.toDate().toString().split('.').first;
+    }
+    return 'Unknown';
+  }
+
+  Future<void> _respondToFeedback(Map<String, dynamic> feedback) async {
+    final email = feedback['userEmail']?.toString();
+    if (email == null || email.isEmpty) {
+      print('No email provided');
+      return;
+    }
+
+    try {
+      // Create a safe email URI
+      final subject = Uri.encodeComponent('Re: Your Feedback - TrackTasty');
+      final body = Uri.encodeComponent(
+        'Hello,\n\nThank you for your feedback regarding "${feedback['category']}".\n\n',
+      );
+
+      final Uri emailLaunchUri = Uri(
+        scheme: 'mailto',
+        path: email,
+        query: 'subject=$subject&body=$body',
+      );
+
+      debugPrint('Attempting to launch: $emailLaunchUri');
+
+      // Use a timeout to prevent hanging
+      final launchFuture = launchUrl(emailLaunchUri);
+      final success = await launchFuture.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('Email launch timed out');
+          return false;
+        },
+      );
+
+      if (!success) {
+        _showEmailError(context);
+      }
+    } on FormatException catch (e) {
+      debugPrint('Invalid email format: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid email address')),
+      );
+    } catch (e) {
+      debugPrint('Unexpected error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error opening email client')),
+      );
+    }
+  }
+
+  void _showEmailError(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No email app found')),
+    );
+  }
+
+  Future<void> _updateFeedbackStatus(String docId, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('feedback')
+          .doc(docId)
+          .update({'status': newStatus});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Status updated to $newStatus')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating status: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -596,31 +727,56 @@ class FeedbackManagementSection extends StatelessWidget {
             'Feedback Management',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
-          Row(
+          const SizedBox(height: 16),
+
+          // Filter buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                ),
-                child: const Text('Filter by Category'),
+              // Category filter
+              DropdownButton<String>(
+                value: _selectedCategory,
+                hint: Text('Filter by Category',
+                    style: TextStyle(color: Colors.white)),
+                dropdownColor: Colors.grey[900],
+                style: TextStyle(color: Colors.white),
+                items: _categories.map((String category) {
+                  return DropdownMenuItem<String>(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() => _selectedCategory = newValue);
+                },
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                ),
-                child: const Text('Export Feedback'),
+
+              // Status filter
+              DropdownButton<String>(
+                value: _selectedStatus,
+                hint: Text('Filter by Status',
+                    style: TextStyle(color: Colors.white)),
+                dropdownColor: Colors.grey[900],
+                style: TextStyle(color: Colors.white),
+                items: _statuses.map((String status) {
+                  return DropdownMenuItem<String>(
+                    value: status,
+                    child: Text(status),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() => _selectedStatus = newValue);
+                },
               ),
             ],
           ),
-          const SizedBox(height: 20),
+
+          const SizedBox(height: 16),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -638,10 +794,24 @@ class FeedbackManagementSection extends StatelessWidget {
                   return const Center(child: Text('No feedback yet'));
                 }
 
+                var filteredDocs = snapshot.data!.docs;
+                if (_selectedCategory != null) {
+                  filteredDocs = filteredDocs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return data['category'] == _selectedCategory;
+                  }).toList();
+                }
+                if (_selectedStatus != null) {
+                  filteredDocs = filteredDocs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return data['status'] == _selectedStatus;
+                  }).toList();
+                }
+
                 return ListView.builder(
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
-                    final feedback = snapshot.data!.docs[index];
+                    final feedback = filteredDocs[index];
                     final data = feedback.data() as Map<String, dynamic>;
                     final timestamp = data['timestamp'] != null
                         ? (data['timestamp'] as Timestamp).toDate()
@@ -666,7 +836,9 @@ class FeedbackManagementSection extends StatelessWidget {
                             ),
                             Text(
                               'Status: ${data['status'] ?? 'new'} - ${timestamp.toString().split(' ')[0]}',
-                              style: const TextStyle(color: Colors.blue),
+                              style: TextStyle(
+                                color: _getStatusColor(data['status'] ?? 'new'),
+                              ),
                             ),
                           ],
                         ),
@@ -681,12 +853,22 @@ class FeedbackManagementSection extends StatelessWidget {
                               child: Text('Respond'),
                             ),
                             const PopupMenuItem(
-                              value: 'resolve',
-                              child: Text('Mark as Resolved'),
+                              value: 'change_status',
+                              child: Text('Change Status'),
                             ),
                           ],
                           onSelected: (value) {
-                            // Handle feedback actions
+                            if (value == 'view') {
+                              debugPrint("Showing Feedback Details");
+                              _showFeedbackDetails(data);
+                            } else if (value == 'respond') {
+                              debugPrint("Showing Feedback Response");
+                              _respondToFeedback(data);
+                            } else if (value == 'change_status') {
+                              debugPrint("Showing Change Status");
+                              _showStatusChangeDialog(
+                                  feedback.id, data['status'] ?? 'new');
+                            }
                           },
                         ),
                       ),
@@ -699,5 +881,45 @@ class FeedbackManagementSection extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showStatusChangeDialog(String docId, String currentStatus) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text('Change Status', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _statuses.map((status) {
+            return ListTile(
+              title: Text(status, style: TextStyle(color: Colors.white)),
+              trailing: currentStatus == status
+                  ? Icon(Icons.check, color: AppColors.primaryColor)
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                _updateFeedbackStatus(docId, status);
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'new':
+        return Colors.orange;
+      case 'in-progress':
+        return Colors.blue;
+      case 'resolved':
+        return Colors.green;
+      case 'ignore':
+        return Colors.grey;
+      default:
+        return Colors.white;
+    }
   }
 }

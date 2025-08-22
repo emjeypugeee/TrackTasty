@@ -188,9 +188,9 @@ class ProfilePage extends StatelessWidget {
                                       gridDelegate:
                                           const SliverGridDelegateWithFixedCrossAxisCount(
                                         crossAxisCount: 1,
-                                        crossAxisSpacing: 10,
-                                        mainAxisSpacing: 10,
-                                        childAspectRatio: 0.75,
+                                        crossAxisSpacing: 12,
+                                        mainAxisSpacing: 12,
+                                        childAspectRatio: 1.5,
                                       ),
                                       itemCount: achievementList.length,
                                       itemBuilder: (context, index) {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/meals_container.dart';
+import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -42,8 +43,13 @@ class _HomePageState extends State<HomePage> {
 
   // Nutrition data state
   Map<String, dynamic>? _nutritionData;
-  bool _isLoading = true;
+  // bool _isLoading = true;
   StreamSubscription<QuerySnapshot>? _foodLogSubscription;
+
+  void refreshData() {
+    _loadNutritionData();
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -54,7 +60,7 @@ class _HomePageState extends State<HomePage> {
     selectedDay = days[selectedIndex];
     _loadNutritionData();
 
-    // backfill current weight if no history exists
+    /* backfill current weight if no history exists
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         final user = FirebaseAuth.instance.currentUser;
@@ -99,24 +105,25 @@ class _HomePageState extends State<HomePage> {
       } catch (e) {
         debugPrint('Error in weight history initialization: $e');
       }
-    });
+    }
+    );*/
   }
 
   Future<void> _loadNutritionData() async {
-    setState(() => _isLoading = true);
+    //setState(() => _isLoading = true);
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    /*if (user == null) {
       setState(() => _isLoading = false);
       return;
-    }
+    }*/
 
     // Cancel previous subscription
     _foodLogSubscription?.cancel();
 
     _foodLogSubscription = FirebaseFirestore.instance
         .collection('food_logs')
-        .where('userId', isEqualTo: user.uid)
+        .where('userId', isEqualTo: user?.uid)
         .where('date',
             isGreaterThanOrEqualTo: Timestamp.fromDate(
                 DateTime(selectedDay.year, selectedDay.month, selectedDay.day)))
@@ -134,7 +141,7 @@ class _HomePageState extends State<HomePage> {
             'totalCarbs': foodLog['totalCarbs'] ?? 0,
             'totalFat': foodLog['totalFat'] ?? 0,
           };
-          _isLoading = false;
+          //_isLoading = false;
         });
       } else {
         setState(() {
@@ -144,7 +151,7 @@ class _HomePageState extends State<HomePage> {
             'totalCarbs': 0,
             'totalFat': 0,
           };
-          _isLoading = false;
+          //_isLoading = false;
         });
       }
     });
@@ -434,9 +441,130 @@ class _HomePageState extends State<HomePage> {
     if (widget.onEditMeal != null) {
       widget.onEditMeal!(context, food);
     }
+    refreshData();
   }
 
-  void _handleDeleteMeal(Map<String, dynamic> food) {
-    // Delete meal
+  void _handleDeleteMeal(Map<String, dynamic> food) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Meal', style: TextStyle(color: Colors.white)),
+        content: Text('Are you sure you want to delete "${food['mealName']}"?',
+            style: TextStyle(color: Colors.white70)),
+        backgroundColor: Colors.grey[900],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final today = DateTime.now();
+    final foodLogId = '${user.uid}_${today.year}-${today.month}-${today.day}';
+
+    try {
+      final foodLogDoc = await FirebaseFirestore.instance
+          .collection('food_logs')
+          .doc(foodLogId)
+          .get();
+
+      if (foodLogDoc.exists) {
+        final foodLogData = foodLogDoc.data() as Map<String, dynamic>;
+        final foods =
+            List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
+
+        // Find the food item to delete using a more flexible comparison
+        final index = foods.indexWhere((f) {
+          // Convert all values to the same data type for comparison
+          final fCalories = (f['calories'] is int)
+              ? f['calories']
+              : (f['calories'] as num).toInt();
+          final foodCalories = (food['calories'] is int)
+              ? food['calories']
+              : (food['calories'] as num).toInt();
+
+          final fProtein = (f['protein'] is int)
+              ? f['protein']
+              : (f['protein'] as num).toInt();
+          final foodProtein = (food['protein'] is int)
+              ? food['protein']
+              : (food['protein'] as num).toInt();
+
+          final fCarbs =
+              (f['carbs'] is int) ? f['carbs'] : (f['carbs'] as num).toInt();
+          final foodCarbs = (food['carbs'] is int)
+              ? food['carbs']
+              : (food['carbs'] as num).toInt();
+
+          final fFat = (f['fat'] is int) ? f['fat'] : (f['fat'] as num).toInt();
+          final foodFat =
+              (food['fat'] is int) ? food['fat'] : (food['fat'] as num).toInt();
+
+          // Compare loggedTime by converting both to DateTime and comparing timestamps
+          final fTime = (f['loggedTime'] as Timestamp).toDate();
+          final foodTime = (food['loggedTime'] as Timestamp).toDate();
+
+          return f['mealName'] == food['mealName'] &&
+              fCalories == foodCalories &&
+              fProtein == foodProtein &&
+              fCarbs == foodCarbs &&
+              fFat == foodFat &&
+              fTime.millisecondsSinceEpoch == foodTime.millisecondsSinceEpoch;
+        });
+
+        if (index != -1) {
+          // Get the food item being deleted
+          final deletedFood = foods[index];
+
+          // Update totals by subtracting the deleted food's values
+          foodLogData['totalCalories'] = (foodLogData['totalCalories'] ?? 0) -
+              (deletedFood['calories'] ?? 0);
+          foodLogData['totalProtein'] = (foodLogData['totalProtein'] ?? 0) -
+              (deletedFood['protein'] ?? 0);
+          foodLogData['totalCarbs'] =
+              (foodLogData['totalCarbs'] ?? 0) - (deletedFood['carbs'] ?? 0);
+          foodLogData['totalFat'] =
+              (foodLogData['totalFat'] ?? 0) - (deletedFood['fat'] ?? 0);
+
+          // Remove the food item
+          foods.removeAt(index);
+          foodLogData['foods'] = foods;
+
+          // Save updated food log data
+          await FirebaseFirestore.instance
+              .collection('food_logs')
+              .doc(foodLogId)
+              .set(foodLogData);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Meal deleted successfully')),
+          );
+
+          // Refresh the data
+          refreshData();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Meal not found')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting meal: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting meal: $e')),
+      );
+    }
   }
 }

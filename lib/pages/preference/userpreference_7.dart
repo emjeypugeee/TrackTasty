@@ -81,7 +81,7 @@ class _Userpreference7 extends State<Userpreference7> {
         final goal = data['goal'] ?? 'Maintain Weight';
 
         // Converts weight and height to metric if necessary
-        final isMetric = measurementSystem == 'metric';
+        final isMetric = measurementSystem == 'Metric';
         final weightKg = isMetric ? weight : weight * 0.453592; //
         final heightCm = isMetric ? height : height * 2.54; //
 

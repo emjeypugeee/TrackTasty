@@ -1,3 +1,4 @@
+import 'package:fitness/pages/main_pages/food_page.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,6 @@ class _MainScreenState extends State<MainScreen> {
     '/chatbot',
     '/analytics',
     '/profile',
-    '/adminonly'
   ];
 
   int _selectedIndexFromLocation(BuildContext context) {
@@ -33,7 +33,6 @@ class _MainScreenState extends State<MainScreen> {
       '/chatbot',
       '/analytics',
       '/profile',
-      '/adminonly'
     ];
 
     // Exact match first
@@ -89,6 +88,12 @@ class _MainScreenState extends State<MainScreen> {
           );
         },
       );
+    }
+
+    void _refreshHomePage() {
+      if (homePageKey.currentState != null) {
+        homePageKey.currentState!.setState(() {});
+      }
     }
 
     //
@@ -299,9 +304,11 @@ class _MainScreenState extends State<MainScreen> {
           // Handle the update logic
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
-            final today = DateTime.now();
+            // Use the original food's logged time to find the correct day
+            final originalLoggedTime = existingFood['loggedTime'] as Timestamp;
+            final originalDate = originalLoggedTime.toDate();
             final foodLogId =
-                '${user.uid}_${today.year}-${today.month}-${today.day}';
+                '${user.uid}_${originalDate.year}-${originalDate.month}-${originalDate.day}';
 
             try {
               final foodLogDoc = await FirebaseFirestore.instance
@@ -314,41 +321,88 @@ class _MainScreenState extends State<MainScreen> {
                 final foods =
                     List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
 
-                // Find and update the existing food item
-                final index = foods.indexWhere((food) =>
-                    food['mealName'] == existingFood['mealName'] &&
-                    food['calories'] == existingFood['calories'] &&
-                    food['protein'] == existingFood['protein'] &&
-                    food['carbs'] == existingFood['carbs'] &&
-                    food['fat'] == existingFood['fat'] &&
-                    (food['loggedTime'] as Timestamp).toDate() ==
-                        existingFood['loggedTime']);
+                // Find the exact food item to update
+                final index = foods.indexWhere((f) {
+                  // Convert all values to the same data type for comparison
+                  final fCalories = (f['calories'] is int)
+                      ? f['calories']
+                      : (f['calories'] as num).toInt();
+                  final existingCalories = (existingFood['calories'] is int)
+                      ? existingFood['calories']
+                      : (existingFood['calories'] as num).toInt();
+
+                  final fProtein = (f['protein'] is int)
+                      ? f['protein']
+                      : (f['protein'] as num).toInt();
+                  final existingProtein = (existingFood['protein'] is int)
+                      ? existingFood['protein']
+                      : (existingFood['protein'] as num).toInt();
+
+                  final fCarbs = (f['carbs'] is int)
+                      ? f['carbs']
+                      : (f['carbs'] as num).toInt();
+                  final existingCarbs = (existingFood['carbs'] is int)
+                      ? existingFood['carbs']
+                      : (existingFood['carbs'] as num).toInt();
+
+                  final fFat =
+                      (f['fat'] is int) ? f['fat'] : (f['fat'] as num).toInt();
+                  final existingFat = (existingFood['fat'] is int)
+                      ? existingFood['fat']
+                      : (existingFood['fat'] as num).toInt();
+
+                  // Compare loggedTime by converting both to DateTime
+                  final fTime = (f['loggedTime'] as Timestamp).toDate();
+                  final existingTime =
+                      (existingFood['loggedTime'] as Timestamp).toDate();
+
+                  return f['mealName'] == existingFood['mealName'] &&
+                      fCalories == existingCalories &&
+                      fProtein == existingProtein &&
+                      fCarbs == existingCarbs &&
+                      fFat == existingFat &&
+                      fTime.millisecondsSinceEpoch ==
+                          existingTime.millisecondsSinceEpoch;
+                });
 
                 if (index != -1) {
-                  // Update totals by subtracting old values and adding new ones
+                  // Get the updated values
+                  final updatedCalories = updatedMealData['calories'] ?? 0;
+                  final updatedProtein = updatedMealData['protein'] ?? 0;
+                  final updatedCarbs = updatedMealData['carbs'] ?? 0;
+                  final updatedFat = updatedMealData['fat'] ?? 0;
+
+                  // Get the original values
+                  final originalCalories = existingFood['calories'] ?? 0;
+                  final originalProtein = existingFood['protein'] ?? 0;
+                  final originalCarbs = existingFood['carbs'] ?? 0;
+                  final originalFat = existingFood['fat'] ?? 0;
+
+                  // Calculate the difference
+                  final caloriesDiff = updatedCalories - originalCalories;
+                  final proteinDiff = updatedProtein - originalProtein;
+                  final carbsDiff = updatedCarbs - originalCarbs;
+                  final fatDiff = updatedFat - originalFat;
+
+                  // Update totals by adding the difference
                   foodLogData['totalCalories'] =
-                      (foodLogData['totalCalories'] ?? 0) -
-                          (existingFood['calories'] ?? 0) +
-                          (updatedMealData['calories'] ?? 0);
+                      (foodLogData['totalCalories'] ?? 0) + caloriesDiff;
                   foodLogData['totalProtein'] =
-                      (foodLogData['totalProtein'] ?? 0) -
-                          (existingFood['protein'] ?? 0) +
-                          (updatedMealData['protein'] ?? 0);
-                  foodLogData['totalCarbs'] = (foodLogData['totalCarbs'] ?? 0) -
-                      (existingFood['carbs'] ?? 0) +
-                      (updatedMealData['carbs'] ?? 0);
-                  foodLogData['totalFat'] = (foodLogData['totalFat'] ?? 0) -
-                      (existingFood['fat'] ?? 0) +
-                      (updatedMealData['fat'] ?? 0);
+                      (foodLogData['totalProtein'] ?? 0) + proteinDiff;
+                  foodLogData['totalCarbs'] =
+                      (foodLogData['totalCarbs'] ?? 0) + carbsDiff;
+                  foodLogData['totalFat'] =
+                      (foodLogData['totalFat'] ?? 0) + fatDiff;
 
                   // Update the food item
                   foods[index] = {
                     ...foods[index],
-                    'mealName': updatedMealData['mealName'],
-                    'calories': updatedMealData['calories'],
-                    'protein': updatedMealData['protein'],
-                    'carbs': updatedMealData['carbs'],
-                    'fat': updatedMealData['fat'],
+                    'mealName':
+                        updatedMealData['mealName'] ?? existingFood['mealName'],
+                    'calories': updatedCalories,
+                    'protein': updatedProtein,
+                    'carbs': updatedCarbs,
+                    'fat': updatedFat,
                   };
 
                   foodLogData['foods'] = foods;
@@ -358,11 +412,26 @@ class _MainScreenState extends State<MainScreen> {
                       .doc(foodLogId)
                       .set(foodLogData);
 
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Meal updated successfully')),
+                  );
+
                   Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Meal not found in food log')),
+                  );
                 }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Food log not found for this date')),
+                );
               }
             } catch (e) {
               debugPrint('Error updating food: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error updating meal: $e')),
+              );
             }
           }
         },
@@ -417,10 +486,6 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.star),
             label: 'Achievements',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Admin',
-          ),
         ],
       ),
 
@@ -431,9 +496,9 @@ class _MainScreenState extends State<MainScreen> {
               iconTheme: const IconThemeData(color: Colors.white),
               elevation: 0,
               activeIcon: Icons.close,
-              backgroundColor: Colors.grey[600],
+              backgroundColor: const Color.fromARGB(120, 117, 117, 117),
               spacing: 20,
-              buttonSize: const Size.fromRadius(35),
+              buttonSize: const Size.fromRadius(30),
               overlayColor: Colors.black,
               overlayOpacity: 0.4,
               closeManually: false,
@@ -482,6 +547,11 @@ class _MainScreenState extends State<MainScreen> {
                   labelStyle: const TextStyle(color: Colors.white),
                   labelBackgroundColor: Colors.grey[600],
                   backgroundColor: Colors.grey[600],
+                  onTap: () async {
+                    await Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => FoodPage()));
+                    _refreshHomePage(); // Refresh home page after returning
+                  },
                 ),
               ],
             )
