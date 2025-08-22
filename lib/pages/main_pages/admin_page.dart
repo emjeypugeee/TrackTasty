@@ -76,7 +76,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 }
 
-// System Metrics Service (unchanged)
+// System Metrics Service
 class SystemMetricsService {
   static Future<Map<String, dynamic>> getFirebaseHealthStatus() async {
     try {
@@ -160,7 +160,9 @@ class SystemMetricsService {
   }
 }
 
-// Dashboard Section with mobile-friendly layout
+//
+// DASHBOARD SECTION
+//
 class DashboardSection extends StatefulWidget {
   const DashboardSection({super.key});
 
@@ -391,7 +393,7 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
   }
 
   Future<void> _viewAllUsers() async {
-    // This would navigate to a detailed user list page
+    // Navigate user list (NO FUNCTIONS YET)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Opening user list...')),
     );
@@ -436,7 +438,8 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
               backgroundColor: AppColors.primaryColor,
               minimumSize: const Size(double.infinity, 48),
             ),
-            child: const Text('Grant Admin Privileges'),
+            child: const Text('Grant Admin Privileges',
+                style: TextStyle(color: AppColors.primaryText)),
           ),
 
           const SizedBox(height: 20),
@@ -446,7 +449,8 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
               backgroundColor: Colors.blue,
               minimumSize: const Size(double.infinity, 48),
             ),
-            child: const Text('View All Users'),
+            child: const Text('View All Users',
+                style: TextStyle(color: AppColors.primaryText)),
           ),
         ],
       ),
@@ -454,7 +458,9 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
   }
 }
 
+//
 // Chatbot Management Section
+//
 class ChatbotManagementSection extends StatelessWidget {
   const ChatbotManagementSection({super.key});
 
@@ -473,83 +479,24 @@ class ChatbotManagementSection extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 20),
-          Card(
-            color: Colors.grey[850],
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Response Boundaries',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Max Response Length',
-                      labelStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.grey[800],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                    initialValue: '500',
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    decoration: InputDecoration(
-                      labelText: 'Sensitivity Level',
-                      labelStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.grey[800],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    style: const TextStyle(color: Colors.white),
-                    initialValue: 'Medium',
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                    ),
-                    child: const Text('Save Settings'),
-                  ),
-                ],
-              ),
-            ),
+          Center(
+            child: Text("Work in Progress",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 50,
+                    fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 20),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Recent Conversations',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
-                SizedBox(height: 10),
-                // Would typically show conversation logs here
-                Text(
-                  'Conversation monitoring feature would be implemented here',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
+          // NO FUNCTIONS YET
         ],
       ),
     );
   }
 }
 
-// Feedback Management Section with enhanced functionality
+//
+// Feedback Management Section
+//
 class FeedbackManagementSection extends StatefulWidget {
   const FeedbackManagementSection({super.key});
 

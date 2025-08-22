@@ -511,7 +511,7 @@ class _MainScreenState extends State<MainScreen> {
                     labelBackgroundColor: Colors.grey[600],
                     backgroundColor: Colors.grey[600],
                     onTap: () async {
-                      // Simulate image logging (to be implemented later)
+                      // image logging
                       final User? user = FirebaseAuth.instance.currentUser;
                       if (user != null) {
                         try {

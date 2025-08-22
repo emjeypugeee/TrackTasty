@@ -467,7 +467,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
             MyButtons(
               text: 'Save New Macros',
               onTap: () async {
-                await _saveUserData(); // REMOVED form validation
+                await _saveUserData();
               },
             ),
           ],

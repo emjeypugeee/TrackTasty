@@ -318,17 +318,27 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           builder: (context) => StatefulBuilder(
             builder: (context, setState) {
-              return SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom,
+              return Container(
+                padding: const EdgeInsets.only(
                   left: 20,
                   right: 20,
                   top: 20,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Drag handle
+                    Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Title
                     Center(
                       child: Text(
                         'Update Your Information',
@@ -340,166 +350,185 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Age Field
-                    Text(
-                      'Age',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    TextFormField(
-                      controller: ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Enter your age',
-                        filled: true,
-                        fillColor: AppColors.textFieldBg,
-                      ),
-                      style: TextStyle(color: AppColors.primaryText),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // Weight Field
-                    Text(
-                      'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    TextFormField(
-                      controller: weightController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Enter your weight',
-                        filled: true,
-                        fillColor: AppColors.textFieldBg,
-                      ),
-                      style: TextStyle(color: AppColors.primaryText),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // Height Field
-                    Text(
-                      'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    TextFormField(
-                      controller: heightController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Enter your height',
-                        filled: true,
-                        fillColor: AppColors.textFieldBg,
-                      ),
-                      style: TextStyle(color: AppColors.primaryText),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // Gender Dropdown
-                    Text(
-                      'Gender',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: selectedGender,
-                      dropdownColor: const Color.fromARGB(255, 15, 15, 15),
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
+                    // Scrollable form content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom,
                         ),
-                        filled: true,
-                        fillColor: AppColors.textFieldBg,
-                      ),
-                      style: TextStyle(color: AppColors.primaryText),
-                      items: ['male', 'female']
-                          .map((gender) => DropdownMenuItem(
-                                value: gender,
-                                child:
-                                    Text(gender == 'male' ? 'Male' : 'Female'),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedGender = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 15),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Age Field
+                            Text(
+                              'Age',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: ageController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your age',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
 
-                    // Activity Level Dropdown
-                    Text(
-                      'Activity Level',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: selectedActivityLevel,
-                      dropdownColor: const Color.fromARGB(255, 15, 15, 15),
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
+                            // Weight Field
+                            Text(
+                              'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: weightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your weight',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Height Field
+                            Text(
+                              'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: heightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your height',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Gender Dropdown
+                            Text(
+                              'Gender',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: selectedGender,
+                              dropdownColor:
+                                  const Color.fromARGB(255, 15, 15, 15),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                              items: ['male', 'female']
+                                  .map((gender) => DropdownMenuItem(
+                                        value: gender,
+                                        child: Text(gender == 'male'
+                                            ? 'Male'
+                                            : 'Female'),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedGender = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Activity Level Dropdown
+                            Text(
+                              'Activity Level',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: selectedActivityLevel,
+                              dropdownColor:
+                                  const Color.fromARGB(255, 15, 15, 15),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                              items: [
+                                'Sedentary',
+                                'Lightly active',
+                                'Moderately active',
+                                'Very active',
+                                'Extra active'
+                              ]
+                                  .map((level) => DropdownMenuItem(
+                                        value: level,
+                                        child: Text(level),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedActivityLevel = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Goal Dropdown
+                            Text(
+                              'Goal',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: selectedGoal,
+                              dropdownColor:
+                                  const Color.fromARGB(255, 15, 15, 15),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                              items: [
+                                'Mild Lose Weight',
+                                'Lose Weight',
+                                'Maintain Weight',
+                                'Mild Gain Weight',
+                                'Gain Weight'
+                              ]
+                                  .map((goal) => DropdownMenuItem(
+                                        value: goal,
+                                        child: Text(goal),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedGoal = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 30),
+                          ],
                         ),
-                        filled: true,
-                        fillColor: AppColors.textFieldBg,
                       ),
-                      style: TextStyle(color: AppColors.primaryText),
-                      items: [
-                        'Sedentary',
-                        'Lightly active',
-                        'Moderately active',
-                        'Very active',
-                        'Extra active'
-                      ]
-                          .map((level) => DropdownMenuItem(
-                                value: level,
-                                child: Text(level),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedActivityLevel = value;
-                        });
-                      },
                     ),
-                    const SizedBox(height: 15),
 
-                    // Goal Dropdown
-                    Text(
-                      'Goal',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: selectedGoal,
-                      dropdownColor: const Color.fromARGB(255, 15, 15, 15),
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.textFieldBg,
-                      ),
-                      style: TextStyle(color: AppColors.primaryText),
-                      items: [
-                        'Mild Lose Weight',
-                        'Lose Weight',
-                        'Maintain Weight',
-                        'Mild Gain Weight',
-                        'Gain Weight'
-                      ]
-                          .map((goal) => DropdownMenuItem(
-                                value: goal,
-                                child: Text(goal),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedGoal = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 30),
-
+                    // Buttons at the bottom (outside the scrollable area)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -633,6 +662,18 @@ class _CustomDrawerState extends State<CustomDrawer> {
           mainAxisSize: MainAxisSize.min, // Takes only needed space
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             // Header
             Center(
               child: Text(
@@ -767,7 +808,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               const SizedBox(height: 16),
 
               Divider(
-                color: AppColors.primaryText.withOpacity(0.3),
+                color: AppColors.primaryText.withValues(alpha: 0.3),
                 thickness: 1,
               ),
               const SizedBox(height: 20),
@@ -826,7 +867,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 8),
               Text(
-                '• You must provide accurate and complete information for macro calculations\n• You are responsible for maintaining the confidentiality of your account\n• You agree to use the App only for lawful purposes\n• You must be at least 13 years old to use the App (16 in EU)\n• You acknowledge that results may vary based on individual adherence',
+                '• You must provide accurate and complete information for macro calculations\n• You agree to use the App only for lawful purposes\n• You must be at least 14 years old to use the App\n• You acknowledge that results may vary based on individual adherence',
                 style: TextStyle(
                   color: AppColors.secondaryText,
                   fontSize: 16,
@@ -868,7 +909,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 8),
               Text(
-                'We collect personal information including health metrics, dietary preferences, and usage data to provide personalized services. Your data is stored securely and handled in accordance with our Privacy Policy. By using TrackTasty, you consent to the collection and processing of your data as described in our Privacy Policy.',
+                'We collect personal information including dietary preferences, and usage data to provide personalized services. Your data is stored securely and handled in accordance with our Privacy Policy. By using TrackTasty, you consent to the collection and processing of your data as described in our Privacy Policy.',
                 style: TextStyle(
                   color: AppColors.secondaryText,
                   fontSize: 16,
