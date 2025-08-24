@@ -1,4 +1,3 @@
-import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/main_screen_widgets/profile_screen/statistics_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
@@ -6,12 +5,14 @@ import 'package:flutter/material.dart';
 class ProfileContainer extends StatelessWidget {
   final String name;
   final int joinedDate;
-
-  const ProfileContainer({
-    super.key,
-    required this.name,
-    required this.joinedDate,
-  });
+  final int dayStreak;
+  final int highestDayStreak;
+  const ProfileContainer(
+      {super.key,
+      required this.name,
+      required this.joinedDate,
+      required this.dayStreak,
+      required this.highestDayStreak});
 
   @override
   Widget build(BuildContext context) {
@@ -67,14 +68,14 @@ class ProfileContainer extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Days Streak
-                const StatisticsContainer(
-                  daysStreak: 30,
+                StatisticsContainer(
+                  daysStreak: dayStreak,
                   description: 'Day(s) Streak',
                 ),
                 const SizedBox(width: 10),
                 // Highest Days Streak
-                const StatisticsContainer(
-                  daysStreak: 50,
+                StatisticsContainer(
+                  daysStreak: highestDayStreak,
                   description: 'Highest Streak',
                 ),
               ],

@@ -78,12 +78,15 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     debugPrint("Setting height: ${heightController.text}");
 
     // Set initial macro percentages if they exist
-    if (data['carbsPercentage'] != null)
+    if (data['carbsPercentage'] != null) {
       carbsPercentage = data['carbsPercentage'].toDouble();
-    if (data['fatsPercentage'] != null)
+    }
+    if (data['fatsPercentage'] != null) {
       fatsPercentage = data['fatsPercentage'].toDouble();
-    if (data['proteinPercentage'] != null)
+    }
+    if (data['proteinPercentage'] != null) {
       proteinPercentage = data['proteinPercentage'].toDouble();
+    }
 
     // Now calculate macros after initializing all values
     _calculateMacros();
@@ -92,7 +95,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
   void _calculateMacros() {
     // Parse form values with defaults
     final age = int.tryParse(widget.userData['age']?.toString() ?? '0') ?? 0;
-    final measurementSystem = widget.userData['measurementSystem'] ?? 'metric';
+    final measurementSystem = widget.userData['measurementSystem'] ?? 'Metric';
     final weight = widget.userData['weight'] ?? 0;
     final height = widget.userData['height'] ?? 0;
 
@@ -441,8 +444,9 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
                       onLockToggle: () {
                         setState(() {
                           _lockProtein = !_lockProtein;
-                          if (_lockProtein)
+                          if (_lockProtein) {
                             _lockedProteinValue = proteinPercentage;
+                          }
                           _normalizeMacros();
                         });
                       },

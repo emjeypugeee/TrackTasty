@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/macro_input.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fitness/utils/achievement_utils.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -53,12 +54,12 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = _selectedIndexFromLocation(context);
-    DateTime? _lastPressed;
+    DateTime? lastPressed;
 
     //
     // MODAL BOTTOM SHEET
     //
-    void _showFoodInputSheet({
+    void showFoodInputSheet({
       BuildContext? context,
       String? initialMealName,
       int? initialCalories,
@@ -90,7 +91,7 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    void _refreshHomePage() {
+    void refreshHomePage() {
       if (homePageKey.currentState != null) {
         homePageKey.currentState!.setState(() {});
       }
@@ -99,17 +100,17 @@ class _MainScreenState extends State<MainScreen> {
     //
     // ADD FOOD FUNCTION
     //
-    void _addFoodManually(BuildContext context) {
-      _showFoodInputSheet(
+    void addFoodManually(BuildContext context) {
+      showFoodInputSheet(
         context: context,
         onSubmit: (mealData) async {
-          DateTime? _lastPressed;
+          DateTime? lastPressed;
           final now = DateTime.now();
-          if (_lastPressed != null &&
-              now.difference(_lastPressed!) < Duration(seconds: 2)) {
+          if (lastPressed != null &&
+              now.difference(lastPressed) < Duration(seconds: 2)) {
             return; // Ignore if pressed within 2 seconds
           }
-          _lastPressed = now;
+          lastPressed = now;
 
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
@@ -166,117 +167,13 @@ class _MainScreenState extends State<MainScreen> {
                   .doc(foodLogId)
                   .set(foodLogData);
 
-              //
-              // UPDATE ACHIEVEMENTS
-              //
-              try {
-                // Get user's achievement document
-                final achievementDoc = FirebaseFirestore.instance
-                    .collection('user_achievements')
-                    .doc(user.uid);
-
-                final achievementSnapshot = await achievementDoc.get();
-                final achievementData = achievementSnapshot.data() ?? {};
-
-                // Update unique foods count
-                final uniqueFoods = achievementData['unique_foods'] ?? 0;
-                // For simplicity, we'll just increment by 1 each time
-                // In a real app, you'd check if this is actually a unique food
-                await achievementDoc.set(
-                    {'unique_foods': uniqueFoods + 1}, SetOptions(merge: true));
-
-                // Update daily streak
-                final lastLoggedDate = achievementData['last_logged_date'];
-                final today = DateTime.now();
-                final yesterday = today.subtract(Duration(days: 1));
-
-                if (lastLoggedDate == null) {
-                  // First time logging
-                  await achievementDoc.set({
-                    'daily_streak': 1,
-                    'last_logged_date': Timestamp.fromDate(today)
-                  }, SetOptions(merge: true));
-                } else {
-                  final lastDate = (lastLoggedDate as Timestamp).toDate();
-                  if (lastDate.year == today.year &&
-                      lastDate.month == today.month &&
-                      lastDate.day == today.day) {
-                    // Already logged today, no change to streak
-                  } else if (lastDate.year == yesterday.year &&
-                      lastDate.month == yesterday.month &&
-                      lastDate.day == yesterday.day) {
-                    // Logged yesterday, continue streak
-                    final currentStreak = achievementData['daily_streak'] ?? 0;
-                    await achievementDoc.set({
-                      'daily_streak': currentStreak + 1,
-                      'last_logged_date': Timestamp.fromDate(today)
-                    }, SetOptions(merge: true));
-                  } else {
-                    // Broken streak, reset to 1
-                    await achievementDoc.set({
-                      'daily_streak': 1,
-                      'last_logged_date': Timestamp.fromDate(today)
-                    }, SetOptions(merge: true));
-                  }
-                }
-
-                // Check if macros are perfect
-                final userDoc = await FirebaseFirestore.instance
-                    .collection('Users')
-                    .doc(user.email)
-                    .get();
-
-                final userData = userDoc.data();
-                if (userData != null) {
-                  final targetCalories = userData['dailyCalories'] ?? 2000;
-                  final targetProtein = userData['proteinGram'] ?? 150;
-                  final targetCarbs = userData['carbsGram'] ?? 200;
-                  final targetFat = userData['fatsGram'] ?? 70;
-
-                  final totalCalories = foodLogData['totalCalories'];
-                  final totalProtein = foodLogData['totalProtein'];
-                  final totalCarbs = foodLogData['totalCarbs'];
-                  final totalFat = foodLogData['totalFat'];
-
-                  // Check if all macros are within 5% of targets
-                  final caloriesPerfect =
-                      (totalCalories >= targetCalories * 0.95 &&
-                          totalCalories <= targetCalories * 1.05);
-                  final proteinPerfect =
-                      (totalProtein >= targetProtein * 0.95 &&
-                          totalProtein <= targetProtein * 1.05);
-                  final carbsPerfect = (totalCarbs >= targetCarbs * 0.95 &&
-                      totalCarbs <= targetCarbs * 1.05);
-                  final fatPerfect = (totalFat >= targetFat * 0.95 &&
-                      totalFat <= targetFat * 1.05);
-
-                  if (caloriesPerfect &&
-                      proteinPerfect &&
-                      carbsPerfect &&
-                      fatPerfect) {
-                    // Update macro perfect days
-                    final macroPerfectDays =
-                        achievementData['macro_perfect_days'] ?? 0;
-
-                    // Check if we already counted today as a perfect day
-                    final lastPerfectDate =
-                        achievementData['last_perfect_date'];
-                    final today = DateTime.now();
-
-                    if (lastPerfectDate == null ||
-                        (lastPerfectDate as Timestamp).toDate().day !=
-                            today.day) {
-                      // First perfect day today
-                      await achievementDoc.set({
-                        'macro_perfect_days': macroPerfectDays + 1,
-                        'last_perfect_date': Timestamp.fromDate(today)
-                      }, SetOptions(merge: true));
-                    }
-                  }
-                }
-              } catch (e) {
-                debugPrint('Error updating achievements: $e');
-              }
+              // Update achievement
+              await AchievementUtils.updateAchievementsOnFoodLog(
+                  userId: user.uid,
+                  foodLogData: foodLogData,
+                  newMealName: mealData['mealName'] ?? '',
+                  isImageLog: false,
+                  context: context);
 
               Navigator.pop(context);
             } catch (e) {
@@ -292,7 +189,7 @@ class _MainScreenState extends State<MainScreen> {
     //
     void editFoodManually(
         BuildContext context, Map<String, dynamic> existingFood) {
-      _showFoodInputSheet(
+      showFoodInputSheet(
         context: context,
         initialMealName: existingFood['mealName'],
         initialCalories: existingFood['calories'],
@@ -515,19 +412,12 @@ class _MainScreenState extends State<MainScreen> {
                       final User? user = FirebaseAuth.instance.currentUser;
                       if (user != null) {
                         try {
-                          final achievementDoc = FirebaseFirestore.instance
-                              .collection('user_achievements')
-                              .doc(user.uid);
-
-                          final achievementSnapshot =
-                              await achievementDoc.get();
-                          final achievementData =
-                              achievementSnapshot.data() ?? {};
-                          final imageLogs = achievementData['image_logs'] ?? 0;
-
-                          await achievementDoc.set(
-                              {'image_logs': imageLogs + 1},
-                              SetOptions(merge: true));
+                          await AchievementUtils.updateAchievementsOnFoodLog(
+                              userId: user.uid,
+                              foodLogData: {},
+                              newMealName: '',
+                              isImageLog: true,
+                              context: context);
                         } catch (e) {
                           debugPrint('Error updating image logs: $e');
                         }
@@ -539,7 +429,7 @@ class _MainScreenState extends State<MainScreen> {
                   labelStyle: const TextStyle(color: Colors.white),
                   labelBackgroundColor: Colors.grey[600],
                   backgroundColor: Colors.grey[600],
-                  onTap: () => _addFoodManually(context),
+                  onTap: () => addFoodManually(context),
                 ),
                 SpeedDialChild(
                   child: const Icon(Icons.search, color: Colors.white),
@@ -550,7 +440,7 @@ class _MainScreenState extends State<MainScreen> {
                   onTap: () async {
                     await Navigator.push(context,
                         MaterialPageRoute(builder: (context) => FoodPage()));
-                    _refreshHomePage(); // Refresh home page after returning
+                    refreshHomePage(); // Refresh home page after returning
                   },
                 ),
               ],

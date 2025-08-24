@@ -15,7 +15,7 @@ class SendFeedbackPage extends StatefulWidget {
 class _SendFeedbackPageState extends State<SendFeedbackPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _feedbackController = TextEditingController();
-  FocusNode _feedbackNode = FocusNode();
+  final FocusNode _feedbackNode = FocusNode();
   String _selectedCategory = 'Bug';
   bool _isSubmitting = false;
 

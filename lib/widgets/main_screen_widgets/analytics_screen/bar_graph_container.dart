@@ -19,12 +19,13 @@ class BarGraphContainer extends StatefulWidget {
 
 class _BarGraphContainerState extends State<BarGraphContainer> {
   DateTime _startDate =
-      DateTime.now().subtract(Duration(days: 6)); // Default 7 days
-  DateTime _endDate = DateTime.now();
-  int _daysToShow = 7; // Default days to show
+      DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+  DateTime _endDate =
+      DateTime.now().add(Duration(days: 7 - DateTime.now().weekday));
   List<double> _calorieData = [];
   List<String> _dayLabels = [];
   bool _isLoading = true;
+  double _averageCalories = 0;
 
   @override
   void initState() {
@@ -63,6 +64,15 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
         }
       }
 
+      // Calculate average calories
+      double total = 0;
+      int count = 0;
+      dailyCalories.forEach((key, value) {
+        total += value;
+        count++;
+      });
+      final average = count > 0 ? total / count : 0;
+
       // Prepare data for the chart
       final sortedDates = dailyCalories.keys.toList()
         ..sort((a, b) => a.compareTo(b));
@@ -70,16 +80,9 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
       setState(() {
         _calorieData = sortedDates.map((date) => dailyCalories[date]!).toList();
         _dayLabels = sortedDates.map((date) {
-          if (_daysToShow <= 14) {
-            return DateFormat('E').format(date); // Short day name for 1-2 weeks
-          } else if (_daysToShow <= 30) {
-            return DateFormat('MMM d')
-                .format(date); // Month and day for 3-4 weeks
-          } else {
-            return DateFormat('MM/dd')
-                .format(date); // Numeric format for longer periods
-          }
+          return DateFormat('E').format(date);
         }).toList();
+        _averageCalories = average.toDouble();
         _isLoading = false;
       });
     } catch (e) {
@@ -90,17 +93,8 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
     }
   }
 
-  void _changeTimeRange(int days) {
-    setState(() {
-      _daysToShow = days;
-      _endDate = DateTime.now();
-      _startDate = _endDate.subtract(Duration(days: days - 1));
-      _loadCalorieData();
-    });
-  }
-
   void _navigateTimeRange(bool forward) {
-    final duration = Duration(days: _daysToShow);
+    final duration = Duration(days: 7);
     setState(() {
       if (forward) {
         _startDate = _startDate.add(duration);
@@ -129,6 +123,10 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
 
   @override
   Widget build(BuildContext context) {
+    final dateFormat = DateFormat('M/d/yyyy');
+    final dateRangeText =
+        '${dateFormat.format(_startDate)} - ${dateFormat.format(_endDate)}';
+
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -145,29 +143,13 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                 child:
                     Text('<', style: TextStyle(color: AppColors.primaryText)),
               ),
-              DropdownButton<int>(
-                value: _daysToShow,
-                dropdownColor: AppColors.graphBg,
-                icon: Icon(Icons.arrow_drop_down, color: AppColors.primaryText),
-                style: TextStyle(color: AppColors.primaryText),
-                items: [7, 14, 30, 60, 90].map((int value) {
-                  return DropdownMenuItem<int>(
-                    value: value,
-                    child: Text(
-                      value == 7
-                          ? '1 Week'
-                          : value == 14
-                              ? '2 Weeks'
-                              : value == 30
-                                  ? '1 Month'
-                                  : value == 60
-                                      ? '2 Months'
-                                      : '3 Months',
-                      style: TextStyle(color: AppColors.primaryText),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) => _changeTimeRange(value!),
+              Text(
+                dateRangeText,
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
               TextButton(
                 onPressed: () => _navigateTimeRange(true),
@@ -185,13 +167,13 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                       minY: 0,
                       maxY: _getMaxYValue(),
                       alignment: BarChartAlignment.spaceBetween,
-                      groupsSpace: _daysToShow > 14 ? 8 : 12,
+                      groupsSpace: 12,
                       barTouchData: BarTouchData(
                         enabled: true,
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             return BarTooltipItem(
-                              '${rod.toY.toInt()} kcal', // Add "kcal" here
+                              '${rod.toY.toInt()} kcal',
                               TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -209,7 +191,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                               color: _calorieData[index] > 0
                                   ? Colors.yellow
                                   : Colors.grey,
-                              width: _daysToShow > 14 ? 5 : 20,
+                              width: 20,
                             ),
                           ],
                         );
@@ -230,12 +212,6 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             getTitlesWidget: (value, meta) {
-                              final interval = (_daysToShow > 14)
-                                  ? (_daysToShow > 30 ? 7 : 3)
-                                  : 1;
-                              if (value.toInt() % interval != 0) {
-                                return SizedBox.shrink();
-                              }
                               return Transform.rotate(
                                 angle: -0.4,
                                 child: Text(
@@ -289,11 +265,17 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                     ),
                   ),
           ),
-          if (widget.calorieGoal != null) ...[
-            SizedBox(height: 10),
-            Text('Daily Goal: ${widget.calorieGoal!.toInt()} kcal',
-                style: TextStyle(color: Colors.red, fontSize: 12))
-          ],
+          SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              if (widget.calorieGoal != null)
+                Text('Daily Goal: ${widget.calorieGoal!.toInt()} kcal',
+                    style: TextStyle(color: Colors.red, fontSize: 12)),
+              Text('Weekly Average: ${_averageCalories.toInt()} kcal',
+                  style: TextStyle(color: Colors.blue, fontSize: 12)),
+            ],
+          ),
         ],
       ),
     );

@@ -59,7 +59,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> forgetPassword(String email) async {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       // Re-throw to handle in UI
       rethrow;
     } catch (e) {

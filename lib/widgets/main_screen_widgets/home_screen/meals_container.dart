@@ -265,7 +265,7 @@ class _MacroChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '$label: $value\g',
+        '$label: ${value}g',
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,

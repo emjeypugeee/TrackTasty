@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
-import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

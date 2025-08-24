@@ -49,7 +49,7 @@ class FatSecretApiService extends ChangeNotifier {
         if (food is Map<String, dynamic>) {
           return food;
         } else if (food is Map) {
-          return Map<String, dynamic>.from(food as Map);
+          return Map<String, dynamic>.from(food);
         } else {
           return <String, dynamic>{};
         }

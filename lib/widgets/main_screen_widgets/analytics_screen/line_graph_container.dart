@@ -127,7 +127,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
         spots.add(FlSpot(daysSinceStart, weight));
         dates.add(date);
         weights.add(weight);
-        debugPrint('Added spot: (${daysSinceStart}, $weight)\n');
+        debugPrint('Added spot: ($daysSinceStart, $weight)\n');
       }
       debugPrint('Total spots created: ${spots.length}');
       debugPrint('First spot: ${spots.isNotEmpty ? spots.first : "N/A"}');
@@ -312,13 +312,24 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
             final date = DateTime.now().subtract(Duration(
               days: (maxX - value).toInt(),
             ));
+
+            // Use different date formats based on selected period
+            String dateText;
+            if (_selectedPeriod == '1 month' || _selectedPeriod == '3 months') {
+              // Show full date (M/d/yy) for 1 and 3 month views
+              dateText = DateFormat('M/d/yy').format(date);
+            } else {
+              // Show month and year for longer periods
+              dateText = DateFormat('MMM y').format(date);
+            }
+
             return Transform.rotate(
               angle: -0.4,
               alignment: Alignment.center,
               child: Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
-                  DateFormat('MMM y').format(date),
+                  dateText,
                   style: TextStyle(
                     color: AppColors.primaryText,
                     fontSize: 10,
@@ -359,7 +370,8 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
   }
 
   double _getTitleInterval(double range) {
-    if (range <= 30) return 7;
+    if (_selectedPeriod == '1 month') return 7;
+    if (_selectedPeriod == '3 months') return 14;
     if (range <= 90) return 15;
     if (range <= 180) return 30;
     if (range <= 365) return 60;

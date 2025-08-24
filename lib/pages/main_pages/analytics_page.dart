@@ -6,7 +6,7 @@ import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class AnalyticsPage extends StatefulWidget {
-  AnalyticsPage({super.key});
+  const AnalyticsPage({super.key});
 
   @override
   State<AnalyticsPage> createState() => _AnalyticsPageState();

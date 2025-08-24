@@ -5,7 +5,7 @@ import 'package:fitness/widgets/main_screen_widgets/profile_screen/profile_conta
 import 'package:flutter/material.dart';
 
 class ProfilePage extends StatelessWidget {
-  ProfilePage({super.key});
+  const ProfilePage({super.key});
 
   // Future to fetch user details
   Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
@@ -60,6 +60,7 @@ class ProfilePage extends StatelessWidget {
             var userData = snapshot.data!.data();
             String username = userData?['username'] ?? "Unknown User";
             int joinedDate = userData?['dateAccountCreated'];
+            int dayStreak;
 
             return FutureBuilder<Map<String, dynamic>>(
                 future: getUserAchievements(),
@@ -70,6 +71,7 @@ class ProfilePage extends StatelessWidget {
                   }
 
                   final achievements = achievementSnapshot.data ?? {};
+                  dayStreak = achievements['daily_streak'];
 
                   // Define achievement data
                   final List<Map<String, dynamic>> achievementList = [
@@ -163,6 +165,8 @@ class ProfilePage extends StatelessWidget {
                             ProfileContainer(
                               name: username,
                               joinedDate: joinedDate,
+                              dayStreak: dayStreak,
+                              highestDayStreak: dayStreak,
                             ),
                             Padding(
                               padding: const EdgeInsets.all(8.0),
@@ -226,7 +230,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // Helper function to get star count based on progress
+  // Get star count based on progress
   int _getStarCount(int progress, List<int> milestones) {
     for (int i = milestones.length - 1; i >= 0; i--) {
       if (progress >= milestones[i]) {
@@ -236,7 +240,7 @@ class ProfilePage extends StatelessWidget {
     return 0;
   }
 
-  // Helper function to get achievement level description
+  // Get achievement level description
   String _getAchievementLevel(int progress, List<int> milestones) {
     for (int i = milestones.length - 1; i >= 0; i--) {
       if (progress >= milestones[i]) {
@@ -246,7 +250,7 @@ class ProfilePage extends StatelessWidget {
     return progress.toString();
   }
 
-  // Helper function to get next star description
+  // Get next star description
   String _getNextStarDescription(
       int progress, List<int> milestones, String unit) {
     for (int i = 0; i < milestones.length; i++) {

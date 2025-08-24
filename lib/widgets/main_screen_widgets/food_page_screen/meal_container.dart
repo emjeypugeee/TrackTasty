@@ -11,7 +11,7 @@ class MealContainer extends StatelessWidget {
   final String serving;
   final void Function()? onPressed;
 
-  MealContainer({
+  const MealContainer({
     super.key,
     required this.foodName,
     required this.foodDescription,

@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class ForgetpasswordPage extends StatefulWidget {
-  ForgetpasswordPage({super.key});
+  const ForgetpasswordPage({super.key});
 
   @override
   State<ForgetpasswordPage> createState() => _ForgetpasswordPageState();

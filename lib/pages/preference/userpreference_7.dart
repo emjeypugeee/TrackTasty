@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/components/percentage_slider.dart';
@@ -8,8 +7,6 @@ import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:syncfusion_flutter_sliders/sliders.dart';
-import 'package:syncfusion_flutter_core/theme.dart';
 
 class Userpreference7 extends StatefulWidget {
   const Userpreference7({super.key});
@@ -69,7 +66,7 @@ class _Userpreference7 extends State<Userpreference7> {
         final age = data['age'] is int
             ? data['age'] as int
             : int.tryParse(data['age'] ?? '0') ?? 0;
-        final measurementSystem = data['measurementSystem'] ?? 'metric';
+        final measurementSystem = data['measurementSystem'] ?? 'Metric';
         final gender = data['gender'] ?? 'male';
         final weight = data['weight'] is double
             ? data['weight'] as double

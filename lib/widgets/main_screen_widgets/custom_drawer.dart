@@ -65,7 +65,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
           return false;
         }
 
-        // → Critical Fix: Use user.uid as document ID
         await FirebaseFirestore.instance
             .collection("Users")
             .doc(user.email)
@@ -73,7 +72,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           {
             'username': usernameController.text,
           },
-          SetOptions(merge: true), // ← Preserves existing fields
+          SetOptions(merge: true),
         );
 
         return true;
@@ -528,7 +527,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                       ),
                     ),
 
-                    // Buttons at the bottom (outside the scrollable area)
+                    // Buttons at the bottom
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -647,7 +646,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.containerBg,
-      isScrollControlled: true, // Allows the sheet to expand to needed height
+      isScrollControlled: true,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.8,
       ),
@@ -659,7 +658,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Takes only needed space
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Drag handle
@@ -690,7 +689,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
             // Divider
             Divider(
-              color: AppColors.primaryText.withOpacity(0.3),
+              color: AppColors.primaryText.withValues(alpha: 0.3),
               thickness: 1,
             ),
             const SizedBox(height: 20),
@@ -1086,8 +1085,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                     style:
                         TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
-                  onTap: () => _showEditGoalSheet(
-                      context), // This should call the updated function
+                  onTap: () => _showEditGoalSheet(context),
                 ),
                 ListTile(
                   leading: Icon(Icons.edit),
@@ -1097,7 +1095,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () {
-                    Navigator.pop(context); // Close the drawer
+                    Navigator.pop(context);
                     context.push(
                         '/editfoodpreference'); // Navigate to the new page
                   },
@@ -1131,16 +1129,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
               onTap: () {
-                Navigator.pop(context); // Close the drawer
+                Navigator.pop(context);
                 context.push('/feedback'); // Navigate to feedback page
               },
             ),
             ListTile(
-              leading: Icon(Icons.settings, color: AppColors.drawerIcons),
+              leading: Icon(Icons.notifications, color: AppColors.drawerIcons),
               title: Text(
                 'Settings',
                 style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(
+                    '/notificationsettings'); // Navigate to notification settings
+              },
             ),
             ListTile(
               leading: Icon(Icons.people_rounded, color: AppColors.drawerIcons),

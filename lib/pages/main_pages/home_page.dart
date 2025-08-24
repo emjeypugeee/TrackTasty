@@ -133,7 +133,7 @@ class _HomePageState extends State<HomePage> {
         .snapshots()
         .listen((snapshot) {
       if (snapshot.docs.isNotEmpty) {
-        final foodLog = snapshot.docs.first.data() as Map<String, dynamic>;
+        final foodLog = snapshot.docs.first.data();
         setState(() {
           _nutritionData = {
             'totalCalories': foodLog['totalCalories'] ?? 0,

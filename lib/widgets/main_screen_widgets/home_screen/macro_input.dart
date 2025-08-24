@@ -6,6 +6,7 @@ class MacroInput extends StatelessWidget {
   final TextEditingController controller;
 
   const MacroInput({
+    super.key,
     required this.icon,
     required this.label,
     required this.controller,

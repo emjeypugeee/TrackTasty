@@ -1,3 +1,9 @@
+import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/firebase_options.dart';
@@ -11,23 +17,24 @@ import 'package:fitness/animations/fade_out_page_transition.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // SIDEBAR PAGES
-import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
 import 'package:fitness/pages/sidebar_pages/recalculate_macros_page.dart';
+import 'package:fitness/pages/sidebar_pages/notification_settings.dart';
 import 'package:fitness/pages/sidebar_pages/edit_food_preference.dart';
+import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
 
 // LOGIN PAGES
 import 'package:fitness/pages/login/forgetpassword_page.dart';
+import 'package:fitness/pages/login/register_page.dart';
 import 'package:fitness/pages/login/startup_page.dart';
 import 'package:fitness/pages/login/login_page.dart';
-import 'package:fitness/pages/login/register_page.dart';
 
 // MAIN PAGES
 import 'package:fitness/pages/main_pages/analytics_page.dart';
-import 'package:fitness/pages/main_pages/chat_bot.dart';
+import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/pages/main_pages/admin_page.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
-import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/pages/main_pages/food_page.dart';
+import 'package:fitness/pages/main_pages/chat_bot.dart';
 
 // FOOD PREFERENCE PAGES
 import 'package:fitness/pages/preference/userpreference_2.dart';
@@ -37,6 +44,17 @@ import 'package:fitness/pages/preference/userpreference_4.dart';
 import 'package:fitness/pages/preference/userpreference_5.dart';
 import 'package:fitness/pages/preference/userpreference_6.dart';
 import 'package:fitness/pages/preference/userpreference_7.dart';
+
+// Global instance of notifications plugin
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// Top-level function for background notification handling
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  // Handle background notification tap
+  debugPrint('Background notification tapped: ${notificationResponse.payload}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,12 +67,103 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Initialize SharedPreferences
+  _initializeSharedPreferences();
+
+  // Initialize time zones for notifications
+  tz.initializeTimeZones();
+
+  // Initialize notifications
+  await _initializeNotifications();
+
+  // Request notification permissions
+  await _requestNotificationPermissions();
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => MealsState(),
       child: const MyApp(),
     ),
   );
+}
+
+// Initialize SharedPreferences
+Future<void> _initializeSharedPreferences() async {
+  try {
+    await SharedPreferences.getInstance();
+    debugPrint("SharedPreferences initialized successfully");
+  } catch (e) {
+    debugPrint("SharedPreferences initialization failed: $e");
+    // The app will use fallback storage instead
+  }
+}
+
+// Initialize Notifications
+Future<void> _initializeNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  // For iOS/macOS initialization
+  final DarwinInitializationSettings initializationSettingsDarwin =
+      DarwinInitializationSettings(
+    requestSoundPermission: false,
+    requestBadgePermission: false,
+    requestAlertPermission: false,
+  );
+
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsDarwin,
+    macOS: initializationSettingsDarwin,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse:
+        (NotificationResponse notificationResponse) {
+      // Handle foreground notification tap
+      debugPrint('Notification tapped: ${notificationResponse.payload}');
+    },
+    onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+  );
+}
+
+// Initialize Notification Settings
+Future<void> _requestNotificationPermissions() async {
+  if (Platform.isIOS || Platform.isMacOS) {
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>() // Changed from DarwinFlutterLocalNotificationsPlugin
+        ?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+  } else if (Platform.isAndroid) {
+    // For Android 13+ (API level 33), we need to request the POST_NOTIFICATIONS permission
+    if (await _isAndroid13OrHigher()) {
+      final status = await Permission.notification.request();
+      if (status.isGranted) {
+        debugPrint('Notification permission granted');
+      } else {
+        debugPrint('Notification permission denied');
+      }
+    }
+    // For Android 12 and below, notifications work without explicit permission
+  }
+}
+
+Future<bool> _isAndroid13OrHigher() async {
+  if (Platform.isAndroid) {
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      return androidInfo.version.sdkInt >= 33; // Android 13 = SDK version 33
+    } catch (e) {
+      debugPrint("Failed to get Android version: $e");
+      return false;
+    }
+  }
+  return false;
 }
 
 final GoRouter _router = GoRouter(
@@ -164,6 +273,13 @@ final GoRouter _router = GoRouter(
       path: '/editfoodpreference',
       pageBuilder: (context, state) => FadeOutPageTransition(
         child: EditFoodPreferencePage(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/notificationsettings',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: NotificationSettings(),
         key: state.pageKey,
       ),
     ),
