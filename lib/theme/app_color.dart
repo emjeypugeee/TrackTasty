@@ -64,4 +64,29 @@ class AppColors {
   static const Color threeStarColor = Color(0xFFFFD700);
   static const Color twoStarColor = Color.fromARGB(255, 212, 206, 206);
   static const Color oneStarColor = Color(0xFFCD7F32);
+
+   // Light theme colors
+  static const Color _lightPrimaryColor = Color(0xFFFAA4A4);
+  static const Color _lightSecondaryColor = Color.fromARGB(255, 141, 92, 92);
+  static const Color _lightIndicatorBg = Color(0xFFe8def8);
+  static const Color _lightIndicatorProgress = Color(0xFF65558F);
+  static const Color _lightPrimaryText = Colors.black87;
+  static const Color _lightSecondaryText = Colors.grey;
+  static const Color _lightErrorText = Color(0xFFE99797);
+  static const Color _lightTextInputHint = Colors.black54;
+  static const Color _lightTextInputBorder = Colors.black54;
+  static const Color _lightTitleText = Color(0xFFE99797);
+  static const Color _lightStatisticsBg = Color(0xFFF5F5F5);
+  static const Color _lightFriendsBg = Color(0xFFF5F5F5);
+  static const Color _lightBackButton = Color(0xFFE99797);
+  static const Color _lightButtonBg = Color(0xFFE99797);
+  static const Color _lightBottomNavBg = Colors.white;
+  static const Color _lightDrawerBg = Colors.white;
+  static const Color _lightLoginPagesBg = Colors.white;
+  static const Color _lightContainerBg = Color(0xFFF5F5F5);
+  static const Color _lightGraphBg = Color(0xFFF5F5F5);
+  static const Color _lightDrawerIcons = Color(0xFF7CB342);
+  static const Color _lightButtonColor = Color(0xFFE99797);
+  static const Color _lightRadioButtonColor = Colors.white;
+  static const Color _lightTextFieldBg = Colors.white;
 }

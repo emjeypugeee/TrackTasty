@@ -175,8 +175,7 @@ final GoRouter _router = GoRouter(
 
         // Extract parameters with null safety
         final Map<String, dynamic> userData = extraData?['userData'] ?? {};
-        final String selectedGoal =
-            extraData?['selectedGoal'] ?? 'Maintain Weight';
+        final String selectedGoal = extraData?['selectedGoal'] ?? 'Maintain Weight';
 
         return FadeOutPageTransition(
           child: RecalculateMacrosPage(
@@ -188,30 +187,28 @@ final GoRouter _router = GoRouter(
       },
     ),
     //shell route for main screen
-    ShellRoute(
-        builder: (context, state, child) => MainScreen(child: child),
-        routes: [
-          GoRoute(
-            path: '/home',
-            builder: (context, state) => const HomePage(),
-          ),
-          GoRoute(
-            path: '/chatbot',
-            builder: (context, state) => const ChatBot(),
-          ),
-          GoRoute(
-            path: '/analytics',
-            builder: (context, state) => AnalyticsPage(),
-          ),
-          GoRoute(
-            path: '/profile',
-            builder: (context, state) => ProfilePage(),
-          ),
-          GoRoute(
-            path: '/adminonly',
-            builder: (context, state) => AdminPage(),
-          ),
-        ])
+    ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
+      GoRoute(
+        path: '/home',
+        builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: '/chatbot',
+        builder: (context, state) => const ChatBot(),
+      ),
+      GoRoute(
+        path: '/analytics',
+        builder: (context, state) => AnalyticsPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => ProfilePage(),
+      ),
+      GoRoute(
+        path: '/adminonly',
+        builder: (context, state) => AdminPage(),
+      ),
+    ])
 
     //shell route for sidebar pages
   ],
@@ -225,7 +222,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => UserProvider(),
+      create: (context) => UserProvider()..fetchUserData(),
       child: MaterialApp.router(
         theme: ThemeData(
             scaffoldBackgroundColor: const Color(0xFF121212),

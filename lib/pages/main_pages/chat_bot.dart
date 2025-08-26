@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:fitness/provider/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:fitness/services/deepseek_api_service.dart';
+import 'package:provider/provider.dart';
 
 class ChatBot extends StatefulWidget {
   const ChatBot({super.key});
@@ -10,23 +12,33 @@ class ChatBot extends StatefulWidget {
   State<ChatBot> createState() => _ChatBotState();
 }
 
-class _ChatBotState extends State<ChatBot> {
+class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, String>> _messages = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
-  bool _isFirstLoad = true;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _messages.add({
       "role": "assistant",
-      "content": "👋 Hi! I’m your Fitness Assistant. Ask me anything!\n\n"
-          "Try these examples:\n"
-          "• \"Suggest a high-protein breakfast\"\n"
-          "• \"What’s a good beginner workout?\"\n"
-          "• \"Help me track my calories.\""
+      "content": "👋 Hi! I'm your Macro Tracking Assistant!\n\n"
+          "I can help you with:\n"
+          "• Calculating your ideal macros\n"
+          "• Tracking meals and nutrients\n"
+          "• Planning meals for your goals\n"
+          "• Understanding food nutrition\n\n"
+          "Try asking:\n"
+          "• \"Calculate my macros for weight loss\"\n"
+          "• \"What's the protein in 200g chicken?\"\n"
+          "• \"Plan a high-protein breakfast\""
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
     });
   }
 
@@ -34,19 +46,30 @@ class _ChatBotState extends State<ChatBot> {
     final userMessage = _messageController.text.trim();
     if (userMessage.isEmpty || _isLoading) return;
 
+    //user data
+    final userProvider = context.read<UserProvider>();
+    final userData = userProvider.userData;
+
     setState(() {
       _messages.add({"role": "user", "content": userMessage});
       _messageController.clear();
       _isLoading = true;
-      _isFirstLoad = false;
     });
 
     try {
       final aiMessage = await DeepSeekApi.getChatResponse(
         prompt: userMessage,
-        history: _messages.sublist(
-            1, _messages.length - 1), // Skip the initial welcome message
-      ).timeout(const Duration(seconds: 30)); // Add timeout
+        history: _messages.sublist(1, _messages.length - 1),
+        username: userData?['username'] ?? 'Guest',
+        age: userData?['age'] ?? 'null',
+        allergies: List<String>.from(userData?['allergies'] ?? []),
+        weight: userData?['weight'] ?? 'null',
+        height: userData?['height'] ?? 'null',
+        goal: userData?['goal'] ?? 'null',
+        goalWeight: userData?['goalWeight'] ?? 'null',
+        gender: userData?['gender'] ?? 'null',
+        dietaryPreference: userData?['dietaryPreference'] ?? 'null',
+      ).timeout(const Duration(seconds: 30));
 
       setState(() {
         _messages.add({"role": "assistant", "content": aiMessage});
@@ -67,8 +90,7 @@ class _ChatBotState extends State<ChatBot> {
           e.toString().contains("503")) {
         errorMessage = "Server error. Please try again later.";
       } else {
-        errorMessage =
-            "Sorry, I couldn't process your request. Please try again.";
+        errorMessage = "Sorry, I couldn't process your request. Please try again.";
       }
 
       setState(() {
@@ -84,7 +106,7 @@ class _ChatBotState extends State<ChatBot> {
   }
 
   void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -97,6 +119,7 @@ class _ChatBotState extends State<ChatBot> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -107,14 +130,12 @@ class _ChatBotState extends State<ChatBot> {
               padding: const EdgeInsets.all(12),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
-                if (_isFirstLoad && index == 0) return const SizedBox.shrink();
                 final message = _messages[index];
                 final isUser = message["role"] == "user";
                 final isError = message["role"] == "error";
 
                 return Align(
-                  alignment:
-                      isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.all(12),

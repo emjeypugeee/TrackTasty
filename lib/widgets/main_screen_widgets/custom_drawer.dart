@@ -36,10 +36,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final doc = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user.email)
-        .get();
+    final doc = await FirebaseFirestore.instance.collection('Users').doc(user.email).get();
 
     if (doc.exists) {
       setState(() {
@@ -54,36 +51,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
   // Editting username
   void _showEditUsernameDialog(BuildContext context) {
     TextEditingController usernameController = TextEditingController();
-
-    Future<bool> saveNickname() async {
-      try {
-        User? user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No user logged in!')),
-          );
-          return false;
-        }
-
-        // → Critical Fix: Use user.uid as document ID
-        await FirebaseFirestore.instance
-            .collection("Users")
-            .doc(user.email)
-            .set(
-          {
-            'username': usernameController.text,
-          },
-          SetOptions(merge: true), // ← Preserves existing fields
-        );
-
-        return true;
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-        return false;
-      }
-    }
 
     showDialog(
       context: context,
@@ -115,12 +82,30 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: MyButtons(
                   text: 'Save',
                   onTap: () async {
-                    bool success = await saveNickname();
-                    if (success && context.mounted) {
-                      Navigator.pop(context);
+                    final username = usernameController.text.trim();
+                    // Basic validation
+                    if (username.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Nickname updated successfully!')),
+                        const SnackBar(content: Text('Please enter a username')),
+                      );
+                      return;
+                    }
+                    final provider = context.read<UserProvider>();
+                    try {
+                      final success = await provider.updateUsername(username);
+                      if (success) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Nickname updated successfully!')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to update nickname')),
+                        );
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: ${e.toString()}')),
                       );
                     }
                   },
@@ -149,10 +134,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     Future<bool> saveUserPreferences(double weight) async {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && user.email != null) {
-        await FirebaseFirestore.instance
-            .collection("Users")
-            .doc(user.email)
-            .set({
+        await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
           'goalWeight': weight,
         }, SetOptions(merge: true));
 
@@ -178,9 +160,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             title: Text(
               'Update Weight',
               style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 27),
+                  color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 27),
             ),
             content: Form(
               key: formKey,
@@ -195,16 +175,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         children: [
                           Text(
                             'Weight:',
-                            style: TextStyle(
-                                color: AppColors.primaryText, fontSize: 20),
+                            style: TextStyle(color: AppColors.primaryText, fontSize: 20),
                             textAlign: TextAlign.left,
                           ),
                         ],
                       ),
                       MyTextfield(
-                        hintText: isMetric
-                            ? 'Weight (20-300 kg)'
-                            : 'Weight (40-660 lbs)',
+                        hintText: isMetric ? 'Weight (20-300 kg)' : 'Weight (40-660 lbs)',
                         obscureText: false,
                         focusNode: editWeightNode,
                         suffixText: isMetric ? 'kg' : 'lb',
@@ -215,8 +192,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
-                        keyboardType:
-                            TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: TextInputType.numberWithOptions(decimal: true),
                         controller: editWeightController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -226,8 +202,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
                           if (isMetric && (weight < 20 || weight > 300)) {
                             return 'Weight should be around 20-300 kg';
-                          } else if (!isMetric &&
-                              (weight < 40 || weight > 660)) {
+                          } else if (!isMetric && (weight < 40 || weight > 660)) {
                             return 'Weight should be around 40-660 lbs';
                           }
                           return null;
@@ -246,15 +221,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                                 // validate the form
                                 if (formKey.currentState!.validate()) {
                                   bool success = await saveUserPreferences(
-                                      double.tryParse(
-                                              editWeightController.text) ??
-                                          0.0);
+                                      double.tryParse(editWeightController.text) ?? 0.0);
                                   if (success && context.mounted) {
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Goals updated successfully!')),
+                                      const SnackBar(content: Text('Goals updated successfully!')),
                                     );
                                   }
                                 }
@@ -284,11 +255,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     if (user == null) return;
 
     // Fetch user data
-    FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user.email)
-        .get()
-        .then((doc) {
+    FirebaseFirestore.instance.collection('Users').doc(user.email).get().then((doc) {
       if (doc.exists) {
         final userData = doc.data() as Map<String, dynamic>;
 
@@ -305,8 +272,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
         heightController.text = userData['height']?.toString() ?? '';
         ageController.text = userData['age']?.toString() ?? '';
         selectedGender = userData['gender'] ?? 'male';
-        selectedActivityLevel =
-            userData['selectedActivityLevel'] ?? 'Sedentary';
+        selectedActivityLevel = userData['selectedActivityLevel'] ?? 'Sedentary';
         selectedGoal = userData['goal'] ?? 'Maintain Weight';
 
         showModalBottomSheet(
@@ -363,8 +329,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             // Age Field
                             Text(
                               'Age',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
+                              style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                             ),
                             TextFormField(
                               controller: ageController,
@@ -381,8 +346,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             // Weight Field
                             Text(
                               'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
+                              style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                             ),
                             TextFormField(
                               controller: weightController,
@@ -399,8 +363,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             // Height Field
                             Text(
                               'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
+                              style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                             ),
                             TextFormField(
                               controller: heightController,
@@ -417,13 +380,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             // Gender Dropdown
                             Text(
                               'Gender',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
+                              style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                             ),
                             DropdownButtonFormField<String>(
                               value: selectedGender,
-                              dropdownColor:
-                                  const Color.fromARGB(255, 15, 15, 15),
+                              dropdownColor: const Color.fromARGB(255, 15, 15, 15),
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -435,9 +396,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               items: ['male', 'female']
                                   .map((gender) => DropdownMenuItem(
                                         value: gender,
-                                        child: Text(gender == 'male'
-                                            ? 'Male'
-                                            : 'Female'),
+                                        child: Text(gender == 'male' ? 'Male' : 'Female'),
                                       ))
                                   .toList(),
                               onChanged: (value) {
@@ -451,13 +410,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             // Activity Level Dropdown
                             Text(
                               'Activity Level',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
+                              style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                             ),
                             DropdownButtonFormField<String>(
                               value: selectedActivityLevel,
-                              dropdownColor:
-                                  const Color.fromARGB(255, 15, 15, 15),
+                              dropdownColor: const Color.fromARGB(255, 15, 15, 15),
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -489,13 +446,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
                             // Goal Dropdown
                             Text(
                               'Goal',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
+                              style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                             ),
                             DropdownButtonFormField<String>(
                               value: selectedGoal,
-                              dropdownColor:
-                                  const Color.fromARGB(255, 15, 15, 15),
+                              dropdownColor: const Color.fromARGB(255, 15, 15, 15),
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -547,28 +502,20 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               Navigator.pop(context); // Close the bottom sheet
 
                               // Debug prints
-                              debugPrint(
-                                  "Age from controller: ${ageController.text}");
-                              debugPrint(
-                                  "Weight from controller: ${weightController.text}");
-                              debugPrint(
-                                  "Height from controller: ${heightController.text}");
+                              debugPrint("Age from controller: ${ageController.text}");
+                              debugPrint("Weight from controller: ${weightController.text}");
+                              debugPrint("Height from controller: ${heightController.text}");
 
                               // Create updated user data with the new values
-                              Map<String, dynamic> updatedUserData =
-                                  Map.from(userData);
+                              Map<String, dynamic> updatedUserData = Map.from(userData);
                               updatedUserData['age'] =
-                                  int.tryParse(ageController.text) ??
-                                      userData['age'];
+                                  int.tryParse(ageController.text) ?? userData['age'];
                               updatedUserData['weight'] =
-                                  double.tryParse(weightController.text) ??
-                                      userData['weight'];
+                                  double.tryParse(weightController.text) ?? userData['weight'];
                               updatedUserData['height'] =
-                                  double.tryParse(heightController.text) ??
-                                      userData['height'];
+                                  double.tryParse(heightController.text) ?? userData['height'];
                               updatedUserData['gender'] = selectedGender;
-                              updatedUserData['selectedActivityLevel'] =
-                                  selectedActivityLevel;
+                              updatedUserData['selectedActivityLevel'] = selectedActivityLevel;
                               updatedUserData['goal'] = selectedGoal;
 
                               // Navigate to the recalculate macros page with all parameters
@@ -605,11 +552,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
             children: [
               Expanded(
                 child: CustomTextButton(
-                    title: 'Back',
-                    onTap: () {
-                      context.pop();
-                    },
-                    size: 20),
+                  title: 'Back',
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                  size: 20,
+                ),
               ),
               Expanded(
                 child: MyButtons(
@@ -1074,8 +1022,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Username',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () => _showEditUsernameDialog(context),
                 ),
@@ -1083,31 +1030,26 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Goals',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
-                  onTap: () => _showEditGoalSheet(
-                      context), // This should call the updated function
+                  onTap: () => _showEditGoalSheet(context), // This should call the updated function
                 ),
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Food Preference',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () {
                     Navigator.pop(context); // Close the drawer
-                    context.push(
-                        '/editfoodpreference'); // Navigate to the new page
+                    context.push('/editfoodpreference'); // Navigate to the new page
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Weight',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () => _showEditWeightDialog(context),
                 ),
@@ -1152,12 +1094,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
             isAdmin
                 ? ListTile(
-                    leading: Icon(Icons.admin_panel_settings,
-                        color: AppColors.drawerIcons),
+                    leading: Icon(Icons.admin_panel_settings, color: AppColors.drawerIcons),
                     title: Text(
                       'Admin Page',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
+                      style: TextStyle(color: AppColors.primaryText, fontSize: 16),
                     ),
                     onTap: () => context.push('/adminonly'),
                   )

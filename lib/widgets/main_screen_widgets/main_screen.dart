@@ -1,4 +1,7 @@
+import 'package:fitness/pages/main_pages/analytics_page.dart';
+import 'package:fitness/pages/main_pages/chat_bot.dart';
 import 'package:fitness/pages/main_pages/food_page.dart';
+import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +29,12 @@ class _MainScreenState extends State<MainScreen> {
     '/profile',
   ];
 
+  final List<Widget> _screens = [
+    HomePage(key: homePageKey),
+    const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
+    AnalyticsPage(), // Replace with your actual analytics page
+    ProfilePage(), // Replace with your actual achievements page
+  ];
   int _selectedIndexFromLocation(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     final List<String> routes = [
@@ -105,8 +114,7 @@ class _MainScreenState extends State<MainScreen> {
         onSubmit: (mealData) async {
           DateTime? _lastPressed;
           final now = DateTime.now();
-          if (_lastPressed != null &&
-              now.difference(_lastPressed!) < Duration(seconds: 2)) {
+          if (_lastPressed != null && now.difference(_lastPressed!) < Duration(seconds: 2)) {
             return; // Ignore if pressed within 2 seconds
           }
           _lastPressed = now;
@@ -114,15 +122,12 @@ class _MainScreenState extends State<MainScreen> {
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
             final today = DateTime.now();
-            final foodLogId =
-                '${user.uid}_${today.year}-${today.month}-${today.day}';
+            final foodLogId = '${user.uid}_${today.year}-${today.month}-${today.day}';
 
             try {
               // Fetch existing food log for today or create a new one
-              final foodLogDoc = await FirebaseFirestore.instance
-                  .collection('food_logs')
-                  .doc(foodLogId)
-                  .get();
+              final foodLogDoc =
+                  await FirebaseFirestore.instance.collection('food_logs').doc(foodLogId).get();
 
               Map<String, dynamic> foodLogData = {
                 'userId': user.uid,
@@ -171,9 +176,8 @@ class _MainScreenState extends State<MainScreen> {
               //
               try {
                 // Get user's achievement document
-                final achievementDoc = FirebaseFirestore.instance
-                    .collection('user_achievements')
-                    .doc(user.uid);
+                final achievementDoc =
+                    FirebaseFirestore.instance.collection('user_achievements').doc(user.uid);
 
                 final achievementSnapshot = await achievementDoc.get();
                 final achievementData = achievementSnapshot.data() ?? {};
@@ -182,8 +186,8 @@ class _MainScreenState extends State<MainScreen> {
                 final uniqueFoods = achievementData['unique_foods'] ?? 0;
                 // For simplicity, we'll just increment by 1 each time
                 // In a real app, you'd check if this is actually a unique food
-                await achievementDoc.set(
-                    {'unique_foods': uniqueFoods + 1}, SetOptions(merge: true));
+                await achievementDoc
+                    .set({'unique_foods': uniqueFoods + 1}, SetOptions(merge: true));
 
                 // Update daily streak
                 final lastLoggedDate = achievementData['last_logged_date'];
@@ -192,10 +196,9 @@ class _MainScreenState extends State<MainScreen> {
 
                 if (lastLoggedDate == null) {
                   // First time logging
-                  await achievementDoc.set({
-                    'daily_streak': 1,
-                    'last_logged_date': Timestamp.fromDate(today)
-                  }, SetOptions(merge: true));
+                  await achievementDoc.set(
+                      {'daily_streak': 1, 'last_logged_date': Timestamp.fromDate(today)},
+                      SetOptions(merge: true));
                 } else {
                   final lastDate = (lastLoggedDate as Timestamp).toDate();
                   if (lastDate.year == today.year &&
@@ -213,18 +216,15 @@ class _MainScreenState extends State<MainScreen> {
                     }, SetOptions(merge: true));
                   } else {
                     // Broken streak, reset to 1
-                    await achievementDoc.set({
-                      'daily_streak': 1,
-                      'last_logged_date': Timestamp.fromDate(today)
-                    }, SetOptions(merge: true));
+                    await achievementDoc.set(
+                        {'daily_streak': 1, 'last_logged_date': Timestamp.fromDate(today)},
+                        SetOptions(merge: true));
                   }
                 }
 
                 // Check if macros are perfect
-                final userDoc = await FirebaseFirestore.instance
-                    .collection('Users')
-                    .doc(user.email)
-                    .get();
+                final userDoc =
+                    await FirebaseFirestore.instance.collection('Users').doc(user.email).get();
 
                 final userData = userDoc.data();
                 if (userData != null) {
@@ -239,33 +239,24 @@ class _MainScreenState extends State<MainScreen> {
                   final totalFat = foodLogData['totalFat'];
 
                   // Check if all macros are within 5% of targets
-                  final caloriesPerfect =
-                      (totalCalories >= targetCalories * 0.95 &&
-                          totalCalories <= targetCalories * 1.05);
-                  final proteinPerfect =
-                      (totalProtein >= targetProtein * 0.95 &&
-                          totalProtein <= targetProtein * 1.05);
-                  final carbsPerfect = (totalCarbs >= targetCarbs * 0.95 &&
-                      totalCarbs <= targetCarbs * 1.05);
-                  final fatPerfect = (totalFat >= targetFat * 0.95 &&
-                      totalFat <= targetFat * 1.05);
+                  final caloriesPerfect = (totalCalories >= targetCalories * 0.95 &&
+                      totalCalories <= targetCalories * 1.05);
+                  final proteinPerfect = (totalProtein >= targetProtein * 0.95 &&
+                      totalProtein <= targetProtein * 1.05);
+                  final carbsPerfect =
+                      (totalCarbs >= targetCarbs * 0.95 && totalCarbs <= targetCarbs * 1.05);
+                  final fatPerfect = (totalFat >= targetFat * 0.95 && totalFat <= targetFat * 1.05);
 
-                  if (caloriesPerfect &&
-                      proteinPerfect &&
-                      carbsPerfect &&
-                      fatPerfect) {
+                  if (caloriesPerfect && proteinPerfect && carbsPerfect && fatPerfect) {
                     // Update macro perfect days
-                    final macroPerfectDays =
-                        achievementData['macro_perfect_days'] ?? 0;
+                    final macroPerfectDays = achievementData['macro_perfect_days'] ?? 0;
 
                     // Check if we already counted today as a perfect day
-                    final lastPerfectDate =
-                        achievementData['last_perfect_date'];
+                    final lastPerfectDate = achievementData['last_perfect_date'];
                     final today = DateTime.now();
 
                     if (lastPerfectDate == null ||
-                        (lastPerfectDate as Timestamp).toDate().day !=
-                            today.day) {
+                        (lastPerfectDate as Timestamp).toDate().day != today.day) {
                       // First perfect day today
                       await achievementDoc.set({
                         'macro_perfect_days': macroPerfectDays + 1,
@@ -290,8 +281,7 @@ class _MainScreenState extends State<MainScreen> {
     //
     // EDIT FOOD FUNCTION
     //
-    void editFoodManually(
-        BuildContext context, Map<String, dynamic> existingFood) {
+    void editFoodManually(BuildContext context, Map<String, dynamic> existingFood) {
       _showFoodInputSheet(
         context: context,
         initialMealName: existingFood['mealName'],
@@ -311,58 +301,48 @@ class _MainScreenState extends State<MainScreen> {
                 '${user.uid}_${originalDate.year}-${originalDate.month}-${originalDate.day}';
 
             try {
-              final foodLogDoc = await FirebaseFirestore.instance
-                  .collection('food_logs')
-                  .doc(foodLogId)
-                  .get();
+              final foodLogDoc =
+                  await FirebaseFirestore.instance.collection('food_logs').doc(foodLogId).get();
 
               if (foodLogDoc.exists) {
                 final foodLogData = foodLogDoc.data() as Map<String, dynamic>;
-                final foods =
-                    List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
+                final foods = List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
 
                 // Find the exact food item to update
                 final index = foods.indexWhere((f) {
                   // Convert all values to the same data type for comparison
-                  final fCalories = (f['calories'] is int)
-                      ? f['calories']
-                      : (f['calories'] as num).toInt();
+                  final fCalories =
+                      (f['calories'] is int) ? f['calories'] : (f['calories'] as num).toInt();
                   final existingCalories = (existingFood['calories'] is int)
                       ? existingFood['calories']
                       : (existingFood['calories'] as num).toInt();
 
-                  final fProtein = (f['protein'] is int)
-                      ? f['protein']
-                      : (f['protein'] as num).toInt();
+                  final fProtein =
+                      (f['protein'] is int) ? f['protein'] : (f['protein'] as num).toInt();
                   final existingProtein = (existingFood['protein'] is int)
                       ? existingFood['protein']
                       : (existingFood['protein'] as num).toInt();
 
-                  final fCarbs = (f['carbs'] is int)
-                      ? f['carbs']
-                      : (f['carbs'] as num).toInt();
+                  final fCarbs = (f['carbs'] is int) ? f['carbs'] : (f['carbs'] as num).toInt();
                   final existingCarbs = (existingFood['carbs'] is int)
                       ? existingFood['carbs']
                       : (existingFood['carbs'] as num).toInt();
 
-                  final fFat =
-                      (f['fat'] is int) ? f['fat'] : (f['fat'] as num).toInt();
+                  final fFat = (f['fat'] is int) ? f['fat'] : (f['fat'] as num).toInt();
                   final existingFat = (existingFood['fat'] is int)
                       ? existingFood['fat']
                       : (existingFood['fat'] as num).toInt();
 
                   // Compare loggedTime by converting both to DateTime
                   final fTime = (f['loggedTime'] as Timestamp).toDate();
-                  final existingTime =
-                      (existingFood['loggedTime'] as Timestamp).toDate();
+                  final existingTime = (existingFood['loggedTime'] as Timestamp).toDate();
 
                   return f['mealName'] == existingFood['mealName'] &&
                       fCalories == existingCalories &&
                       fProtein == existingProtein &&
                       fCarbs == existingCarbs &&
                       fFat == existingFat &&
-                      fTime.millisecondsSinceEpoch ==
-                          existingTime.millisecondsSinceEpoch;
+                      fTime.millisecondsSinceEpoch == existingTime.millisecondsSinceEpoch;
                 });
 
                 if (index != -1) {
@@ -385,20 +365,15 @@ class _MainScreenState extends State<MainScreen> {
                   final fatDiff = updatedFat - originalFat;
 
                   // Update totals by adding the difference
-                  foodLogData['totalCalories'] =
-                      (foodLogData['totalCalories'] ?? 0) + caloriesDiff;
-                  foodLogData['totalProtein'] =
-                      (foodLogData['totalProtein'] ?? 0) + proteinDiff;
-                  foodLogData['totalCarbs'] =
-                      (foodLogData['totalCarbs'] ?? 0) + carbsDiff;
-                  foodLogData['totalFat'] =
-                      (foodLogData['totalFat'] ?? 0) + fatDiff;
+                  foodLogData['totalCalories'] = (foodLogData['totalCalories'] ?? 0) + caloriesDiff;
+                  foodLogData['totalProtein'] = (foodLogData['totalProtein'] ?? 0) + proteinDiff;
+                  foodLogData['totalCarbs'] = (foodLogData['totalCarbs'] ?? 0) + carbsDiff;
+                  foodLogData['totalFat'] = (foodLogData['totalFat'] ?? 0) + fatDiff;
 
                   // Update the food item
                   foods[index] = {
                     ...foods[index],
-                    'mealName':
-                        updatedMealData['mealName'] ?? existingFood['mealName'],
+                    'mealName': updatedMealData['mealName'] ?? existingFood['mealName'],
                     'calories': updatedCalories,
                     'protein': updatedProtein,
                     'carbs': updatedCarbs,
@@ -452,12 +427,10 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       drawer: CustomDrawer(),
-      body: _routes[selectedIndex] == '/home'
-          ? HomePage(
-              key: homePageKey,
-              onEditMeal:
-                  editFoodManually) // Render HomePage when on the home route
-          : widget.child,
+      body: IndexedStack(
+        index: selectedIndex,
+        children: _screens, // This preserves the state of all screens
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
         onTap: (index) {
@@ -484,7 +457,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.star),
-            label: 'Achievements',
+            label: 'Achievements', // Changed label to match your bottom nav
           ),
         ],
       ),
@@ -519,15 +492,12 @@ class _MainScreenState extends State<MainScreen> {
                               .collection('user_achievements')
                               .doc(user.uid);
 
-                          final achievementSnapshot =
-                              await achievementDoc.get();
-                          final achievementData =
-                              achievementSnapshot.data() ?? {};
+                          final achievementSnapshot = await achievementDoc.get();
+                          final achievementData = achievementSnapshot.data() ?? {};
                           final imageLogs = achievementData['image_logs'] ?? 0;
 
-                          await achievementDoc.set(
-                              {'image_logs': imageLogs + 1},
-                              SetOptions(merge: true));
+                          await achievementDoc
+                              .set({'image_logs': imageLogs + 1}, SetOptions(merge: true));
                         } catch (e) {
                           debugPrint('Error updating image logs: $e');
                         }
@@ -548,8 +518,8 @@ class _MainScreenState extends State<MainScreen> {
                   labelBackgroundColor: Colors.grey[600],
                   backgroundColor: Colors.grey[600],
                   onTap: () async {
-                    await Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => FoodPage()));
+                    await Navigator.push(
+                        context, MaterialPageRoute(builder: (context) => FoodPage()));
                     _refreshHomePage(); // Refresh home page after returning
                   },
                 ),

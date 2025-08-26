@@ -27,7 +27,7 @@ samples, guidance on mobile development, and a full API reference.
 
 
 **MISSING:**
- - Toggleable Dark Mode
+ - Toggleable Dark Mode 
  - Notification Settings
  - some Admin Dashboard functionalities (Chatbot and Account Management)
  - Analytics Forecasting
@@ -39,5 +39,10 @@ samples, guidance on mobile development, and a full API reference.
 **NEED TO BE FIXED**
  - Achievement System (Distinction between Days Streak and Highest Days Streak, Unique Foods (?), fix the 3 macro target achievements)
  - Chatbot (API Key not updated yet, needs to be trained)
- - Analytics (Make calorie intake graph more readable)
+ - Analytics (Make calorie intake graph more readable) 
  - Edit Goals (Adjustable measurement system)
+
+
+**FIXED**
+- Chatbot already trained and working.
+-
