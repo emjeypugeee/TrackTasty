@@ -170,12 +170,9 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/recalcmacros',
       pageBuilder: (context, state) {
-        // Safely cast state.extra to Map<String, dynamic>?
         final extraData = state.extra as Map<String, dynamic>?;
-
-        // Extract parameters with null safety
-        final Map<String, dynamic> userData = extraData?['userData'] ?? {};
-        final String selectedGoal = extraData?['selectedGoal'] ?? 'Maintain Weight';
+        final userData = extraData?['userData'] as Map<String, dynamic>? ?? {};
+        final selectedGoal = extraData?['selectedGoal'] as String? ?? 'Maintain Weight';
 
         return FadeOutPageTransition(
           child: RecalculateMacrosPage(
@@ -213,8 +210,6 @@ final GoRouter _router = GoRouter(
     //shell route for sidebar pages
   ],
 );
-
-const _authPaths = ['/startup', '/login', '/register'];
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

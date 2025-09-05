@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/analytics_screen/bar_graph_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/analytics_screen/line_graph_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import your UserProvider
 
 class AnalyticsPage extends StatefulWidget {
   AnalyticsPage({super.key});
@@ -13,107 +13,104 @@ class AnalyticsPage extends StatefulWidget {
 }
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
-  // Current logged-in user
-  final User? currentUser = FirebaseAuth.instance.currentUser;
-
-  // Future to fetch user details
-  Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
-    return await FirebaseFirestore.instance
-        .collection("Users")
-        .doc(currentUser!
-            .email) // Ensure your Firestore uses email as document ID
-        .get();
+  @override
+  void initState() {
+    super.initState();
+    // Refresh user data when the page loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (userProvider.userData == null) {
+        userProvider.fetchUserData();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Access the UserProvider
+    final userProvider = Provider.of<UserProvider>(context);
+
+    // Show loading if user data is not yet loaded
+    if (userProvider.isLoading) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Show error or empty state if no user data
+    if (userProvider.userData == null || userProvider.user == null) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            "User data not available",
+            style: TextStyle(color: AppColors.primaryText),
+          ),
+        ),
+      );
+    }
+
+    // Extract data from provider using the getters you defined
+    double userGoalWeight = _parseDouble(userProvider.userData?['goalWeight']);
+    String userGoal = userProvider.goal ?? 'Maintain Weight';
+    double dailyCalories = _parseDouble(userProvider.userData?['dailyCalories']);
+
     return Scaffold(
-      body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          future: getUserDetails(),
-          builder: (context, snapshot) {
-            // Waiting...
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            }
-
-            // If there's an error
-            if (snapshot.hasError) {
-              return Center(
-                  child: Text("Error loading profile",
-                      style: TextStyle(color: AppColors.primaryText)));
-            }
-
-            if (snapshot.hasData && snapshot.data!.exists) {
-              var userData = snapshot.data!.data();
-              double userGoalWeight =
-                  double.tryParse(userData?['goalWeight']?.toString() ?? '0') ??
-                      0.0;
-              String userGoal = userData?['goal'] ?? "null";
-
-              return Scaffold(
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                body: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Nutrition Analysis',
-                          style: TextStyle(
-                            color: AppColors.primaryText,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        //space
-                        SizedBox(
-                          height: 20,
-                        ),
-                        Text(
-                          'Calorie Intake',
-                          style: TextStyle(
-                            color: AppColors.primaryText,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        BarGraphContainer(
-                          calorieGoal:
-                              userData?['dailyCalories']?.toDouble() ?? 2000,
-                        ),
-                        SizedBox(
-                          height: 30,
-                        ),
-                        Text(
-                          'Weight Progress',
-                          style: TextStyle(
-                            color: AppColors.primaryText,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(
-                          height: 10,
-                        ),
-                        LineGraphContainer(
-                          goalWeight: userGoalWeight,
-                          goal: userGoal,
-                        ),
-                      ],
-                    ),
-                  ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Padding(
+        padding: EdgeInsets.all(20.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Nutrition Analysis',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
-              );
-            }
-
-            //return if no user found
-            return Center(child: Text("User not found"));
-          }),
+              ),
+              SizedBox(height: 20),
+              Text(
+                'Calorie Intake',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 10),
+              BarGraphContainer(
+                calorieGoal: dailyCalories,
+              ),
+              SizedBox(height: 30),
+              Text(
+                'Weight Progress',
+                style: TextStyle(
+                  color: AppColors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 10),
+              LineGraphContainer(
+                goalWeight: userGoalWeight,
+                goal: userGoal,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  // Helper method to parse double values safely
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 }

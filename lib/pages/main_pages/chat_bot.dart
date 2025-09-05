@@ -17,13 +17,24 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   final List<Map<String, String>> _messages = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
+  Map<String, dynamic>? _currentUserData;
 
   @override
-  bool get wantKeepAlive => true;
+  bool get wantKeepAlive => true; // Changed to true to preserve state
 
   @override
   void initState() {
     super.initState();
+    _loadUserData();
+    _addWelcomeMessage();
+  }
+
+  void _loadUserData() {
+    final userProvider = context.read<UserProvider>();
+    _currentUserData = userProvider.userData;
+  }
+
+  void _addWelcomeMessage() {
     _messages.add({
       "role": "assistant",
       "content": "👋 Hi! I'm your Macro Tracking Assistant!\n\n"
@@ -42,13 +53,44 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     });
   }
 
+  Future<void> _refreshUserData() async {
+    setState(() => _isLoading = true);
+
+    // Simulate a small delay for better UX
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final userProvider = context.read<UserProvider>();
+    final newUserData = userProvider.userData;
+
+    setState(() {
+      _currentUserData = newUserData;
+      _isLoading = false;
+    });
+
+    // Show confirmation message
+    _showRefreshConfirmation();
+  }
+
+  void _showRefreshConfirmation() {
+    final newUserData = _currentUserData;
+    if (newUserData != null) {
+      _messages.add({
+        "role": "system",
+        "content": "🔄 Profile updated! I now know:\n"
+            "• Age: ${newUserData['age']?.toString() ?? 'Not set'}\n"
+            "• Weight: ${newUserData['weight']?.toString() ?? 'Not set'} kg\n"
+            "• Height: ${newUserData['height']?.toString() ?? 'Not set'} cm\n"
+            "• Goal: ${newUserData['goal']?.toString() ?? 'Not set'}\n"
+            "• Dietary Preference: ${newUserData['dietaryPreference']?.toString() ?? 'None'}\n"
+            "• Allergies : ${newUserData['allergies']?.toString() ?? "None"}"
+      });
+      _scrollToBottom();
+    }
+  }
+
   Future<void> _sendMessage() async {
     final userMessage = _messageController.text.trim();
     if (userMessage.isEmpty || _isLoading) return;
-
-    //user data
-    final userProvider = context.read<UserProvider>();
-    final userData = userProvider.userData;
 
     setState(() {
       _messages.add({"role": "user", "content": userMessage});
@@ -60,15 +102,15 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       final aiMessage = await DeepSeekApi.getChatResponse(
         prompt: userMessage,
         history: _messages.sublist(1, _messages.length - 1),
-        username: userData?['username'] ?? 'Guest',
-        age: userData?['age'] ?? 'null',
-        allergies: List<String>.from(userData?['allergies'] ?? []),
-        weight: userData?['weight'] ?? 'null',
-        height: userData?['height'] ?? 'null',
-        goal: userData?['goal'] ?? 'null',
-        goalWeight: userData?['goalWeight'] ?? 'null',
-        gender: userData?['gender'] ?? 'null',
-        dietaryPreference: userData?['dietaryPreference'] ?? 'null',
+        username: _currentUserData?['username']?.toString() ?? 'Guest',
+        age: _currentUserData?['age']?.toString() ?? '25',
+        allergies: List<String>.from(_currentUserData?['allergies'] ?? []),
+        weight: _currentUserData?['weight']?.toString() ?? '65',
+        height: _currentUserData?['height']?.toString() ?? '170',
+        goal: _currentUserData?['goal']?.toString() ?? 'maintenance',
+        goalWeight: _currentUserData?['goalWeight']?.toString() ?? '0',
+        gender: _currentUserData?['gender']?.toString() ?? 'prefer not to say',
+        dietaryPreference: _currentUserData?['dietaryPreference']?.toString() ?? 'none',
       ).timeout(const Duration(seconds: 30));
 
       setState(() {
@@ -77,7 +119,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     } catch (e) {
       debugPrint("API Error Details: $e");
 
-      // More specific error messages
       String errorMessage;
       if (e is TimeoutException) {
         errorMessage = "Request timed out. Please try again.";
@@ -133,6 +174,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                 final message = _messages[index];
                 final isUser = message["role"] == "user";
                 final isError = message["role"] == "error";
+                final isSystem = message["role"] == "system";
 
                 return Align(
                   alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -142,20 +184,67 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                     decoration: BoxDecoration(
                       color: isError
                           ? Colors.red[900]
-                          : isUser
-                              ? Colors.blue[800]
-                              : Colors.grey[800],
+                          : isSystem
+                              ? Colors.green[800]
+                              : isUser
+                                  ? Colors.blue[800]
+                                  : Colors.grey[800],
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       message["content"]!,
                       style: TextStyle(
-                        color: isError ? Colors.red[200] : Colors.white,
+                        color: isError
+                            ? Colors.red[200]
+                            : isSystem
+                                ? Colors.green[100]
+                                : Colors.white,
                       ),
                     ),
                   ),
                 );
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: GestureDetector(
+              onTap: _isLoading ? null : _refreshUserData,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.blue[700]!,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isLoading)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.blue,
+                        ),
+                      )
+                    else
+                      const Icon(Icons.refresh, size: 16, color: Colors.blue),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isLoading ? 'Reloading...' : 'Reload user data',
+                      style: TextStyle(
+                        color: _isLoading ? Colors.grey[400] : Colors.blue[300],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           Padding(

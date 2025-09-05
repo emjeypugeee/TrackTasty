@@ -59,5 +59,6 @@
 <string>Need photo library access to select pictures</string>
 <key>NSMicrophoneUsageDescription</key>
 <string>Need microphone access for video recording</string>
+
 </dict>
 </plist>

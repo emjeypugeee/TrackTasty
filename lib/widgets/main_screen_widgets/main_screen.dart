@@ -1,8 +1,10 @@
+import 'package:camera/camera.dart';
 import 'package:fitness/pages/main_pages/analytics_page.dart';
 import 'package:fitness/pages/main_pages/chat_bot.dart';
 import 'package:fitness/pages/main_pages/food_page.dart';
 import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
+import 'package:fitness/widgets/main_screen_widgets/home_screen/camera_food_input.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';

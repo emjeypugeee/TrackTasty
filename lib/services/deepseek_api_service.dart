@@ -26,12 +26,12 @@ class DeepSeekApi {
 
      USER PROFILE:
     - Name: $username
-    - Age: $age years
-    - Weight: ${weight}kg
-    - Height: ${height}cm
+    - Age: $age
+    - Weight: $weight
+    - Height: $height
     - Gender: $gender
     - Goal: $goal
-    - Goal Weight: ${goalWeight}kg
+    - Goal Weight: $goalWeight
     - Dietary Preference: $dietaryPreference
     - Allergies: ${allergies.isEmpty ? 'None' : allergies.join(', ')}
 
@@ -56,6 +56,8 @@ class DeepSeekApi {
     4. Consider their dietary preferences ($dietaryPreference) and allergies when suggesting foods.
     
     5. Keep responses focused, practical, and evidence-based.
+
+    6. Avoid using these signs " # and * "
     """;
 
     // Prepare messages with system prompt first
