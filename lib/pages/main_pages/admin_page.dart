@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fitness/services/fat_secret_api_service.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
@@ -138,11 +140,91 @@ class SystemMetricsService {
     }
   }
 
+  static Future<Map<String, dynamic>> getDeepSeekStatus() async {
+    try {
+      final startTime = DateTime.now();
+
+      // Test DeepSeek API with a simpler, more reliable endpoint
+      final response = await http.get(
+        Uri.parse('https://api.deepseek.com/v1/models'),
+        headers: {
+          'Authorization': 'Bearer ${dotenv.env['DEEPSEEK_API_KEY']}',
+        },
+      );
+
+      final endTime = DateTime.now();
+      final responseTime = endTime.difference(startTime).inMilliseconds;
+
+      // DeepSeek returns 200 even for unauthorized, so check for valid response
+      final isAvailable =
+          response.statusCode == 200 && response.body.contains('deepseek');
+
+      return {
+        'status': isAvailable ? 'Connected' : 'Unavailable',
+        'response_time_ms': responseTime,
+        'last_checked': DateTime.now(),
+        'error': !isAvailable ? 'API not responding properly' : null,
+      };
+    } catch (e) {
+      return {
+        'status': 'Unavailable',
+        'response_time_ms': null,
+        'last_checked': DateTime.now(),
+        'error': e.toString(),
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getFatSecretStatus() async {
+    try {
+      final startTime = DateTime.now();
+
+      // Test FatSecret API with a more robust check
+      final service = FatSecretApiService();
+      final result = await service.searchFood('apple').timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => [],
+          );
+
+      final endTime = DateTime.now();
+      final responseTime = endTime.difference(startTime).inMilliseconds;
+
+      // FatSecret returns empty array when rate limited but still connected
+      final isConnected = result != null;
+      final status = isConnected ? 'Connected' : 'Limited';
+
+      return {
+        'status': status,
+        'response_time_ms': responseTime,
+        'last_checked': DateTime.now(),
+        'error': !isConnected ? 'No response from API' : null,
+      };
+    } on TimeoutException {
+      return {
+        'status': 'Timeout',
+        'response_time_ms': null,
+        'last_checked': DateTime.now(),
+        'error': 'Request timed out',
+      };
+    } catch (e) {
+      return {
+        'status': 'Unavailable',
+        'response_time_ms': null,
+        'last_checked': DateTime.now(),
+        'error': e.toString(),
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> getSystemMetrics() async {
     final firebaseHealth = await getFirebaseHealthStatus();
+    final deepSeekStatus = await getDeepSeekStatus();
+    final fatSecretStatus = await getFatSecretStatus();
 
     return {
       'firebase': firebaseHealth,
+      'deepseek': deepSeekStatus,
+      'fatsecret': fatSecretStatus,
       'app_version': '1.0.0',
       'timestamp': DateTime.now(),
       'device_platform': 'Flutter',
@@ -204,12 +286,17 @@ class _DashboardSectionState extends State<DashboardSection> {
     switch (status.toLowerCase()) {
       case 'healthy':
       case 'connected':
+      case 'available':
       case 'online':
         return '✅';
       case 'unhealthy':
       case 'error':
+      case 'unavailable':
       case 'offline':
         return '❌';
+      case 'limited':
+      case 'timeout':
+        return '⚠️';
       default:
         return '⚠️';
     }
@@ -219,12 +306,17 @@ class _DashboardSectionState extends State<DashboardSection> {
     switch (status.toLowerCase()) {
       case 'healthy':
       case 'connected':
+      case 'available':
       case 'online':
         return Colors.green;
       case 'unhealthy':
       case 'error':
+      case 'unavailable':
       case 'offline':
         return Colors.red;
+      case 'limited':
+      case 'timeout':
+        return Colors.orange;
       default:
         return Colors.orange;
     }
@@ -273,6 +365,8 @@ class _DashboardSectionState extends State<DashboardSection> {
 
   Widget _buildMetricsGrid(Map<String, dynamic> metrics) {
     final firebaseMetrics = metrics['firebase'] as Map<String, dynamic>;
+    final deepSeekMetrics = metrics['deepseek'] as Map<String, dynamic>;
+    final fatSecretMetrics = metrics['fatsecret'] as Map<String, dynamic>;
 
     return GridView.count(
       shrinkWrap: true,
@@ -292,6 +386,18 @@ class _DashboardSectionState extends State<DashboardSection> {
           '${_getStatusIcon(firebaseMetrics['firestore_status'])} ${firebaseMetrics['firestore_status']}',
           Icons.storage,
           _getStatusColor(firebaseMetrics['firestore_status']),
+        ),
+        _buildMetricCard(
+          'DeepSeek API',
+          '${_getStatusIcon(deepSeekMetrics['status'])} ${deepSeekMetrics['status']}',
+          Icons.smart_toy,
+          _getStatusColor(deepSeekMetrics['status']),
+        ),
+        _buildMetricCard(
+          'FatSecret API',
+          '${_getStatusIcon(fatSecretMetrics['status'])} ${fatSecretMetrics['status']}',
+          Icons.fastfood,
+          _getStatusColor(fatSecretMetrics['status']),
         ),
         _buildMetricCard(
           'Users',

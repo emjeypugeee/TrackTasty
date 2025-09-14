@@ -1,4 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class WeightForecaster {
   final String userId;
@@ -6,187 +9,237 @@ class WeightForecaster {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Check if we have enough data (e.g., at least 14 days of weight and calorie data)
-  Future<bool> get hasEnoughData async {
-    final weightSnapshot = await _firestore
-        .collection('weight_history')
-        .where('userId', isEqualTo: userId)
-        .orderBy('date', descending: true)
-        .limit(14)
-        .get();
-
-    final foodLogSnapshot = await _firestore
-        .collection('food_logs')
-        .where('userId', isEqualTo: userId)
-        .orderBy('date', descending: true)
-        .limit(14)
-        .get();
-
-    // We need a good amount of data to start
-    return weightSnapshot.docs.length >= 7 && foodLogSnapshot.docs.length >= 7;
-  }
-
-  // The core function to generate a forecast
-  Future<Map<String, dynamic>> generateForecast() async {
-    if (!await hasEnoughData) {
-      return {
-        'canForecast': false,
-        'message':
-            'Keep logging! We need more data to generate a reliable forecast.',
-      };
-    }
-
-    // 1. FETCH HISTORICAL DATA
-    //final weightHistory = await _fetchWeightHistory();
-    //final calorieHistory = await _fetchCalorieHistory();
-
-    // 2. CALCULATE TRUE TDEE (The Gold Standard)
-    // This is a simplified example. A real implementation would be more robust.
-    double totalCalorieDeficitOrSurplus = 0;
-    int numberOfDataPoints = 0;
-
-    /*for (int i = 1; i < weightHistory.length; i++) {
-      final weightChangeLbs =
-          weightHistory[i]['weight'] - weightHistory[i - 1]['weight'];
-      final avgDailyCalories = calorieHistory[i]['totalCalories'];
-      // Estimate TDEE for this period: TDEE = CaloriesIn - (WeightChangeLbs * 3500 / days)
-      // Since we're using daily data, days=1
-      final estimatedTDEEDuringPeriod =
-          avgDailyCalories - (weightChangeLbs * 3500);
-      totalCalorieDeficitOrSurplus += estimatedTDEEDuringPeriod;
-      numberOfDataPoints++;
-    }*/
-
-    double trueTDEE = totalCalorieDeficitOrSurplus / numberOfDataPoints;
-
-    // 3. GET USER'S GOAL FROM FIRESTORE
-    final userDoc = await _firestore.collection('users').doc(userId).get();
-    final goal = userDoc['goal']; // e.g., "Lose Weight", "Maintain Weight"
-    final double goalCalorieIntake =
-        _calculateGoalCalorieIntake(goal, trueTDEE);
-
-    // 4. GENERATE FORECAST (e.g., next 7 days)
-    List<Map<String, dynamic>> forecastData = [];
-    // double projectedWeight = weightHistory.last['weight'];
-
-    for (int day = 1; day <= 7; day++) {
-      // Simple model: (Goal Calories - TDEE) / 3500 = projected daily weight change
-      double dailyWeightChange = (goalCalorieIntake - trueTDEE) / 3500;
-      // projectedWeight += dailyWeightChange;
-
-      forecastData.add({
-        'day': day,
-        // 'projectedWeight': double.parse(projectedWeight.toStringAsFixed(1)),
-        'targetCalories': goalCalorieIntake.round(),
-      });
-    }
-
-    // 5. UPDATE THE USER'S TDEE IN FIRESTORE FOR FUTURE USE
-    await _firestore.collection('users').doc(userId).update({'tdee': trueTDEE});
-
-    return {
-      'canForecast': true,
-      'currentTdee': trueTDEE.round(),
-      'forecast': forecastData,
-    };
-  }
-
-  // Helper function to calculate target calories based on goal
-  double _calculateGoalCalorieIntake(String goal, double tdee) {
-    switch (goal) {
-      case 'Lose Weight':
-        return tdee - 500; // Create a 500 calorie deficit
-      case 'Gain Weight':
-        return tdee + 500; // Create a 500 calorie surplus
-      case 'Maintain Weight':
-      default:
-        return tdee;
-    }
-  }
-
-  /* TEMPORARY FORECAST OF DATA BASED ON GENERATED INFORMATION FOR NEW USERS
-  Future<Map<String, dynamic>> generateProvisionalForecast() async {
-    // 1. Get user data
-    final userDoc = await _firestore.collection('users').doc(userId).get();
-    final currentWeight = userDoc['weight'];
-    final goal = userDoc['goal'];
-    final goalCalories =
-        userDoc['dailyCalories']; // This was set during onboarding
-    final activityLevel = userDoc['selectedActivityLevel'];
-
-    // 2. Calculate Estimated TDEE (using Mifflin-St Jeor for BMR)
-    double estimatedBMR = _calculateMifflinStJeor(userDoc['weight'],
-        userDoc['height'], userDoc['age'], userDoc['gender']);
-    double activityMultiplier = _getActivityMultiplier(activityLevel);
-    double estimatedTDEE = estimatedBMR * activityMultiplier;
-
-    // 3. Calculate the projected change based on their GOAL calories, not their intake.
-    double dailyCalorieDifference = goalCalories - estimatedTDEE;
-    double projectedDailyWeightChange =
-        dailyCalorieDifference / 7700; // kcal per kg
-
-    // 4. Generate the forecast for the next 30 days
-    List<Map<String, dynamic>> forecastData = [];
-    double projectedWeight = currentWeight;
-
-    for (int day = 1; day <= 30; day++) {
-      projectedWeight += projectedDailyWeightChange;
-      forecastData.add({
-        'day': day,
-        'projectedWeight': double.parse(projectedWeight.toStringAsFixed(1)),
-        'isProvisional': true, // Flag to show this is an estimate
-      });
-    }
-
-    return {
-      'canForecast': true,
-      'isProvisional': true, // Key flag for the UI to differentiate
-      'message':
-          'This forecast assumes you hit your daily calorie goal of ${goalCalories.round()} kcal. Log consistently for a personalized forecast based on your actual data.',
-      'currentEstimatedTdee': estimatedTDEE.round(),
-      'forecast': forecastData,
-    };
-  }*/
-
-  /* FORECASTING FOR USERS THAT HAVE ENOUGH INFORMATION (14 FOOD LOGS) + (3 WEEKS OF WEIGHT HISTORY)
+  // Check if we have enough data for a personalized forecast
   Future<bool> get hasEnoughDataForPersonalizedForecast async {
-    // Get last 21 days of weight entries
-    final weightSnapshot = await _firestore
-        .collection('weight_history')
-        .where('userId', isEqualTo: userId)
-        .orderBy('date', descending: true)
-        .limit(21) // 3 weeks
-        .get();
+    try {
+      debugPrint(
+          "🔍 Checking if user $userId has enough data for personalized forecast...");
 
-    // Get last 14 days of food logs
-    final foodLogSnapshot = await _firestore
-        .collection('food_logs')
-        .where('userId', isEqualTo: userId)
-        .orderBy('date', descending: true)
-        .limit(14)
-        .get();
+      // Get last 14 days of weight entries
+      final weightSnapshot = await _firestore
+          .collection('weight_history')
+          .where('userId', isEqualTo: userId)
+          .where('date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(
+                  DateTime.now().subtract(const Duration(days: 14))))
+          .orderBy('date')
+          .get();
 
-    // Check if we have enough data points and that the data spans a sufficient time period
-    // We need at least, e.g., 5 weight logs and 10 food logs that span over 2 weeks.
-    return weightSnapshot.docs.length >= 5 && foodLogSnapshot.docs.length >= 10;
-  }*/
+      debugPrint("📊 Weight logs found: ${weightSnapshot.docs.length}");
 
-  /* GET FORECAST EITHER PROVISIONAL OR PERSONALIZED
-  Future<Map<String, dynamic>> getForecast() async {
-    // First, check if we can do a personalized forecast
-    if (await hasEnoughDataForPersonalizedForecast) {
-      return await generatePersonalizedForecast(); // This is the function from the previous answer
-    } else {
-      // If not, provide the provisional one
-      return await generateProvisionalForecast();
+      // Get last 14 days of food logs
+      final foodLogSnapshot = await _firestore
+          .collection('food_logs')
+          .where('userId', isEqualTo: userId)
+          .where('date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(
+                  DateTime.now().subtract(const Duration(days: 14))))
+          .orderBy('date')
+          .get();
+
+      debugPrint("🍽️ Food logs found: ${foodLogSnapshot.docs.length}");
+
+      final hasEnoughData =
+          weightSnapshot.docs.length >= 7 && foodLogSnapshot.docs.length >= 7;
+
+      debugPrint("✅ Has enough data for personalized forecast: $hasEnoughData");
+      debugPrint(
+          "   - Weight logs requirement: ${weightSnapshot.docs.length >= 7 ? 'MET' : 'NOT MET'} (${weightSnapshot.docs.length}/7)");
+      debugPrint(
+          "   - Food logs requirement: ${foodLogSnapshot.docs.length >= 7 ? 'MET' : 'NOT MET'} (${foodLogSnapshot.docs.length}/7)");
+
+      return hasEnoughData;
+    } catch (e) {
+      debugPrint("❌ Error checking data for personalized forecast: $e");
+      return false;
     }
-  }*/
-
-  /* Helper functions to fetch data
-  Future<List<Map<String, dynamic>>> _fetchWeightHistory() async {
-    // ... implementation to get weight history as a list of maps
   }
-  Future<List<Map<String, dynamic>>> _fetchCalorieHistory() async {
-    // ... implementation to get daily total calories as a list of maps
-  }*/
+
+  // New method to fetch and calculate average calorie intake for a given number of days
+  Future<double> _fetchAverageCalorieIntake(int days) async {
+    try {
+      debugPrint("🥗 Fetching average calorie intake for last $days days...");
+
+      final snapshot = await _firestore
+          .collection('food_logs')
+          .where('userId', isEqualTo: userId)
+          .where('date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(
+                  DateTime.now().subtract(Duration(days: days))))
+          .get();
+
+      debugPrint("📋 Found ${snapshot.docs.length} food log entries");
+
+      if (snapshot.docs.isEmpty) {
+        debugPrint("⚠️ No food logs found, returning 0.0");
+        return 0.0;
+      }
+
+      final totalCalories = snapshot.docs.fold<double>(
+          0.0,
+          (sum, doc) =>
+              sum + ((doc.data()['totalCalories'] as num?)?.toDouble() ?? 0.0));
+
+      // Calculate average based on unique days with data
+      Set<String> uniqueDates = snapshot.docs
+          .map((doc) => DateFormat('yyyy-MM-dd')
+              .format((doc.data()['date'] as Timestamp).toDate()))
+          .toSet();
+
+      debugPrint("📅 Unique days with food data: ${uniqueDates.length}");
+      debugPrint("🔥 Total calories: $totalCalories");
+
+      final averageCalories = totalCalories / uniqueDates.length;
+      debugPrint(
+          "📊 Average daily calorie intake: ${averageCalories.toStringAsFixed(1)}");
+
+      return averageCalories;
+    } catch (e) {
+      debugPrint("❌ Error fetching average calorie intake: $e");
+      return 0.0;
+    }
+  }
+
+  // Calculate BMR (Basal Metabolic Rate) using the Mifflin-St Jeor equation
+  double _calculateBMR(
+      double weightKg, double heightCm, int age, String gender) {
+    debugPrint("🧮 Calculating BMR...");
+    debugPrint("   - Weight: ${weightKg}kg");
+    debugPrint("   - Height: ${heightCm}cm");
+    debugPrint("   - Age: $age");
+    debugPrint("   - Gender: $gender");
+
+    double bmr;
+    if (gender.toLowerCase() == 'male') {
+      bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+    } else {
+      bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
+    }
+
+    debugPrint("✅ BMR calculated: ${bmr.toStringAsFixed(1)} kcal");
+    return bmr;
+  }
+
+  // Calculate TDEE (Total Daily Energy Expenditure) based on BMR and activity level
+  double _calculateTDEE(double bmr, String activityLevel) {
+    debugPrint("⚡ Calculating TDEE...");
+    debugPrint("   - BMR: ${bmr.toStringAsFixed(1)} kcal");
+    debugPrint("   - Activity Level: $activityLevel");
+
+    double activityFactor = 1.2; // Sedentary
+    switch (activityLevel) {
+      case 'Lightly Active':
+        activityFactor = 1.375;
+        break;
+      case 'Moderately Active':
+        activityFactor = 1.55;
+        break;
+      case 'Very Active':
+        activityFactor = 1.725;
+        break;
+      case 'Extra Active':
+        activityFactor = 1.9;
+        break;
+    }
+
+    final tdee = bmr * activityFactor;
+    debugPrint(
+        "✅ TDEE calculated: ${tdee.toStringAsFixed(1)} kcal (Activity Factor: $activityFactor)");
+    return tdee;
+  }
+
+  // Main forecasting method
+  Future<Map<String, dynamic>> forecastWeight({
+    required double currentWeight,
+    required double height,
+    required int age,
+    required String gender,
+    required String activityLevel,
+    required double dailyCalorieGoal,
+  }) async {
+    debugPrint("🚀 STARTING WEIGHT FORECAST ===============================");
+    debugPrint("👤 User ID: $userId");
+    debugPrint("📊 Current Weight: ${currentWeight}kg");
+    debugPrint("📏 Height: ${height}cm");
+    debugPrint("🎂 Age: $age");
+    debugPrint("🚻 Gender: $gender");
+    debugPrint("🏃 Activity Level: $activityLevel");
+    debugPrint("🎯 Daily Calorie Goal: ${dailyCalorieGoal}kcal");
+
+    final personalizedForecast = await hasEnoughDataForPersonalizedForecast;
+
+    double dailyCalorieIntake;
+    final bmr = _calculateBMR(currentWeight, height, age, gender);
+    final tdee = _calculateTDEE(bmr, activityLevel);
+    double dailyWeightChangeKg;
+
+    // Use personalized data if available
+    if (personalizedForecast) {
+      debugPrint("✅ USING PERSONALIZED FORECAST (based on historical data)");
+      dailyCalorieIntake = await _fetchAverageCalorieIntake(7);
+    } else {
+      debugPrint("⚠️ USING PROVISIONAL FORECAST (not enough historical data)");
+      // Use the user's provided daily calorie goal for provisional data
+      dailyCalorieIntake = dailyCalorieGoal;
+      debugPrint("📋 Using daily calorie goal: ${dailyCalorieIntake}kcal");
+    }
+
+    final calorieDeficit = tdee - dailyCalorieIntake;
+    dailyWeightChangeKg = -calorieDeficit / 7700; // 7700 kcal = 1 kg
+
+    debugPrint("📈 DAILY METRICS:");
+    debugPrint("   - TDEE: ${tdee.toStringAsFixed(1)} kcal");
+    debugPrint(
+        "   - Daily Calorie Intake: ${dailyCalorieIntake.toStringAsFixed(1)} kcal");
+    debugPrint(
+        "   - Calorie Deficit/Surplus: ${calorieDeficit.toStringAsFixed(1)} kcal");
+    debugPrint(
+        "   - Daily Weight Change: ${dailyWeightChangeKg.toStringAsFixed(4)} kg/day");
+    debugPrint(
+        "   - Weekly Weight Change: ${(dailyWeightChangeKg * 7).toStringAsFixed(3)} kg/week");
+
+    // Project weight for the next 4 months (16 weeks)
+    List<Map<String, dynamic>> projectedWeight = [];
+    double projectedWeightKg = currentWeight;
+
+    debugPrint("🔮 PROJECTING WEIGHT FOR NEXT 4 MONTHS (16 WEEKS):");
+    for (int i = 0; i <= 8; i++) {
+      // 4 months = 16 weeks, display every 2 weeks
+      int weeksPassed = i * 2;
+      projectedWeightKg =
+          currentWeight + (dailyWeightChangeKg * 7 * weeksPassed);
+
+      projectedWeight.add({
+        'week': weeksPassed,
+        'weight': double.parse(projectedWeightKg.toStringAsFixed(1)),
+      });
+
+      debugPrint(
+          "   📅 Week $weeksPassed: ${projectedWeightKg.toStringAsFixed(1)}kg");
+    }
+
+    final result = {
+      'isProvisionalData': !personalizedForecast,
+      'projectedWeight': projectedWeight,
+      'averageCalorieIntake':
+          double.parse(dailyCalorieIntake.toStringAsFixed(1)),
+      'calorieSurplusDeficit': double.parse(calorieDeficit.toStringAsFixed(1)),
+      'tdee': double.parse(tdee.toStringAsFixed(1)),
+      'dailyWeightChange': double.parse(dailyWeightChangeKg.toStringAsFixed(4)),
+    };
+
+    debugPrint("✅ FORECAST COMPLETED SUCCESSFULLY");
+    debugPrint("   - Provisional Data: ${result['isProvisionalData']}");
+    debugPrint(
+        "   - Average Calorie Intake: ${result['averageCalorieIntake']} kcal");
+    debugPrint(
+        "   - Calorie Deficit/Surplus: ${result['calorieSurplusDeficit']} kcal");
+    debugPrint("   - TDEE: ${result['tdee']} kcal");
+    debugPrint(
+        "   - Daily Weight Change: ${result['dailyWeightChange']} kg/day");
+    debugPrint("   - Projected Weight Points: ${projectedWeight.length}");
+    debugPrint("🚀 FORECAST COMPLETE ======================================");
+
+    return result;
+  }
 }

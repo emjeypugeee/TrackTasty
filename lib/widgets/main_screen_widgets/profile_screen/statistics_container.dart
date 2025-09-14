@@ -2,12 +2,15 @@ import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 
 class StatisticsContainer extends StatelessWidget {
-  final int daysStreak;
+  final num value;
   final String description;
+  final bool isWeight;
+
   const StatisticsContainer({
     super.key,
-    required this.daysStreak,
+    required this.value,
     required this.description,
+    required this.isWeight,
   });
 
   @override
@@ -24,8 +27,8 @@ class StatisticsContainer extends StatelessWidget {
       padding: const EdgeInsets.all(10.0),
       child: Row(
         children: [
-          const Icon(
-            Icons.calendar_month,
+          Icon(
+            isWeight ? Icons.monitor_weight : Icons.calendar_month,
             size: 50,
             color: Colors.white,
           ),
@@ -35,7 +38,7 @@ class StatisticsContainer extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$daysStreak',
+                isWeight ? '${value.toStringAsFixed(1)}' : '$value',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 15,

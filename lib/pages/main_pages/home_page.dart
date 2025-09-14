@@ -309,7 +309,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('calories-$selectedDay'),
                   macroType: 'Calories',
                   progressColor: AppColors.caloriesColor,
-                  value: '${(totalCalories - calorieGoal).abs()}g',
+                  value: '${(totalCalories - calorieGoal).abs().toInt()}g',
                   label: totalCalories > calorieGoal
                       ? 'Calories over'
                       : 'Calories remaining',
@@ -320,7 +320,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('protein-$selectedDay'),
                   macroType: 'Protein',
                   progressColor: AppColors.proteinColor,
-                  value: '${(totalProtein - proteinGoal).abs()}g',
+                  value: '${(totalProtein - proteinGoal).abs().toInt()}g',
                   label: totalProtein > proteinGoal
                       ? 'Protein over'
                       : 'Protein remaining',
@@ -335,7 +335,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('carbs-$selectedDay'),
                   macroType: 'Carbs',
                   progressColor: AppColors.carbsColor,
-                  value: '${(totalCarbs - carbsGoal).abs()}g',
+                  value: '${(totalCarbs - carbsGoal).abs().toInt()}g',
                   label:
                       totalCarbs > carbsGoal ? 'Carbs over' : 'Carbs remaining',
                   selectedDate: selectedDay,
@@ -345,7 +345,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('fat-$selectedDay'),
                   macroType: 'Fat',
                   progressColor: AppColors.fatColor,
-                  value: '${(totalFat - fatGoal).abs()}g',
+                  value: '${(totalFat - fatGoal).abs().toInt()}g',
                   label: totalFat > fatGoal ? 'Fat over' : 'Fat remaining',
                   selectedDate: selectedDay,
                 ),
@@ -419,10 +419,14 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: MealsContainer(
                       mealName: food['mealName'] ?? '',
-                      calories: food['calories'] ?? 0,
-                      protein: food['protein'] ?? 0,
-                      carbs: food['carbs'] ?? 0,
-                      fat: food['fat'] ?? 0,
+                      calories: (food['calories'] ?? 0).toDouble(),
+                      protein: (food['protein'] ?? 0).toDouble(),
+                      carbs: (food['carbs'] ?? 0).toDouble(),
+                      fat: (food['fat'] ?? 0).toDouble(),
+                      servingSize: food['servingSize'] ?? '',
+                      adjustmentType: food['adjustmentType'] ?? 'percent',
+                      adjustmentValue:
+                          (food['adjustmentValue'] ?? 100.0).toDouble(),
                       loggedTime: (food['loggedTime'] as Timestamp).toDate(),
                       onEdit: () => _handleEditMeal(food),
                       onDelete: () => _handleDeleteMeal(food),

@@ -286,10 +286,7 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/recalcmacros',
       pageBuilder: (context, state) {
-        // Safely cast state.extra to Map<String, dynamic>?
         final extraData = state.extra as Map<String, dynamic>?;
-
-        // Extract parameters with null safety
         final Map<String, dynamic> userData = extraData?['userData'] ?? {};
         final String selectedGoal =
             extraData?['selectedGoal'] ?? 'Maintain Weight';
@@ -341,7 +338,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => UserProvider(),
+      create: (context) => UserProvider()..fetchUserData(),
       child: MaterialApp.router(
         theme: ThemeData(
             scaffoldBackgroundColor: const Color(0xFF121212),

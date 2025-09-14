@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/widgets/main_screen_widgets/profile_screen/achievement_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/profile_screen/profile_container.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -31,6 +32,63 @@ class ProfilePage extends StatelessWidget {
     } catch (e) {
       debugPrint("Error fetching achievements: $e");
       return {};
+    }
+  }
+
+  // Future to fetch weight data
+  Future<Map<String, dynamic>> getUserWeightData() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      return {
+        'initialWeight': 0.0,
+        'currentWeight': 0.0,
+        'measurementSystem': 'Metric'
+      };
+    }
+
+    try {
+      // Get user details to check measurement system
+      final userDoc = await FirebaseFirestore.instance
+          .collection("Users")
+          .doc(currentUser.email)
+          .get();
+
+      final measurementSystem =
+          userDoc.data()?['measurementSystem'] ?? 'Metric';
+
+      // Get all weight logs for the user, ordered by date
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection("weight_history")
+          .where('userId', isEqualTo: currentUser.uid)
+          .orderBy('date', descending: false)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return {
+          'initialWeight': 0.0,
+          'currentWeight': 0.0,
+          'measurementSystem': measurementSystem
+        };
+      }
+
+      // Get initial weight (first document)
+      final initialWeight = querySnapshot.docs.first.data()['weight'] ?? 0.0;
+
+      // Get current weight (last document)
+      final currentWeight = querySnapshot.docs.last.data()['weight'] ?? 0.0;
+
+      return {
+        'initialWeight': initialWeight.toDouble(),
+        'currentWeight': currentWeight.toDouble(),
+        'measurementSystem': measurementSystem
+      };
+    } catch (e) {
+      debugPrint("Error fetching weight data: $e");
+      return {
+        'initialWeight': 0.0,
+        'currentWeight': 0.0,
+        'measurementSystem': 'Metric'
+      };
     }
   }
 
@@ -71,154 +129,188 @@ class ProfilePage extends StatelessWidget {
                   }
 
                   final achievements = achievementSnapshot.data ?? {};
-                  dayStreak = achievements['daily_streak'];
+                  dayStreak = achievements['daily_streak'] ?? 0;
 
-                  // Define achievement data
-                  final List<Map<String, dynamic>> achievementList = [
-                    {
-                      'id': 'daily_tracker',
-                      'title': 'Daily Tracker',
-                      'description':
-                          'Reached a ${_getAchievementLevel(achievements['daily_streak'] ?? 0, [
-                            7,
-                            14,
-                            60,
-                            180,
-                            365
-                          ])} days streak!',
-                      'nextStarDescription': _getNextStarDescription(
-                          achievements['daily_streak'] ?? 0,
-                          [7, 14, 60, 180, 365],
-                          'days streak'),
-                      'progress': '${achievements['daily_streak'] ?? 0} days',
-                      'stars': _getStarCount(achievements['daily_streak'] ?? 0,
-                          [7, 14, 60, 180, 365]),
-                    },
-                    {
-                      'id': 'click_eat',
-                      'title': 'Click & Eat',
-                      'description':
-                          'Used image logging ${_getAchievementLevel(achievements['image_logs'] ?? 0, [
-                            10,
-                            30,
-                            50,
-                            100,
-                            200
-                          ])} times.',
-                      'nextStarDescription': _getNextStarDescription(
-                          achievements['image_logs'] ?? 0,
-                          [10, 30, 50, 100, 200],
-                          'image logs'),
-                      'progress': '${achievements['image_logs'] ?? 0} times',
-                      'stars': _getStarCount(achievements['image_logs'] ?? 0,
-                          [10, 30, 50, 100, 200]),
-                    },
-                    {
-                      'id': 'food_explorer',
-                      'title': 'Food Explorer',
-                      'description':
-                          'Logged ${_getAchievementLevel(achievements['unique_foods'] ?? 0, [
-                            20,
-                            50,
-                            100,
-                            150,
-                            250
-                          ])} unique foods.',
-                      'nextStarDescription': _getNextStarDescription(
-                          achievements['unique_foods'] ?? 0,
-                          [20, 50, 100, 150, 250],
-                          'unique foods'),
-                      'progress': '${achievements['unique_foods'] ?? 0} foods',
-                      'stars': _getStarCount(achievements['unique_foods'] ?? 0,
-                          [20, 50, 100, 150, 250]),
-                    },
-                    {
-                      'id': 'macro_magician',
-                      'title': 'Macro Magician',
-                      'description':
-                          'Hit all 3 macro targets ${_getAchievementLevel(achievements['macro_perfect_days'] ?? 0, [
-                            7,
-                            14,
-                            60,
-                            180,
-                            365
-                          ])} times.',
-                      'nextStarDescription': _getNextStarDescription(
-                          achievements['macro_perfect_days'] ?? 0,
-                          [7, 14, 60, 180, 365],
-                          'perfect days'),
-                      'progress':
-                          '${achievements['macro_perfect_days'] ?? 0} days',
-                      'stars': _getStarCount(
-                          achievements['macro_perfect_days'] ?? 0,
-                          [7, 14, 60, 180, 365]),
-                    },
-                  ];
+                  return FutureBuilder<Map<String, dynamic>>(
+                    future: getUserWeightData(),
+                    builder: (context, weightSnapshot) {
+                      if (weightSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      }
 
-                  return Scaffold(
-                    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    body: SingleChildScrollView(
-                      child: Padding(
-                        padding: EdgeInsets.all(0),
-                        child: Column(
-                          children: [
-                            ProfileContainer(
-                              name: username,
-                              joinedDate: joinedDate,
-                              dayStreak: dayStreak,
-                              highestDayStreak: dayStreak,
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    SizedBox(height: 10),
-                                    Text(
-                                      'Achievements',
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 25,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    GridView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      gridDelegate:
-                                          const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 1,
-                                        crossAxisSpacing: 12,
-                                        mainAxisSpacing: 12,
-                                        childAspectRatio: 1.5,
-                                      ),
-                                      itemCount: achievementList.length,
-                                      itemBuilder: (context, index) {
-                                        final achievement =
-                                            achievementList[index];
-                                        return AchievementContainer(
-                                          title: achievement['title'],
-                                          description:
-                                              achievement['description'],
-                                          nextStarDescription: achievement[
-                                              'nextStarDescription'],
-                                          progress: achievement['progress'],
-                                          stars: achievement['stars'],
-                                        );
-                                      },
-                                    ),
-                                  ],
+                      final weightData = weightSnapshot.data ??
+                          {
+                            'initialWeight': 0.0,
+                            'currentWeight': 0.0,
+                            'measurementSystem': 'Metric'
+                          };
+                      final double initialWeight =
+                          weightData['initialWeight'] ?? 0.0;
+                      final double currentWeight =
+                          weightData['currentWeight'] ?? 0.0;
+                      final String measurementSystem =
+                          weightData['measurementSystem'] ?? 'Metric';
+
+                      // Define achievement data
+                      final List<Map<String, dynamic>> achievementList = [
+                        {
+                          'id': 'daily_tracker',
+                          'title': 'Daily Tracker',
+                          'description':
+                              'Reached a ${_getAchievementLevel(achievements['daily_streak'] ?? 0, [
+                                7,
+                                14,
+                                60,
+                                180,
+                                365
+                              ])} days streak!',
+                          'nextStarDescription': _getNextStarDescription(
+                              achievements['daily_streak'] ?? 0,
+                              [7, 14, 60, 180, 365],
+                              'days streak'),
+                          'progress':
+                              '${achievements['daily_streak'] ?? 0} days',
+                          'stars': _getStarCount(
+                              achievements['daily_streak'] ?? 0,
+                              [7, 14, 60, 180, 365]),
+                        },
+                        {
+                          'id': 'click_eat',
+                          'title': 'Click & Eat',
+                          'description':
+                              'Used image logging ${_getAchievementLevel(achievements['image_logs'] ?? 0, [
+                                10,
+                                30,
+                                50,
+                                100,
+                                200
+                              ])} times.',
+                          'nextStarDescription': _getNextStarDescription(
+                              achievements['image_logs'] ?? 0,
+                              [10, 30, 50, 100, 200],
+                              'image logs'),
+                          'progress':
+                              '${achievements['image_logs'] ?? 0} times',
+                          'stars': _getStarCount(
+                              achievements['image_logs'] ?? 0,
+                              [10, 30, 50, 100, 200]),
+                        },
+                        {
+                          'id': 'food_explorer',
+                          'title': 'Food Explorer',
+                          'description':
+                              'Logged ${_getAchievementLevel(achievements['unique_foods'] ?? 0, [
+                                20,
+                                50,
+                                100,
+                                150,
+                                250
+                              ])} unique foods.',
+                          'nextStarDescription': _getNextStarDescription(
+                              achievements['unique_foods'] ?? 0,
+                              [20, 50, 100, 150, 250],
+                              'unique foods'),
+                          'progress':
+                              '${achievements['unique_foods'] ?? 0} foods',
+                          'stars': _getStarCount(
+                              achievements['unique_foods'] ?? 0,
+                              [20, 50, 100, 150, 250]),
+                        },
+                        {
+                          'id': 'macro_magician',
+                          'title': 'Macro Magician',
+                          'description':
+                              'Hit all 3 macro targets ${_getAchievementLevel(achievements['macro_perfect_days'] ?? 0, [
+                                7,
+                                14,
+                                60,
+                                180,
+                                365
+                              ])} times.',
+                          'nextStarDescription': _getNextStarDescription(
+                              achievements['macro_perfect_days'] ?? 0,
+                              [7, 14, 60, 180, 365],
+                              'perfect days'),
+                          'progress':
+                              '${achievements['macro_perfect_days'] ?? 0} days',
+                          'stars': _getStarCount(
+                              achievements['macro_perfect_days'] ?? 0,
+                              [7, 14, 60, 180, 365]),
+                        },
+                      ];
+
+                      return Scaffold(
+                        backgroundColor:
+                            Theme.of(context).scaffoldBackgroundColor,
+                        body: SingleChildScrollView(
+                          child: Padding(
+                            padding: EdgeInsets.all(0),
+                            child: Column(
+                              children: [
+                                ProfileContainer(
+                                  name: username,
+                                  joinedDate: joinedDate,
+                                  dayStreak: dayStreak,
+                                  highestDayStreak: dayStreak,
+                                  initialWeight: initialWeight,
+                                  currentWeight: currentWeight,
+                                  measurementSystem: measurementSystem,
                                 ),
-                              ),
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(height: 10),
+                                        Text(
+                                          'Achievements',
+                                          textAlign: TextAlign.left,
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 25,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        GridView.builder(
+                                          shrinkWrap: true,
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          gridDelegate:
+                                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 1,
+                                            crossAxisSpacing: 12,
+                                            mainAxisSpacing: 12,
+                                            childAspectRatio: 1.5,
+                                          ),
+                                          itemCount: achievementList.length,
+                                          itemBuilder: (context, index) {
+                                            final achievement =
+                                                achievementList[index];
+                                            return AchievementContainer(
+                                              title: achievement['title'],
+                                              description:
+                                                  achievement['description'],
+                                              nextStarDescription: achievement[
+                                                  'nextStarDescription'],
+                                              progress: achievement['progress'],
+                                              stars: achievement['stars'],
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   );
                 });
           }

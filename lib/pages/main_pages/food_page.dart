@@ -42,7 +42,7 @@ class _FoodPageState extends State<FoodPage> {
 
   // Function to parse nutrients from food description
   Map<String, dynamic> _parseNutrients(String description) {
-    int calories = 0;
+    double calories = 0;
     double protein = 0;
     double carbs = 0;
     double fat = 0;
@@ -60,7 +60,7 @@ class _FoodPageState extends State<FoodPage> {
         final caloriesPart =
             description.split("Calories:")[1].split("|")[0].trim();
         calories =
-            int.tryParse(caloriesPart.replaceAll("kcal", "").trim()) ?? 0;
+            double.tryParse(caloriesPart.replaceAll("kcal", "").trim()) ?? 0;
       }
 
       if (description.contains("Fat:")) {
@@ -79,14 +79,14 @@ class _FoodPageState extends State<FoodPage> {
         protein = double.tryParse(proteinPart.replaceAll("g", "").trim()) ?? 0;
       }
     } catch (e) {
-      print("Error parsing nutrients: $e");
+      debugPrint("Error parsing nutrients: $e");
     }
 
     return {
       'calories': calories,
-      'protein': protein.round(), // Convert to int for storage
-      'carbs': carbs.round(), // Convert to int for storage
-      'fat': fat.round(), // Convert to int for storage
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
       'serving': perValue,
     };
   }
@@ -105,10 +105,11 @@ class _FoodPageState extends State<FoodPage> {
       builder: (context) {
         return FoodInputSheet(
           initialMealName: food['food_name'],
-          initialCalories: nutrients['calories'],
-          initialProtein: nutrients['protein'],
-          initialCarbs: nutrients['carbs'],
-          initialFat: nutrients['fat'],
+          initialCalories: nutrients['calories'].toDouble(),
+          initialProtein: nutrients['protein'].toDouble(),
+          initialCarbs: nutrients['carbs'].toDouble(),
+          initialFat: nutrients['fat'].toDouble(),
+          initialServingSize: nutrients['serving'],
           onSubmit: (mealData) async {
             final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
@@ -156,8 +157,11 @@ class _FoodPageState extends State<FoodPage> {
                   'carbs': carbs,
                   'protein': protein,
                   'fat': fat,
+                  'servingSize':
+                      mealData['servingSize'] ?? nutrients['serving'],
+                  'adjustmentType': mealData['adjustmentType'] ?? 'percent',
+                  'adjustmentValue': mealData['adjustmentValue'] ?? 100.0,
                   'loggedTime': Timestamp.fromDate(DateTime.now()),
-                  'servingSize': nutrients['serving'],
                 });
 
                 // Save updated food log data
@@ -249,10 +253,10 @@ class _FoodPageState extends State<FoodPage> {
                     return MealContainer(
                       foodName: food['food_name'],
                       foodDescription: description,
-                      calories: nutrients['calories'],
-                      protein: nutrients['protein'],
-                      carbs: nutrients['carbs'],
-                      fat: nutrients['fat'],
+                      calories: nutrients['calories'].toDouble(),
+                      protein: nutrients['protein'].toDouble(),
+                      carbs: nutrients['carbs'].toDouble(),
+                      fat: nutrients['fat'].toDouble(),
                       serving: nutrients['serving'],
                       onPressed: () {
                         _showFoodConfirmationSheet(food, nutrients);

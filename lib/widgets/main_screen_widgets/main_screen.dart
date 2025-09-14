@@ -10,6 +10,9 @@ import 'package:fitness/widgets/main_screen_widgets/home_screen/macro_input.dart
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitness/utils/achievement_utils.dart';
+import 'package:fitness/pages/main_pages/analytics_page.dart';
+import 'package:fitness/pages/main_pages/chat_bot.dart';
+import 'package:fitness/pages/main_pages/profile_page.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -27,6 +30,12 @@ class _MainScreenState extends State<MainScreen> {
     '/profile',
   ];
 
+  final List<Widget> _screens = [
+    HomePage(key: homePageKey),
+    const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
+    AnalyticsPage(), // Replace with your actual analytics page
+    ProfilePage(), // Replace with your actual achievements page
+  ];
   int _selectedIndexFromLocation(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     final List<String> routes = [
@@ -62,10 +71,10 @@ class _MainScreenState extends State<MainScreen> {
     void showFoodInputSheet({
       BuildContext? context,
       String? initialMealName,
-      int? initialCalories,
-      int? initialProtein,
-      int? initialCarbs,
-      int? initialFat,
+      double? initialCalories,
+      double? initialProtein,
+      double? initialCarbs,
+      double? initialFat,
       bool isEditing = false,
       required Function(Map<String, dynamic>) onSubmit,
     }) {
@@ -154,10 +163,13 @@ class _MainScreenState extends State<MainScreen> {
               // Add the new food item
               foodLogData['foods'].add({
                 'mealName': mealData['mealName'] ?? '',
-                'calories': calories,
-                'carbs': carbs,
-                'protein': protein,
-                'fat': fat,
+                'calories': mealData['calories'] ?? 0,
+                'carbs': mealData['carbs'] ?? 0,
+                'protein': mealData['protein'] ?? 0,
+                'fat': mealData['fat'] ?? 0,
+                'servingSize': mealData['servingSize'] ?? '',
+                'adjustmentType': mealData['adjustmentType'] ?? 'percent',
+                'adjustmentValue': mealData['adjustmentValue'] ?? 100.0,
                 'loggedTime': Timestamp.fromDate(DateTime.now()),
               });
 
@@ -296,10 +308,16 @@ class _MainScreenState extends State<MainScreen> {
                     ...foods[index],
                     'mealName':
                         updatedMealData['mealName'] ?? existingFood['mealName'],
-                    'calories': updatedCalories,
-                    'protein': updatedProtein,
-                    'carbs': updatedCarbs,
-                    'fat': updatedFat,
+                    'calories': updatedMealData['calories'] ?? 0,
+                    'protein': updatedMealData['protein'] ?? 0,
+                    'carbs': updatedMealData['carbs'] ?? 0,
+                    'fat': updatedMealData['fat'] ?? 0,
+                    'servingSize': updatedMealData['servingSize'] ??
+                        existingFood['servingSize'],
+                    'adjustmentType': updatedMealData['adjustmentType'] ??
+                        existingFood['adjustmentType'],
+                    'adjustmentValue': updatedMealData['adjustmentValue'] ??
+                        existingFood['adjustmentValue'],
                   };
 
                   foodLogData['foods'] = foods;
@@ -349,12 +367,16 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       drawer: CustomDrawer(),
-      body: _routes[selectedIndex] == '/home'
+      body: IndexedStack(
+        index: selectedIndex,
+        children: _screens, // This preserves the state of all screens
+      ),
+      /*body: _routes[selectedIndex] == '/home'
           ? HomePage(
               key: homePageKey,
               onEditMeal:
                   editFoodManually) // Render HomePage when on the home route
-          : widget.child,
+          : widget.child,*/
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: selectedIndex,
         onTap: (index) {

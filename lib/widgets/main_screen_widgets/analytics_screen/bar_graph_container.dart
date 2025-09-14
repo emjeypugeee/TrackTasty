@@ -7,10 +7,14 @@ import 'package:intl/intl.dart';
 
 class BarGraphContainer extends StatefulWidget {
   final double? calorieGoal;
+  final bool isForecasting;
+  final Map<String, dynamic>? forecastData;
 
   const BarGraphContainer({
     super.key,
     this.calorieGoal,
+    this.isForecasting = false,
+    this.forecastData,
   });
 
   @override
@@ -26,18 +30,54 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
   List<String> _dayLabels = [];
   bool _isLoading = true;
   double _averageCalories = 0;
+  List<double> _forecastCalorieData = [];
+  List<String> _forecastDayLabels = [];
 
   @override
   void initState() {
     super.initState();
+    debugPrint("🔥 BarGraphContainer initialized");
+    debugPrint("🎯 Calorie goal: ${widget.calorieGoal}");
+    debugPrint("🔮 Forecasting enabled: ${widget.isForecasting}");
     _loadCalorieData();
+  }
+
+  @override
+  void didUpdateWidget(BarGraphContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint("🔄 BarGraphContainer updated");
+    debugPrint("   - Old forecasting: ${oldWidget.isForecasting}");
+    debugPrint("   - New forecasting: ${widget.isForecasting}");
+
+    if (widget.isForecasting != oldWidget.isForecasting ||
+        widget.forecastData != oldWidget.forecastData) {
+      _prepareForecastData();
+      if (widget.isForecasting) {
+        debugPrint("🎯 Forecasting enabled, moving to next week");
+        // Move to next week when forecasting
+        _navigateTimeRange(true);
+      } else {
+        // Reset to current week when disabling forecasting
+        _startDate =
+            DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+        _endDate =
+            DateTime.now().add(Duration(days: 7 - DateTime.now().weekday));
+        _loadCalorieData();
+      }
+    }
   }
 
   Future<void> _loadCalorieData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint("❌ No user logged in");
+      return;
+    }
 
     setState(() => _isLoading = true);
+
+    debugPrint(
+        "📥 Loading calorie data for week: ${DateFormat('yyyy-MM-dd').format(_startDate)} to ${DateFormat('yyyy-MM-dd').format(_endDate)}");
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -47,11 +87,15 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
           .where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endDate))
           .get();
 
+      debugPrint("✅ Retrieved ${snapshot.docs.length} food logs");
+
       // Initialize data lists
       Map<DateTime, double> dailyCalories = {};
       for (int i = 0; i <= _endDate.difference(_startDate).inDays; i++) {
         final date = _startDate.add(Duration(days: i));
         dailyCalories[DateTime(date.year, date.month, date.day)] = 0;
+        debugPrint(
+            "   📅 Initialized date: ${DateFormat('yyyy-MM-dd').format(date)}");
       }
 
       // Process the data
@@ -59,8 +103,11 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
         final data = doc.data();
         final date = (data['date'] as Timestamp).toDate();
         final keyDate = DateTime(date.year, date.month, date.day);
+        final calories = (data['totalCalories'] as num).toDouble();
         if (dailyCalories.containsKey(keyDate)) {
           dailyCalories[keyDate] = (data['totalCalories'] as num).toDouble();
+          debugPrint(
+              "   🔥 ${DateFormat('yyyy-MM-dd').format(keyDate)}: $calories calories");
         }
       }
 
@@ -71,7 +118,9 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
         total += value;
         count++;
       });
-      final average = count > 0 ? total / count : 0;
+      final average = count > 0 ? total / count : (widget.calorieGoal ?? 0);
+
+      debugPrint("📊 Weekly average calories: $average");
 
       // Prepare data for the chart
       final sortedDates = dailyCalories.keys.toList()
@@ -85,8 +134,10 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
         _averageCalories = average.toDouble();
         _isLoading = false;
       });
+
+      debugPrint("✅ Calorie data loaded: ${_calorieData.length} days");
     } catch (e) {
-      debugPrint("Error loading calorie data: $e");
+      debugPrint("❌ Error loading calorie data: $e");
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -103,16 +154,18 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
         _startDate = _startDate.subtract(duration);
         _endDate = _endDate.subtract(duration);
       }
+      debugPrint(
+          "📅 Navigating to: ${DateFormat('yyyy-MM-dd').format(_startDate)} to ${DateFormat('yyyy-MM-dd').format(_endDate)}");
       _loadCalorieData();
     });
   }
 
-  double _getMaxYValue() {
-    if (_calorieData.isEmpty) {
+  double _getMaxYValue(List<double> calorieData) {
+    if (calorieData.isEmpty) {
       return widget.calorieGoal != null ? widget.calorieGoal! * 1.2 : 2000;
     }
 
-    final maxDataValue = _calorieData.reduce((a, b) => a > b ? a : b);
+    final maxDataValue = calorieData.reduce((a, b) => a > b ? a : b);
 
     if (widget.calorieGoal == null) return maxDataValue * 1.2;
     if (maxDataValue <= widget.calorieGoal! * 1.2) {
@@ -121,11 +174,63 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
     return maxDataValue * 1.1;
   }
 
+  void _prepareForecastData() {
+    if (!widget.isForecasting || widget.forecastData == null) {
+      debugPrint("⚠️ Forecast data not available or forecasting disabled");
+      setState(() {
+        _forecastCalorieData = [];
+        _forecastDayLabels = [];
+      });
+      return;
+    }
+
+    debugPrint("🔮 Preparing forecast calorie data...");
+
+    final isProvisional = widget.forecastData!['isProvisional'] ?? true;
+    final avgCalories = widget.forecastData!['averageCalories']?.toDouble() ??
+        widget.calorieGoal ??
+        2000;
+
+    debugPrint(
+        "   - Forecast type: ${isProvisional ? 'PROVISIONAL' : 'PERSONALIZED'}");
+    debugPrint("   - Average calories: $avgCalories");
+
+    // Create forecast data for the next week (7 days)
+    List<double> forecastData = [];
+    List<String> forecastLabels = [];
+
+    DateTime startDate = _endDate.add(Duration(days: 1));
+
+    for (int i = 0; i < 7; i++) {
+      final date = startDate.add(Duration(days: i));
+      forecastData.add(avgCalories); // Use averageCalories for forecast
+      forecastLabels.add(DateFormat('E').format(date));
+      debugPrint(
+          "   📅 Forecast day ${i + 1}: $avgCalories calories (${DateFormat('yyyy-MM-dd').format(date)})");
+    }
+
+    setState(() {
+      _forecastCalorieData = forecastData;
+      _forecastDayLabels = forecastLabels;
+    });
+    debugPrint("✅ Forecast data prepared: ${_forecastCalorieData.length} days");
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('M/d/yyyy');
-    final dateRangeText =
-        '${dateFormat.format(_startDate)} - ${dateFormat.format(_endDate)}';
+    final dateRangeText = widget.isForecasting && _forecastDayLabels.isNotEmpty
+        ? '${dateFormat.format(_endDate.add(Duration(days: 1)))} - ${dateFormat.format(_endDate.add(Duration(days: 7)))}'
+        : '${dateFormat.format(_startDate)} - ${dateFormat.format(_endDate)}';
+
+    // Combine actual and forecast data when forecasting is enabled
+    final allCalorieData = widget.isForecasting
+        ? [..._calorieData, ..._forecastCalorieData]
+        : _calorieData;
+
+    final allDayLabels = widget.isForecasting
+        ? [..._dayLabels, ..._forecastDayLabels]
+        : _dayLabels;
 
     return Container(
       padding: EdgeInsets.all(20),
@@ -138,11 +243,16 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              TextButton(
-                onPressed: () => _navigateTimeRange(false),
-                child:
-                    Text('<', style: TextStyle(color: AppColors.primaryText)),
-              ),
+              if (!widget
+                  .isForecasting) // Only show navigation when not forecasting
+                TextButton(
+                  onPressed: () => _navigateTimeRange(false),
+                  child:
+                      Text('<', style: TextStyle(color: AppColors.primaryText)),
+                )
+              else
+                SizedBox(width: 40), // Placeholder for alignment
+
               Text(
                 dateRangeText,
                 style: TextStyle(
@@ -151,11 +261,16 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                   fontSize: 12,
                 ),
               ),
-              TextButton(
-                onPressed: () => _navigateTimeRange(true),
-                child:
-                    Text('>', style: TextStyle(color: AppColors.primaryText)),
-              ),
+
+              if (!widget
+                  .isForecasting) // Only show navigation when not forecasting
+                TextButton(
+                  onPressed: () => _navigateTimeRange(true),
+                  child:
+                      Text('>', style: TextStyle(color: AppColors.primaryText)),
+                )
+              else
+                SizedBox(width: 40), // Placeholder for alignment
             ],
           ),
           SizedBox(
@@ -165,15 +280,17 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                 : BarChart(
                     BarChartData(
                       minY: 0,
-                      maxY: _getMaxYValue(),
+                      maxY: _getMaxYValue(allCalorieData),
                       alignment: BarChartAlignment.spaceBetween,
                       groupsSpace: 12,
                       barTouchData: BarTouchData(
                         enabled: true,
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final isForecast = widget.isForecasting &&
+                                groupIndex >= _calorieData.length;
                             return BarTooltipItem(
-                              '${rod.toY.toInt()} kcal',
+                              '${rod.toY.toInt()} kcal${isForecast ? ' (forecast)' : ''}',
                               TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -182,15 +299,22 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                           },
                         ),
                       ),
-                      barGroups: List.generate(_calorieData.length, (index) {
+                      barGroups: List.generate(allCalorieData.length, (index) {
+                        final value = allCalorieData[index];
+                        final isForecast = widget.isForecasting &&
+                            index >= _calorieData.length;
+
                         return BarChartGroupData(
                           x: index,
                           barRods: [
                             BarChartRodData(
-                              toY: _calorieData[index],
-                              color: _calorieData[index] > 0
-                                  ? Colors.yellow
-                                  : Colors.grey,
+                              toY: value,
+                              color: isForecast
+                                  ? Colors
+                                      .purple // Different color for forecast
+                                  : value > 0
+                                      ? Colors.yellow
+                                      : Colors.grey,
                               width: 20,
                             ),
                           ],
@@ -212,10 +336,12 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             getTitlesWidget: (value, meta) {
+                              if (value.toInt() >= allDayLabels.length)
+                                return SizedBox();
                               return Transform.rotate(
                                 angle: -0.4,
                                 child: Text(
-                                  _dayLabels[value.toInt()],
+                                  allDayLabels[value.toInt()],
                                   style: TextStyle(
                                     color: AppColors.primaryText,
                                     fontSize: 10,
@@ -246,7 +372,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
                         drawVerticalLine: false,
                         horizontalInterval: widget.calorieGoal != null
                             ? widget.calorieGoal! / 4
-                            : _getMaxYValue() / 4,
+                            : _getMaxYValue(allCalorieData) / 4,
                         getDrawingHorizontalLine: (value) {
                           if (widget.calorieGoal != null &&
                               (value - widget.calorieGoal!).abs() < 0.1) {

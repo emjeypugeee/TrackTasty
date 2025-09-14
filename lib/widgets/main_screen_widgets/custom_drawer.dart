@@ -152,7 +152,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             .collection("Users")
             .doc(user.email)
             .set({
-          'goalWeight': weight,
+          'weight': weight,
         }, SetOptions(merge: true));
 
         await FirebaseFirestore.instance
