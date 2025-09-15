@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:fitness/pages/login/email_verification_page.dart';
 import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
