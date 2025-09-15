@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:fitness/pages/login/email_verification_page.dart';
+import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitness/provider/user_provider.dart';
@@ -67,6 +70,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await FirebaseAppCheck.instance.activate(
+    webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
+    androidProvider: AndroidProvider.debug,
+    appleProvider: AppleProvider.appAttest,
+  );
+
   // Initialize SharedPreferences
   _initializeSharedPreferences();
 
@@ -80,8 +89,12 @@ void main() async {
   await _requestNotificationPermissions();
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => MealsState(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => RegistrationDataProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..fetchUserData()),
+        ChangeNotifierProvider(create: (_) => MealsState()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -185,13 +198,7 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
-    GoRoute(
-      path: '/register',
-      pageBuilder: (context, state) => FadeOutPageTransition(
-        child: RegisterPage(),
-        key: state.pageKey,
-      ),
-    ),
+
     GoRoute(
       path: '/forgetpassword',
       pageBuilder: (context, state) => FadeOutPageTransition(
@@ -202,49 +209,77 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/preference1',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference1(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference1(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference2',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference2(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference2(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference3',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference3(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference3(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference4',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference4(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference4(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference5',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference5(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference5(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference6',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference6(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference6(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference7',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference7(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference7(),
+        ),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/register',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: RegisterPage(),
         key: state.pageKey,
       ),
     ),
@@ -283,6 +318,7 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
+
     GoRoute(
       path: '/recalcmacros',
       pageBuilder: (context, state) {
@@ -337,15 +373,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => UserProvider()..fetchUserData(),
-      child: MaterialApp.router(
-        theme: ThemeData(
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
-        debugShowCheckedModeBanner: false,
-        routerConfig: _router,
+    return MaterialApp.router(
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212)),
       ),
+      debugShowCheckedModeBanner: false,
+      routerConfig: _router,
     );
   }
 }

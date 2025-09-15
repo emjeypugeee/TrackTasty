@@ -24,6 +24,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   Map<String, dynamic>? _currentUserData;
   static const String _chatStorageKey = 'chatbot_conversation';
   bool _showResetButton = false;
+  bool isMetric = false;
 
   // Nutrition data state
   Map<String, dynamic>? _nutritionData;
@@ -156,7 +157,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
             'calorieGoal': _convertToInt(userDoc.data()?['dailyCalories']),
             'proteinGoal': _convertToInt(userDoc.data()?['proteinGram']),
             'carbsGoal': _convertToInt(userDoc.data()?['carbsGram']),
-            'fatGoal': _convertToInt(userDoc.data()?['fatGram']),
+            'fatGoal': _convertToInt(userDoc.data()?['fatsGram']),
           };
         });
         debugPrint("USER GOALS LOADED: $_userGoals");
@@ -283,13 +284,20 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
           (_nutritionData?['totalCarbs'] ?? 0);
       final remainingFat =
           (_userGoals?['fatGoal'] ?? 70) - (_nutritionData?['totalFat'] ?? 0);
+      isMetric = newUserData['measurementSystem'] == "Metric";
+
+      isMetric = newUserData['measurementSystem'] == "Metric";
+
+// Helper variables for unit conversion
+      final weightUnit = isMetric ? 'kg' : 'lbs';
+      final heightUnit = isMetric ? 'cm' : 'inches';
 
       _messages.add({
         "role": "system",
         "content": "🔄 Profile updated! I now know:\n"
             "• Age: ${newUserData['age']?.toString() ?? 'Not set'}\n"
-            "• Weight: ${newUserData['weight']?.toString() ?? 'Not set'} kg\n"
-            "• Height: ${newUserData['height']?.toString() ?? 'Not set'} cm\n"
+            "• Weight: ${newUserData['weight']?.toString() ?? 'Not set'} $weightUnit\n"
+            "• Height: ${newUserData['height']?.toString() ?? 'Not set'} $heightUnit\n"
             "• Goal: ${newUserData['goal']?.toString() ?? 'Not set'}\n"
             "• Dietary Preference: ${newUserData['dietaryPreference']?.toString() ?? 'None'}\n"
             "• Allergies: ${newUserData['allergies']?.toString() ?? "None"}\n\n"

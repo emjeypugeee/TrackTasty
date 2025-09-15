@@ -117,7 +117,17 @@ class ProfilePage extends StatelessWidget {
           if (snapshot.hasData && snapshot.data!.exists) {
             var userData = snapshot.data!.data();
             String username = userData?['username'] ?? "Unknown User";
-            int joinedDate = userData?['dateAccountCreated'];
+            final joinedDateRaw = userData?['dateAccountCreated'];
+            DateTime joinedDate;
+            if (joinedDateRaw is int && joinedDateRaw > 1000000000000) {
+              // If it's a timestamp (milliseconds since epoch)
+              joinedDate = DateTime.fromMillisecondsSinceEpoch(joinedDateRaw);
+            } else if (joinedDateRaw is int) {
+              // If it's a simple year or date
+              joinedDate = DateTime(joinedDateRaw);
+            } else {
+              joinedDate = DateTime.now(); // Fallback to current date
+            }
             int dayStreak;
 
             return FutureBuilder<Map<String, dynamic>>(

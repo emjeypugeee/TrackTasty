@@ -1,5 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -7,6 +6,7 @@ import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:provider/provider.dart';
 
 class Userpreference3 extends StatefulWidget {
   const Userpreference3({super.key});
@@ -27,15 +27,31 @@ class _Userpreference3 extends State<Userpreference3> {
     {'title': 'Gain Weight', 'subtitle': '1 lb (0.5 kg) per week'},
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+
+    // Pre-fill goal if available
+    final goal = provider.userData.goal;
+    if (goal != null) {
+      selectedIndex = activityLevels.indexWhere((g) => g['title'] == goal);
+    }
+
+    setState(() {}); // Update the UI after loading data
+  }
+
   // Save user preferences to Firestore
   Future<void> saveUserPreferences() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.email != null) {
-      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'goal': activityLevels[selectedIndex]['title'],
-        'dateAccountCreated': DateTime.now().year,
-      }, SetOptions(merge: true));
-    }
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    provider.updateGoal(activityLevels[selectedIndex]['title']!);
   }
 
   @override
@@ -133,7 +149,7 @@ class _Userpreference3 extends State<Userpreference3> {
                       onTap: () async {
                         if (selectedIndex == -1) {
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Please select your gender and goal'),
+                            content: Text('Please select your goal'),
                             backgroundColor: AppColors.snackBarBgError,
                           ));
                         } else {

@@ -42,7 +42,7 @@ class _StartupPageState extends State<StartupPage> {
               MyButtons(
                 text: 'Sign-up',
                 onTap: () {
-                  context.go('/register');
+                  context.go('/preference1');
                 },
               ),
 

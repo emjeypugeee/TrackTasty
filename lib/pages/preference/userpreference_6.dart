@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/provider/registration_data_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/text_button.dart';
@@ -34,39 +34,41 @@ class _Userpreference6 extends State<Userpreference6> {
 
   Map<String, bool> selectedAllergies = {};
 
-//saving user allergies
-  Future<void> _saveUserAllergies() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final selected = selectedAllergies.entries
-          .where((entry) => entry.value)
-          .map((entry) => entry.key)
-          .toList();
-
-      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'allergies': selected,
-        'preferencesCompleted': true, // Mark as fully completed
-        'lastPreferenceStep': 6, // Indicate this is the final step
-      }, SetOptions(merge: true));
-
-      debugPrint('All preferences completed and saved');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving allergies: $e')),
-        );
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+
+    // Pre-fill allergies if available
     for (var allergy in allergies) {
       selectedAllergies[allergy] = false;
     }
+
+    if (provider.userData.allergies.isNotEmpty) {
+      for (var allergy in provider.userData.allergies) {
+        selectedAllergies[allergy] = true;
+      }
+    }
+
+    setState(() {}); // Update the UI after loading data
+  }
+
+  //saving user allergies
+  Future<void> saveUserAllergies() async {
+    final selected = selectedAllergies.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key)
+        .toList();
+
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    provider.updateAllergies(selected);
   }
 
   @override
@@ -179,14 +181,14 @@ class _Userpreference6 extends State<Userpreference6> {
                   child: MyButtons(
                     text: 'Next',
                     onTap: () async {
-                      await _saveUserAllergies();
+                      await saveUserAllergies();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text('Saved!'),
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: AppColors.snackBarBgSaved,
                         ));
-                        context.go('/preference7');
+                        context.push('/preference7');
                       }
                     },
                   ),

@@ -1,10 +1,11 @@
 import 'package:fitness/widgets/main_screen_widgets/profile_screen/statistics_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class ProfileContainer extends StatelessWidget {
   final String name;
-  final int joinedDate;
+  final DateTime joinedDate;
   final int dayStreak;
   final int highestDayStreak;
   final double initialWeight;
@@ -43,6 +44,10 @@ class ProfileContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
+
+    // Format the joined date
+    final formattedJoinedDate = DateFormat('MMMM dd, yyyy').format(joinedDate);
+
     return Container(
       width: screenWidth,
       padding: const EdgeInsets.all(20),
@@ -73,7 +78,7 @@ class ProfileContainer extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            'Joined: $joinedDate • ${measurementSystem == 'US' ? 'Imperial' : 'Metric'} System',
+            'Joined: $formattedJoinedDate • ${measurementSystem == 'US' ? 'Imperial' : 'Metric'} System',
             style: const TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 10),

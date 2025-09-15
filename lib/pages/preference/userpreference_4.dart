@@ -1,3 +1,4 @@
+import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -7,8 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 const List<Widget> units = <Widget>[
   Text('US'),
@@ -43,42 +43,12 @@ class _Userpreference4 extends State<Userpreference4> {
   // Goal
   String? _goal = 'Maintain Weight';
 
-  //saving user height, weight and goalweight
-  //saving username and fullname
-  Future<void> saveUserGoal() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.email != null) {
-      final weight = double.tryParse(weightController.text);
-      final height = double.tryParse(heightController.text);
-      final goalWeight = double.tryParse(goalWeightController.text);
-      final today = DateTime.now();
-
-      // save current weight to history
-      await FirebaseFirestore.instance
-          .collection('weight_history')
-          .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
-          .set({
-        'userId': user.uid,
-        'weight': weight,
-        'date': Timestamp.now(),
-      }, SetOptions(merge: true));
-
-      // update user profile
-      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'height': height,
-        'weight': weight,
-        'goalWeight': goalWeight,
-        'measurementSystem': isMetric ? 'Metric' : 'US',
-      }, SetOptions(merge: true));
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    _fetchGoalData();
 
-    // listener to sync values with the current weight
+    _loadData();
+
     weightController.addListener(() {
       if (_goal == 'Maintain Weight') {
         goalWeightController.text = weightController.text;
@@ -94,6 +64,38 @@ class _Userpreference4 extends State<Userpreference4> {
     }
   }
 
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+
+    // Pre-fill body metrics if available
+    heightController.text = provider.userData.height?.toString() ?? '';
+    weightController.text = provider.userData.weight?.toString() ?? '';
+    goalWeightController.text = provider.userData.goalWeight?.toString() ?? '';
+    isMetric = provider.userData.measurementSystem == 'Metric';
+    _goal = provider.userData.goal?.toString() ?? 'Maintain Weight';
+
+    setState(() {}); // Update the UI after loading data
+  }
+
+  //saving user height, weight and goalweight
+  Future<void> saveUserGoal() async {
+    final height = double.tryParse(heightController.text);
+    final weight = double.tryParse(weightController.text);
+    final goalWeight = double.tryParse(goalWeightController.text);
+
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+
+    provider.updateBodyMetrics(
+      height: height,
+      weight: weight,
+      goalWeight: goalWeight,
+      isMetric: isMetric,
+    );
+  }
+
   @override
   void dispose() {
     heightController.dispose();
@@ -103,32 +105,6 @@ class _Userpreference4 extends State<Userpreference4> {
     _weightFocusNode.dispose();
     _goalWeightFocusNode.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchGoalData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection("Users")
-          .doc(user.email)
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Retrieve user data
-        _goal = data['goal'] ?? 'Maintain Weight';
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching user data: $e')),
-        );
-      }
-      debugPrint('Error fetching user data: $e');
-    }
   }
 
   @override
@@ -447,8 +423,9 @@ class _Userpreference4 extends State<Userpreference4> {
                                 TextInputType.numberWithOptions(decimal: true),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please your desired weight';
+                                return 'Please enter your desired weight';
                               }
+
                               // Validate the weight input based on the measurement system
                               final weight = double.tryParse(value) ?? 0;
                               if (isMetric && (weight < 20 || weight > 300)) {
@@ -457,22 +434,24 @@ class _Userpreference4 extends State<Userpreference4> {
                                   (weight < 40 || weight > 660)) {
                                 return 'Weight should be around 40-660 lbs';
                               }
+
                               // Validate the weight input based on the goal
-                              if (goalWeightController.text.isNotEmpty &&
-                                  weightController.text.isNotEmpty) {
-                                final goalWeight =
-                                    double.parse(goalWeightController.text);
+                              if (weightController.text.isNotEmpty) {
+                                final goalWeight = double.tryParse(value) ?? 0;
                                 final currentWeight =
-                                    double.parse(weightController.text);
+                                    double.tryParse(weightController.text) ?? 0;
+
                                 if (_goal == 'Maintain Weight' &&
                                     goalWeight != currentWeight) {
-                                  return 'Goal weight should be equal to the current weight';
-                                } else if (_goal == 'Lose Weight' &&
+                                  return 'Goal weight should be equal to the current weight for maintenance';
+                                } else if ((_goal == 'Lose Weight' ||
+                                        _goal == 'Mild Lose Weight') &&
                                     goalWeight >= currentWeight) {
-                                  return 'Goal weight should be less than current weight';
-                                } else if (_goal == 'Gain Weight' &&
+                                  return 'Goal weight should be less than current weight for weight loss';
+                                } else if ((_goal == 'Gain Weight' ||
+                                        _goal == 'Mild Gain Weight') &&
                                     goalWeight <= currentWeight) {
-                                  return 'Goal weight should be more than current weight';
+                                  return 'Goal weight should be more than current weight for weight gain';
                                 }
                               }
                               return null;
@@ -526,8 +505,8 @@ class _Userpreference4 extends State<Userpreference4> {
                       child: MyButtons(
                         text: 'Next',
                         onTap: () async {
-                          await saveUserGoal();
                           if (_formKey.currentState!.validate()) {
+                            await saveUserGoal();
                             context.push('/preference5');
                           }
                         },

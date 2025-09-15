@@ -141,14 +141,13 @@ class DeepSeekApi {
 
     22. When suggesting meals or when the user asks for the nutritional value of a certain food or drink, ALWAYS use this EXACT JSON format:
         {
-            "meal_type": "suggestion",
+            "meal_type": "meal_suggestion",
             "meal_name": "Meal Name Here",
             "serving_size": "Portion description",
             "calories": 500,
             "protein": 30,
             "carbs": 40,
             "fat": 15,
-            "explanation": "Brief explanation of why this is recommended based on user's goals and remaining macros"
         }
 
     23. For regular responses (not meal suggestions), use normal text format only.

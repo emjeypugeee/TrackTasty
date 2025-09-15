@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -597,7 +598,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
   void _showlogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         actions: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -606,16 +607,23 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: CustomTextButton(
                     title: 'Back',
                     onTap: () {
-                      context.pop();
+                      Navigator.pop(dialogContext);
                     },
                     size: 20),
               ),
               Expanded(
                 child: MyButtons(
                   text: 'Log out',
-                  onTap: () {
-                    context.read<UserProvider>().logout();
-                    context.push('/login');
+                  onTap: () async {
+                    // Clear chatbot conversation from SharedPreferences
+                    final prefs = await SharedPreferences.getInstance();
+                    const String _chatStorageKey = 'chatbot_conversation';
+                    await prefs.remove(_chatStorageKey);
+
+                    // log out the user
+                    dialogContext.read<UserProvider>().logout();
+                    Navigator.pop(dialogContext);
+                    context.go('/startup');
                   },
                 ),
               ),

@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/provider/registration_data_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -27,14 +27,33 @@ class _Userpreference5 extends State<Userpreference5> {
     {'title': 'Omnivore', 'subtitle': 'All food groups included'}
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+
+    // Pre-fill dietary preference if available
+    final userDietaryPreference = provider.userData.dietaryPreference;
+    if (userDietaryPreference != null) {
+      selectedIndex = dietaryPreference.indexWhere(
+          (preference) => preference['title'] == userDietaryPreference);
+    }
+
+    setState(() {}); // Update the UI after loading data
+  }
+
   //saving user dietary preference
   Future<void> saveUserDietaryPreference() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.email != null) {
-      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'dietaryPreference': dietaryPreference[selectedIndex]['title'],
-      }, SetOptions(merge: true));
-    }
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    provider
+        .updateDietaryPreference(dietaryPreference[selectedIndex]['title']!);
   }
 
   @override
@@ -139,11 +158,6 @@ class _Userpreference5 extends State<Userpreference5> {
                             behavior: SnackBarBehavior.floating,
                           ));
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Saved!'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: AppColors.snackBarBgSaved,
-                          ));
                           await saveUserDietaryPreference();
                           context.push('/preference6');
                         }
