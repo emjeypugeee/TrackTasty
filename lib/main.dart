@@ -1,3 +1,4 @@
+import 'package:fitness/pages/main_pages/camera_page.dart';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/firebase_options.dart';
@@ -182,6 +183,11 @@ final GoRouter _router = GoRouter(
           key: state.pageKey,
         );
       },
+    ),
+    GoRoute(
+      path: '/camera',
+      name: 'camera',
+      builder: (context, state) => CameraScreen(),
     ),
     //shell route for main screen
     ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
