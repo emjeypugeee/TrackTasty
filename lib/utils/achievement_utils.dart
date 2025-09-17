@@ -64,7 +64,7 @@ class AchievementUtils {
 
       // Show SnackBar with achievements earned
       if (achievementsEarned.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        /*WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -83,7 +83,7 @@ class AchievementUtils {
               backgroundColor: Colors.green[700],
             ),
           );
-        });
+        });*/
       } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(

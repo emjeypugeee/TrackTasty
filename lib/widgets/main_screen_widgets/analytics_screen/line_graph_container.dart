@@ -12,10 +12,12 @@ class LineGraphContainer extends StatefulWidget {
   final String goal;
   final bool isForecasting;
   final Map<String, dynamic>? forecastData;
+  final double userHeight;
   const LineGraphContainer(
       {super.key,
       required this.goalWeight,
       required this.goal,
+      required this.userHeight,
       this.isForecasting = false,
       this.forecastData});
 
@@ -26,10 +28,12 @@ class LineGraphContainer extends StatefulWidget {
 class _LineGraphContainerState extends State<LineGraphContainer> {
   String _selectedPeriod = '3 months';
   List<FlSpot> _weightHistory = [];
+  List<DateTime> _weightDates = [];
   bool isLoading = true;
   bool isMetric = false;
   StreamSubscription? _weightHistorySubscription;
   List<FlSpot> _forecastSpots = [];
+  List<DateTime> _forecastDates = [];
 
   @override
   void initState() {
@@ -188,6 +192,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
       if (mounted) {
         setState(() {
           _weightHistory = spots;
+          _weightDates = dates;
           isLoading = false;
         });
         debugPrint('✅ Weight history loaded successfully');
@@ -203,6 +208,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
         setState(() {
           isLoading = false;
           _weightHistory = [];
+          _weightDates = [];
         });
       }
     }
@@ -210,25 +216,35 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
 
   void _prepareForecastData() {
     if (!widget.isForecasting || widget.forecastData == null) {
-      setState(() => _forecastSpots = []);
+      setState(() {
+        _forecastSpots = [];
+        _forecastDates = [];
+      });
       return;
     }
 
     final forecast = widget.forecastData!['projectedWeight'] as List<dynamic>;
     if (forecast.isEmpty) {
-      setState(() => _forecastSpots = []);
+      setState(() {
+        _forecastSpots = [];
+        _forecastDates = [];
+      });
       return;
     }
 
     List<FlSpot> spots = [];
+    List<DateTime> dates = [];
 
     // Find the last actual data point to connect forecast to
     double lastX = _weightHistory.isNotEmpty ? _weightHistory.last.x : 0;
     double lastY =
         _weightHistory.isNotEmpty ? _weightHistory.last.y : widget.goalWeight;
+    DateTime lastDate =
+        _weightDates.isNotEmpty ? _weightDates.last : DateTime.now();
 
     // Start the forecast from the last historical point
     spots.add(FlSpot(lastX, lastY));
+    dates.add(lastDate);
 
     for (var dayData in forecast) {
       final week = dayData['week'] as int;
@@ -237,10 +253,39 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
       // Calculate the x-value (days since start of history)
       final xValue = lastX + (week * 7);
 
+      // Calculate the actual date for the forecast point
+      final forecastDate = lastDate.add(Duration(days: week * 7));
+
       spots.add(FlSpot(xValue, projectedWeight));
     }
 
-    setState(() => _forecastSpots = spots);
+    setState(() {
+      _forecastSpots = spots;
+      _forecastDates = dates;
+    });
+  }
+
+  // Calculate BMI function
+  double _calculateBMI(double weight) {
+    if (widget.userHeight <= 0) return 0;
+
+    // Convert height to meters for BMI calculation
+    double heightMeters = isMetric
+        ? widget.userHeight / 100 // cm to meters
+        : widget.userHeight * 0.0254; // inches to meters
+
+    // Convert weight to kg if using imperial system
+    double weightKg = isMetric ? weight : weight * 0.453592; // lbs to kg
+
+    return weightKg / (heightMeters * heightMeters);
+  }
+
+  // Get BMI category
+  String _getBMICategory(double bmi) {
+    if (bmi < 18.5) return 'Underweight';
+    if (bmi < 25) return 'Normal';
+    if (bmi < 30) return 'Overweight';
+    return 'Obese';
   }
 
   @override
@@ -355,16 +400,21 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
 
                         final date =
                             startDate.add(Duration(days: spot.x.toInt()));
+                        // Calculate BMI
+                        final bmi = _calculateBMI(spot.y);
+                        final bmiCategory = _getBMICategory(bmi);
 
                         return LineTooltipItem(
-                          isMetric
-                              ? '${spot.y.toStringAsFixed(1)} kg\n${DateFormat('MMM d, y').format(date)}${isForecast ? ' (forecasted)' : ''}'
-                              : '${spot.y.toStringAsFixed(1)} lbs\n${DateFormat('MMM d, y').format(date)}${isForecast ? ' (forecasted)' : ''}',
+                          '${spot.y.toStringAsFixed(1)} ${isMetric ? 'kg' : 'lbs'}\n'
+                          'BMI: ${bmi.toStringAsFixed(1)} ($bmiCategory)\n'
+                          '${DateFormat('MMM d, y').format(date)}'
+                          '${isForecast ? ' (forecasted)' : ''}',
                           TextStyle(
                             color: isForecast
                                 ? const Color.fromARGB(255, 210, 72, 235)
                                 : Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: 12,
                           ),
                         );
                       }).toList();

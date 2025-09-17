@@ -617,8 +617,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   onTap: () async {
                     // Clear chatbot conversation from SharedPreferences
                     final prefs = await SharedPreferences.getInstance();
-                    const String _chatStorageKey = 'chatbot_conversation';
-                    await prefs.remove(_chatStorageKey);
+                    const String chatStorageKey = 'chatbot_conversation';
+                    await prefs.remove(chatStorageKey);
 
                     // log out the user
                     dialogContext.read<UserProvider>().logout();
@@ -862,9 +862,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 20),
 
-              // 3. User Responsibilities
+              // 3. User GUIDELINES
               Text(
-                '3. USER RESPONSIBILITIES',
+                '3. USER GUIDELINES',
                 style: TextStyle(
                   color: AppColors.primaryText,
                   fontSize: 18,
@@ -916,7 +916,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 8),
               Text(
-                'We collect personal information including dietary preferences, and usage data to provide personalized services. Your data is stored securely and handled in accordance with our Privacy Policy. By using TrackTasty, you consent to the collection and processing of your data as described in our Privacy Policy.',
+                'We collect personal information (such as your preferences and app usage) to provide and improve our services. Your data is stored securely and handled according to our Privacy Policy. By using TrackTasty, you agree to the collection and processing of your data as described in our Privacy Policy. We comply with the Data Privacy Act of 2012 (Republic Act No. 10173) and ensure that your personal information is collected, used, and protected in accordance with Philippine data privacy laws.',
                 style: TextStyle(
                   color: AppColors.secondaryText,
                   fontSize: 16,
@@ -937,7 +937,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 8),
               Text(
-                'All content, features, and functionality of TrackTasty are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works without explicit permission.',
+                'All content, features, and functionality developed by us for the TrackTasty application are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works of our proprietary content without our explicit permission.\n\nHowever, the application utilizes data and services provided by third-party APIs, including but not limited to Gemini API (Google), FatSecret Platform (FatSecret), and DeepSeek API (DeepSeek). The use of any content, data, or functionality provided by these third-party APIs is governed by their respective terms of service and intellectual property policies. You acknowledge and agree that we are not the owners of this third-party content and are not responsible for your use of it.',
                 style: TextStyle(
                   color: AppColors.secondaryText,
                   fontSize: 16,
@@ -1008,27 +1008,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // 10. Governing Law
-              Text(
-                '10. GOVERNING LAW',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'These Terms shall be governed by and construed in accordance with the laws of the jurisdiction where TrackTasty is operated, without regard to its conflict of law provisions.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
 
               // Acceptance Note
               Center(
@@ -1144,7 +1123,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ListTile(
               leading: Icon(Icons.notifications, color: AppColors.drawerIcons),
               title: Text(
-                'Settings',
+                'Notification Settings',
                 style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
               onTap: () {

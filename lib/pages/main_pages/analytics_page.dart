@@ -53,7 +53,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         height: userData['height']?.toDouble() ?? 0,
         age: userData['age'] ?? 0,
         gender: userData['gender'] ?? 'male',
-        activityLevel: userData['activityLevel'] ?? 'Sedentary',
+        activityLevel: userData['selectedActivityLevel'] ??
+            userData['activityLevel'] ??
+            'Sedentary',
         dailyCalorieGoal: userData['dailyCalories']?.toDouble() ?? 2000,
       );
 
@@ -89,6 +91,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   double.tryParse(userData?['goalWeight']?.toString() ?? '0') ??
                       0.0;
               String userGoal = userData?['goal'] ?? "null";
+              double userHeight = userData?['height']?.toDouble() ?? 0.0;
 
               return Scaffold(
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -184,6 +187,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                           goalWeight: userGoalWeight,
                           goal: userGoal,
                           isForecasting: isForecastingEnabled,
+                          userHeight: userHeight,
                           forecastData: forecastData,
                         ),
                       ],

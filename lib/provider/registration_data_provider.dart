@@ -1,4 +1,4 @@
-import 'package:fitness/models/user_data_models.dart';
+import 'package:fitness/model/user_data_models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';

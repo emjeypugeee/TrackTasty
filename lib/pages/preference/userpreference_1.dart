@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:fitness/models/user_data_models.dart';
+import 'package:fitness/model/user_data_models.dart';
 import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';

@@ -104,9 +104,6 @@ class _StartupPageState extends State<StartupPage> {
                 children: [
                   //google button
                   GestureDetector(
-                    onTap: () {
-                      context.push('/home');
-                    },
                     child: SquareTile(imagePath: 'lib/images/google.png'),
                   ),
                   SizedBox(width: 10),

@@ -1,4 +1,6 @@
 import 'package:fitness/pages/main_pages/food_page.dart';
+import 'package:camera/camera.dart';
+import 'package:fitness/widgets/main_screen_widgets/home_screen/camera_food_input.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,8 @@ import 'package:fitness/utils/achievement_utils.dart';
 import 'package:fitness/pages/main_pages/analytics_page.dart';
 import 'package:fitness/pages/main_pages/chat_bot.dart';
 import 'package:fitness/pages/main_pages/profile_page.dart';
+import 'package:fitness/pages/main_pages/camera_page.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -424,27 +428,66 @@ class _MainScreenState extends State<MainScreen> {
               shape: const CircleBorder(),
               children: [
                 SpeedDialChild(
-                    child: const Icon(Icons.camera_alt, color: Colors.white),
-                    label: 'Scan food',
-                    labelStyle: const TextStyle(color: Colors.white),
-                    labelBackgroundColor: Colors.grey[600],
-                    backgroundColor: Colors.grey[600],
-                    onTap: () async {
-                      // image logging
-                      final User? user = FirebaseAuth.instance.currentUser;
-                      if (user != null) {
-                        try {
-                          await AchievementUtils.updateAchievementsOnFoodLog(
-                              userId: user.uid,
-                              foodLogData: {},
-                              newMealName: '',
-                              isImageLog: true,
-                              context: context);
-                        } catch (e) {
-                          debugPrint('Error updating image logs: $e');
+                  child: const Icon(Icons.camera_alt, color: Colors.white),
+                  label: 'Scan food',
+                  labelStyle: const TextStyle(color: Colors.white),
+                  labelBackgroundColor: Colors.grey[600],
+                  backgroundColor: Colors.grey[600],
+                  onTap: () async {
+                    // Check camera permissions first
+                    var cameraStatus = await Permission.camera.status;
+                    if (!cameraStatus.isGranted) {
+                      cameraStatus = await Permission.camera.request();
+                    }
+
+                    if (cameraStatus.isGranted) {
+                      // Open camera screen and wait for result
+                      final imagePath = await context.push('/camera');
+
+                      if (imagePath != null) {
+                        // Handle the captured image
+                        print('Image captured: $imagePath');
+
+                        // You can now process this image for food recognition
+                        // For now, let's just update the achievement count
+                        final User? user = FirebaseAuth.instance.currentUser;
+                        if (user != null) {
+                          try {
+                            final achievementDoc = FirebaseFirestore.instance
+                                .collection('user_achievements')
+                                .doc(user.uid);
+
+                            final achievementSnapshot =
+                                await achievementDoc.get();
+                            final achievementData =
+                                achievementSnapshot.data() ?? {};
+                            final imageLogs =
+                                achievementData['image_logs'] ?? 0;
+
+                            await achievementDoc.set(
+                                {'image_logs': imageLogs + 1},
+                                SetOptions(merge: true));
+
+                            // Show success message
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Food image captured successfully!')),
+                            );
+                          } catch (e) {
+                            debugPrint('Error updating image logs: $e');
+                          }
                         }
                       }
-                    }),
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'Camera permission is required to scan food')),
+                      );
+                    }
+                  },
+                ),
                 SpeedDialChild(
                   child: const Icon(Icons.food_bank, color: Colors.white),
                   label: 'Add food manually',

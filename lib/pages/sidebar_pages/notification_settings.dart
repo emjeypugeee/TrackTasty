@@ -432,7 +432,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
             ),
             const Divider(),
 
-            // TEST NOTIF BUTTON
+            /* TEST NOTIF BUTTON
             if (_notificationsEnabled) ...[
               MyButtons(
                 text: '🔔 Send Test Notification',
@@ -450,7 +450,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
               ),
               const SizedBox(height: 16),
               const Divider(),
-            ],
+            ],*/
 
             // Meal Reminders Section
             Text(
@@ -651,10 +651,10 @@ class _NotificationSettingsState extends State<NotificationSettings> {
             ),
 
             const SizedBox(height: 20),
-            MyButtons(
+            /*MyButtons(
               text: 'Save Settings',
               onTap: _saveNotificationSettings,
-            ),
+            ),*/
           ],
         ),
       ),

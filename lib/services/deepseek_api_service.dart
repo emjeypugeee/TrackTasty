@@ -152,7 +152,7 @@ class DeepSeekApi {
 
     23. For regular responses (not meal suggestions), use normal text format only.
 
-    24. NEVER mix JSON format with text responses. Either send a complete JSON object or a text response.
+    24. NEVER mix JSON format with text responses. EITHER send a complete JSON object or a text response. DO NOT add any explanation when you're writing text in JSON format.
 
     25. The JSON object must be valid and contain all the specified fields.
 

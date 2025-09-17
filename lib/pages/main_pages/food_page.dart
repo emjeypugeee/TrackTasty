@@ -1,5 +1,6 @@
+import 'dart:ffi';
+
 import 'package:fitness/services/fat_secret_api_service.dart';
-import 'package:fitness/utils/achievement_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
@@ -105,11 +106,10 @@ class _FoodPageState extends State<FoodPage> {
       builder: (context) {
         return FoodInputSheet(
           initialMealName: food['food_name'],
-          initialCalories: nutrients['calories'].toDouble(),
-          initialProtein: nutrients['protein'].toDouble(),
-          initialCarbs: nutrients['carbs'].toDouble(),
-          initialFat: nutrients['fat'].toDouble(),
-          initialServingSize: nutrients['serving'],
+          initialCalories: nutrients['calories'],
+          initialProtein: nutrients['protein'],
+          initialCarbs: nutrients['carbs'],
+          initialFat: nutrients['fat'],
           onSubmit: (mealData) async {
             final user = FirebaseAuth.instance.currentUser;
             if (user != null) {
@@ -157,11 +157,8 @@ class _FoodPageState extends State<FoodPage> {
                   'carbs': carbs,
                   'protein': protein,
                   'fat': fat,
-                  'servingSize':
-                      mealData['servingSize'] ?? nutrients['serving'],
-                  'adjustmentType': mealData['adjustmentType'] ?? 'percent',
-                  'adjustmentValue': mealData['adjustmentValue'] ?? 100.0,
                   'loggedTime': Timestamp.fromDate(DateTime.now()),
+                  'servingSize': nutrients['serving'],
                 });
 
                 // Save updated food log data
@@ -170,21 +167,14 @@ class _FoodPageState extends State<FoodPage> {
                     .doc(foodLogId)
                     .set(foodLogData);
 
-                await AchievementUtils.updateAchievementsOnFoodLog(
-                    userId: user.uid,
-                    foodLogData: foodLogData,
-                    newMealName: mealData['mealName'] ?? food['food_name'],
-                    isImageLog: false,
-                    context: context);
-
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                       content:
                           Text('${food['food_name']} added successfully!')),
                 );
 
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.pop(context); // Close confirmation sheet
+                Navigator.pop(context); // Close food page and return to home
               } catch (e) {
                 debugPrint('Error saving food: $e');
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -253,10 +243,10 @@ class _FoodPageState extends State<FoodPage> {
                     return MealContainer(
                       foodName: food['food_name'],
                       foodDescription: description,
-                      calories: nutrients['calories'].toDouble(),
-                      protein: nutrients['protein'].toDouble(),
-                      carbs: nutrients['carbs'].toDouble(),
-                      fat: nutrients['fat'].toDouble(),
+                      calories: nutrients['calories'],
+                      protein: nutrients['protein'],
+                      carbs: nutrients['carbs'],
+                      fat: nutrients['fat'],
                       serving: nutrients['serving'],
                       onPressed: () {
                         _showFoodConfirmationSheet(food, nutrients);

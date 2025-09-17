@@ -40,7 +40,7 @@ class WeightForecaster {
       debugPrint("🍽️ Food logs found: ${foodLogSnapshot.docs.length}");
 
       final hasEnoughData =
-          weightSnapshot.docs.length >= 7 && foodLogSnapshot.docs.length >= 7;
+          weightSnapshot.docs.isNotEmpty && foodLogSnapshot.docs.length >= 14;
 
       debugPrint("✅ Has enough data for personalized forecast: $hasEnoughData");
       debugPrint(
@@ -128,16 +128,16 @@ class WeightForecaster {
 
     double activityFactor = 1.2; // Sedentary
     switch (activityLevel) {
-      case 'Lightly Active':
+      case 'Lightly active':
         activityFactor = 1.375;
         break;
-      case 'Moderately Active':
+      case 'Moderately active':
         activityFactor = 1.55;
         break;
-      case 'Very Active':
+      case 'Very active':
         activityFactor = 1.725;
         break;
-      case 'Extra Active':
+      case 'Extra active':
         activityFactor = 1.9;
         break;
     }
@@ -184,8 +184,8 @@ class WeightForecaster {
       debugPrint("📋 Using daily calorie goal: ${dailyCalorieIntake}kcal");
     }
 
-    final calorieDeficit = tdee - dailyCalorieIntake;
-    dailyWeightChangeKg = -calorieDeficit / 7700; // 7700 kcal = 1 kg
+    final calorieDeficit = dailyCalorieIntake - tdee;
+    dailyWeightChangeKg = calorieDeficit / 7700; // 7700 kcal = 1 kg
 
     debugPrint("📈 DAILY METRICS:");
     debugPrint("   - TDEE: ${tdee.toStringAsFixed(1)} kcal");
@@ -203,7 +203,7 @@ class WeightForecaster {
     double projectedWeightKg = currentWeight;
 
     debugPrint("🔮 PROJECTING WEIGHT FOR NEXT 4 MONTHS (16 WEEKS):");
-    for (int i = 0; i <= 8; i++) {
+    for (int i = 1; i <= 8; i++) {
       // 4 months = 16 weeks, display every 2 weeks
       int weeksPassed = i * 2;
       projectedWeightKg =

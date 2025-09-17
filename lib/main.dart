@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:fitness/provider/registration_data_provider.dart';
+import 'package:fitness/pages/main_pages/camera_page.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -317,7 +318,6 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
-
     GoRoute(
       path: '/recalcmacros',
       pageBuilder: (context, state) {
@@ -334,6 +334,14 @@ final GoRouter _router = GoRouter(
           key: state.pageKey,
         );
       },
+    ),
+    GoRoute(
+      path: '/camera',
+      name: 'camera',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: CameraScreen(),
+        key: state.pageKey,
+      ),
     ),
     //shell route for main screen
     ShellRoute(

@@ -45,7 +45,7 @@ class AppColors {
   static const Color graphBg = Color(0xFF262626);
 
   // Drawer Colors
-  static const Color drawerIcons = Color(0xFF7CB342);
+  static const Color drawerIcons = Color.fromARGB(255, 199, 130, 130);
 
   // Button Colors
   static const Color buttonColor = Color(0xFFE99797);
