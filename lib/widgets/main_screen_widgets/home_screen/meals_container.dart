@@ -196,7 +196,7 @@ class _MealsContainerState extends State<MealsContainer> {
         offset.dy + renderBox.size.height,
       ),
       items: [
-        PopupMenuItem<String>(
+        /*PopupMenuItem<String>(
           value: 'edit',
           child: Row(
             children: [
@@ -205,7 +205,7 @@ class _MealsContainerState extends State<MealsContainer> {
               const Text('Edit'),
             ],
           ),
-        ),
+        ),*/
         PopupMenuItem<String>(
           value: 'delete',
           child: Row(

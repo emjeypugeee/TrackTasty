@@ -35,7 +35,9 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   final List<Widget> _screens = [
-    HomePage(key: homePageKey),
+    HomePage(
+      key: homePageKey,
+    ),
     const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
     AnalyticsPage(), // Replace with your actual analytics page
     ProfilePage(), // Replace with your actual achievements page

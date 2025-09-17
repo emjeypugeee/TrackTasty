@@ -140,6 +140,46 @@ class SystemMetricsService {
     }
   }
 
+  static Future<Map<String, dynamic>> getGeminiStatus() async {
+    try {
+      final startTime = DateTime.now();
+
+      // Test Gemini API - adjust the endpoint as needed
+      final response = await http.get(
+        Uri.parse('https://generativelanguage.googleapis.com/v1/models'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      final endTime = DateTime.now();
+      final responseTime = endTime.difference(startTime).inMilliseconds;
+
+      final isAvailable = response.statusCode == 200;
+
+      return {
+        'status': isAvailable ? 'Connected' : 'Unavailable',
+        'response_time_ms': responseTime,
+        'last_checked': DateTime.now(),
+        'error': !isAvailable ? 'API not responding properly' : null,
+      };
+    } on TimeoutException {
+      return {
+        'status': 'Timeout',
+        'response_time_ms': null,
+        'last_checked': DateTime.now(),
+        'error': 'Request timed out',
+      };
+    } catch (e) {
+      return {
+        'status': 'Unavailable',
+        'response_time_ms': null,
+        'last_checked': DateTime.now(),
+        'error': e.toString(),
+      };
+    }
+  }
+
   static Future<Map<String, dynamic>> getDeepSeekStatus() async {
     try {
       final startTime = DateTime.now();
@@ -220,11 +260,13 @@ class SystemMetricsService {
     final firebaseHealth = await getFirebaseHealthStatus();
     final deepSeekStatus = await getDeepSeekStatus();
     final fatSecretStatus = await getFatSecretStatus();
+    final geminiStatus = await getGeminiStatus();
 
     return {
       'firebase': firebaseHealth,
       'deepseek': deepSeekStatus,
       'fatsecret': fatSecretStatus,
+      'gemini': geminiStatus,
       'app_version': '1.0.0',
       'timestamp': DateTime.now(),
       'device_platform': 'Flutter',
@@ -324,41 +366,43 @@ class _DashboardSectionState extends State<DashboardSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'System Metrics',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'System Metrics',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                onPressed: _isLoading ? null : _loadMetrics,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (_metrics == null)
-            const Center(
-              child: Text(
-                'Failed to load metrics',
-                style: TextStyle(color: Colors.white),
-              ),
-            )
-          else
-            _buildMetricsGrid(_metrics!),
-        ],
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: _isLoading ? null : _loadMetrics,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_metrics == null)
+              const Center(
+                child: Text(
+                  'Failed to load metrics',
+                  style: TextStyle(color: Colors.white),
+                ),
+              )
+            else
+              _buildMetricsGrid(_metrics!),
+          ],
+        ),
       ),
     );
   }
@@ -367,6 +411,7 @@ class _DashboardSectionState extends State<DashboardSection> {
     final firebaseMetrics = metrics['firebase'] as Map<String, dynamic>;
     final deepSeekMetrics = metrics['deepseek'] as Map<String, dynamic>;
     final fatSecretMetrics = metrics['fatsecret'] as Map<String, dynamic>;
+    final geminiMetrics = metrics['gemini'] as Map<String, dynamic>;
 
     return GridView.count(
       shrinkWrap: true,
@@ -397,6 +442,12 @@ class _DashboardSectionState extends State<DashboardSection> {
           'FatSecret API',
           '${_getStatusIcon(fatSecretMetrics['status'])} ${fatSecretMetrics['status']}',
           Icons.fastfood,
+          _getStatusColor(fatSecretMetrics['status']),
+        ),
+        _buildMetricCard(
+          'Gemini API',
+          '${_getStatusIcon(fatSecretMetrics['status'])} ${fatSecretMetrics['status']}',
+          Icons.camera,
           _getStatusColor(fatSecretMetrics['status']),
         ),
         _buildMetricCard(
@@ -455,7 +506,10 @@ class _DashboardSectionState extends State<DashboardSection> {
   }
 }
 
-// Account Management Section with functionality
+//
+// Account Management Section
+//
+// Replace the existing AccountManagementSection with this code
 class AccountManagementSection extends StatefulWidget {
   const AccountManagementSection({super.key});
 
@@ -466,6 +520,32 @@ class AccountManagementSection extends StatefulWidget {
 
 class _AccountManagementSectionState extends State<AccountManagementSection> {
   final TextEditingController _emailController = TextEditingController();
+  List<QueryDocumentSnapshot> _users = [];
+  bool _isLoading = true;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance.collection('Users').get();
+
+      setState(() {
+        _users = querySnapshot.docs;
+        _isLoading = false;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading users: $e')),
+      );
+      setState(() => _isLoading = false);
+    }
+  }
 
   Future<void> _createAdminAccount() async {
     if (_emailController.text.isEmpty) {
@@ -491,6 +571,7 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
                 Text('Admin privileges granted to ${_emailController.text}')),
       );
       _emailController.clear();
+      _loadUsers(); // Reload the user list
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -498,67 +579,270 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
     }
   }
 
-  Future<void> _viewAllUsers() async {
-    // Navigate user list (NO FUNCTIONS YET)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Opening user list...')),
+  Future<void> _toggleAdminStatus(String email, bool currentStatus) async {
+    try {
+      await FirebaseFirestore.instance.collection('Users').doc(email).update({
+        'isAdmin': !currentStatus,
+        'adminGrantedAt': currentStatus ? null : FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Admin status ${!currentStatus ? 'granted' : 'revoked'} for $email')),
+      );
+      _loadUsers(); // Reload the user list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  void _viewUserDetails(QueryDocumentSnapshot user) {
+    final userData = user.data() as Map<String, dynamic>;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text('User Details', style: TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildUserDetailRow('Email', userData['email'] ?? 'Unknown'),
+              _buildUserDetailRow(
+                  'Username', userData['username'] ?? 'Unknown'),
+              _buildUserDetailRow(
+                  'Admin', (userData['isAdmin'] ?? false).toString()),
+              _buildUserDetailRow(
+                  'Age', userData['age']?.toString() ?? 'Not set'),
+              _buildUserDetailRow(
+                  'Weight', userData['weight']?.toString() ?? 'Not set'),
+              _buildUserDetailRow(
+                  'Height', userData['height']?.toString() ?? 'Not set'),
+              _buildUserDetailRow('Goal', userData['goal'] ?? 'Not set'),
+              _buildUserDetailRow('Dietary Preference',
+                  userData['dietaryPreference'] ?? 'None'),
+              _buildUserDetailRow(
+                  'Allergies',
+                  (userData['allergies'] as List<dynamic>?)?.join(', ') ??
+                      'None'),
+              _buildUserDetailRow(
+                  'Created',
+                  userData['dateAccountCreated'] != null
+                      ? (userData['dateAccountCreated'] as Timestamp)
+                          .toDate()
+                          .toString()
+                      : 'Unknown'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildUserDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(color: Colors.grey[300]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<QueryDocumentSnapshot> _getFilteredUsers() {
+    if (_searchQuery.isEmpty) return _users;
+
+    return _users.where((user) {
+      final userData = user.data() as Map<String, dynamic>;
+      final email = userData['email']?.toString().toLowerCase() ?? '';
+      final username = userData['username']?.toString().toLowerCase() ?? '';
+      return email.contains(_searchQuery.toLowerCase()) ||
+          username.contains(_searchQuery.toLowerCase());
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Account Management',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
+    final filteredUsers = _getFilteredUsers();
 
-          // Create Admin Account
-          TextFormField(
-            controller: _emailController,
-            decoration: InputDecoration(
-              labelText: 'User Email',
-              labelStyle: const TextStyle(color: Colors.grey),
-              filled: true,
-              fillColor: Colors.grey[800],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Account Management',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            style: const TextStyle(color: Colors.white),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _createAdminAccount,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              minimumSize: const Size(double.infinity, 48),
-            ),
-            child: const Text('Grant Admin Privileges',
-                style: TextStyle(color: AppColors.primaryText)),
-          ),
+            const SizedBox(height: 16),
 
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _viewAllUsers,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              minimumSize: const Size(double.infinity, 48),
+            // Grant Admin Privileges
+            /*Card(
+              color: Colors.grey[850],
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Grant Admin Privileges',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        labelText: 'User Email',
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _createAdminAccount,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
+                      child: const Text('Grant Admin Privileges',
+                          style: TextStyle(color: AppColors.primaryText)),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: const Text('View All Users',
-                style: TextStyle(color: AppColors.primaryText)),
-          ),
-        ],
+
+            const SizedBox(height: 20),*/
+
+            // User List
+            Text(
+              'User List (${filteredUsers.length} users)',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 12),
+
+            // Search Bar
+            TextFormField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'Search users...',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                filled: true,
+                fillColor: Colors.grey[800],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: TextStyle(color: Colors.white),
+            ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6, // Fixed height
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredUsers.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No users found',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            final userData =
+                                user.data() as Map<String, dynamic>;
+                            final isAdmin = userData['isAdmin'] ?? false;
+
+                            return Card(
+                              color: Colors.grey[850],
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                title: Text(
+                                  userData['email'] ?? 'Unknown',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: Text(
+                                  userData['username'] ?? 'No username',
+                                  style: TextStyle(color: Colors.grey[400]),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isAdmin
+                                          ? Icons.admin_panel_settings
+                                          : Icons.person,
+                                      color:
+                                          isAdmin ? Colors.amber : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    PopupMenuButton(
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'details',
+                                          child: Text('View Details'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'toggle_admin',
+                                          child: Text(isAdmin
+                                              ? 'Revoke Admin'
+                                              : 'Make Admin'),
+                                        ),
+                                      ],
+                                      onSelected: (value) {
+                                        if (value == 'details') {
+                                          _viewUserDetails(user);
+                                        } else if (value == 'toggle_admin') {
+                                          _toggleAdminStatus(user.id, isAdmin);
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -567,34 +851,271 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
 //
 // Chatbot Management Section
 //
-class ChatbotManagementSection extends StatelessWidget {
+class ChatbotManagementSection extends StatefulWidget {
   const ChatbotManagementSection({super.key});
 
   @override
+  State<ChatbotManagementSection> createState() =>
+      _ChatbotManagementSectionState();
+}
+
+class _ChatbotManagementSectionState extends State<ChatbotManagementSection> {
+  final TextEditingController _promptController = TextEditingController();
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String _currentVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSystemPrompt();
+  }
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSystemPrompt() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('chatbot_config')
+          .doc('system_prompt')
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        if (mounted) {
+          setState(() {
+            _promptController.text = data['prompt'] ?? '';
+            _currentVersion = data['version'] ?? '1.0';
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Create initial document if it doesn't exist
+        await _createInitialPrompt();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading prompt: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _createInitialPrompt() async {
+    const initialPrompt = """
+    You are MacroExpert, an AI assistant specialized exclusively in nutrition and macro nutrient tracking.
+    Your purpose is to help users calculate, analyze, and understand the macronutrients...
+    [Your initial prompt here]
+    """;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('chatbot_config')
+          .doc('system_prompt')
+          .set({
+        'prompt': initialPrompt,
+        'last_updated': FieldValue.serverTimestamp(),
+        'version': '1.0',
+      });
+
+      if (mounted) {
+        setState(() {
+          _promptController.text = initialPrompt;
+          _currentVersion = '1.0';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating prompt: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _saveSystemPrompt() async {
+    if (_promptController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Prompt cannot be empty')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Increment version number
+      final newVersion = _incrementVersion(_currentVersion);
+
+      await FirebaseFirestore.instance
+          .collection('chatbot_config')
+          .doc('system_prompt')
+          .update({
+        'prompt': _promptController.text,
+        'last_updated': FieldValue.serverTimestamp(),
+        'version': newVersion,
+      });
+
+      if (mounted) {
+        setState(() {
+          _currentVersion = newVersion;
+          _isSaving = false;
+        });
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('System prompt updated successfully!')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving prompt: $e')),
+        );
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  String _incrementVersion(String currentVersion) {
+    try {
+      final parts = currentVersion.split('.');
+      final minor = int.parse(parts.last) + 1;
+      return '${parts.sublist(0, parts.length - 1).join('.')}.$minor';
+    } catch (e) {
+      return '$currentVersion.1';
+    }
+  }
+
+  Future<void> _testPrompt() async {
+    // You can add a test functionality here
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Test functionality coming soon!')),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Chatbot Management',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Prompt Management',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          Center(
-            child: Text("Work in Progress",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 50,
-                    fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(height: 20),
-          // NO FUNCTIONS YET
-        ],
+            const SizedBox(height: 8),
+            Text(
+              'Version: $_currentVersion',
+              style: TextStyle(color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              Column(
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: Card(
+                      color: Colors.grey[850],
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'System Prompt',
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              // Keep this Expanded inside the fixed container
+                              child: TextFormField(
+                                controller: _promptController,
+                                maxLines: null,
+                                expands: true,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontFamily: 'Monospace',
+                                ),
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: Colors.grey[800],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.all(12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Character count: ${_promptController.text.length}',
+                              style: TextStyle(color: Colors.grey[400]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _saveSystemPrompt,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryColor,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 48),
+                            textStyle: TextStyle(
+                              color: Colors.white,
+                            ),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors
+                                        .primaryColor, // Changed progress indicator color
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(
+                                      color:
+                                          Colors.white), // Explicit text color
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -617,8 +1138,8 @@ class _FeedbackManagementSectionState extends State<FeedbackManagementSection> {
   final List<String> _categories = [
     'Bug',
     'Suggestion',
-    'Inquiry',
-    'Feature Request',
+    //'Inquiry',
+    //'Feature Request',
     'Complaint',
     'Other'
   ];
@@ -659,14 +1180,14 @@ class _FeedbackManagementSectionState extends State<FeedbackManagementSection> {
               style: TextStyle(color: Colors.grey[300]),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
+            /*ElevatedButton(
               onPressed: () => _respondToFeedback(feedback),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryColor,
                 minimumSize: const Size(double.infinity, 48),
               ),
               child: const Text('Respond via Email'),
-            ),
+            ),*/
           ],
         ),
       ),
@@ -701,7 +1222,7 @@ class _FeedbackManagementSectionState extends State<FeedbackManagementSection> {
   Future<void> _respondToFeedback(Map<String, dynamic> feedback) async {
     final email = feedback['userEmail']?.toString();
     if (email == null || email.isEmpty) {
-      print('No email provided');
+      debugPrint('No email provided');
       return;
     }
 
@@ -771,167 +1292,171 @@ class _FeedbackManagementSectionState extends State<FeedbackManagementSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Feedback Management',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Feedback Management',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Filter buttons
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              // Category filter
-              DropdownButton<String>(
-                value: _selectedCategory,
-                hint: Text('Filter by Category',
-                    style: TextStyle(color: Colors.white)),
-                dropdownColor: Colors.grey[900],
-                style: TextStyle(color: Colors.white),
-                items: _categories.map((String category) {
-                  return DropdownMenuItem<String>(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() => _selectedCategory = newValue);
-                },
-              ),
-
-              // Status filter
-              DropdownButton<String>(
-                value: _selectedStatus,
-                hint: Text('Filter by Status',
-                    style: TextStyle(color: Colors.white)),
-                dropdownColor: Colors.grey[900],
-                style: TextStyle(color: Colors.white),
-                items: _statuses.map((String status) {
-                  return DropdownMenuItem<String>(
-                    value: status,
-                    child: Text(status),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() => _selectedStatus = newValue);
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('feedback')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No feedback yet'));
-                }
-
-                var filteredDocs = snapshot.data!.docs;
-                if (_selectedCategory != null) {
-                  filteredDocs = filteredDocs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return data['category'] == _selectedCategory;
-                  }).toList();
-                }
-                if (_selectedStatus != null) {
-                  filteredDocs = filteredDocs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    return data['status'] == _selectedStatus;
-                  }).toList();
-                }
-
-                return ListView.builder(
-                  itemCount: filteredDocs.length,
-                  itemBuilder: (context, index) {
-                    final feedback = filteredDocs[index];
-                    final data = feedback.data() as Map<String, dynamic>;
-                    final timestamp = data['timestamp'] != null
-                        ? (data['timestamp'] as Timestamp).toDate()
-                        : DateTime.now();
-
-                    return Card(
-                      color: Colors.grey[850],
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        title: Text(
-                          '${data['category']} - ${data['userEmail'] ?? 'Unknown'}',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data['message'] ?? 'No message',
-                              style: const TextStyle(color: Colors.grey),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              'Status: ${data['status'] ?? 'new'} - ${timestamp.toString().split(' ')[0]}',
-                              style: TextStyle(
-                                color: _getStatusColor(data['status'] ?? 'new'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: PopupMenuButton(
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'view',
-                              child: Text('View Details'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'respond',
-                              child: Text('Respond'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'change_status',
-                              child: Text('Change Status'),
-                            ),
-                          ],
-                          onSelected: (value) {
-                            if (value == 'view') {
-                              debugPrint("Showing Feedback Details");
-                              _showFeedbackDetails(data);
-                            } else if (value == 'respond') {
-                              debugPrint("Showing Feedback Response");
-                              _respondToFeedback(data);
-                            } else if (value == 'change_status') {
-                              debugPrint("Showing Change Status");
-                              _showStatusChangeDialog(
-                                  feedback.id, data['status'] ?? 'new');
-                            }
-                          },
-                        ),
-                      ),
+            // Filter buttons
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Category filter
+                DropdownButton<String>(
+                  value: _selectedCategory,
+                  hint: Text('Filter by Category',
+                      style: TextStyle(color: Colors.white)),
+                  dropdownColor: Colors.grey[900],
+                  style: TextStyle(color: Colors.white),
+                  items: _categories.map((String category) {
+                    return DropdownMenuItem<String>(
+                      value: category,
+                      child: Text(category),
                     );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() => _selectedCategory = newValue);
                   },
-                );
-              },
+                ),
+
+                // Status filter
+                DropdownButton<String>(
+                  value: _selectedStatus,
+                  hint: Text('Filter by Status',
+                      style: TextStyle(color: Colors.white)),
+                  dropdownColor: Colors.grey[900],
+                  style: TextStyle(color: Colors.white),
+                  items: _statuses.map((String status) {
+                    return DropdownMenuItem<String>(
+                      value: status,
+                      child: Text(status),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() => _selectedStatus = newValue);
+                  },
+                ),
+              ],
             ),
-          ),
-        ],
+
+            const SizedBox(height: 16),
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('feedback')
+                    .orderBy('timestamp', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text('No feedback yet'));
+                  }
+
+                  var filteredDocs = snapshot.data!.docs;
+                  if (_selectedCategory != null) {
+                    filteredDocs = filteredDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['category'] == _selectedCategory;
+                    }).toList();
+                  }
+                  if (_selectedStatus != null) {
+                    filteredDocs = filteredDocs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['status'] == _selectedStatus;
+                    }).toList();
+                  }
+
+                  return ListView.builder(
+                    itemCount: filteredDocs.length,
+                    itemBuilder: (context, index) {
+                      final feedback = filteredDocs[index];
+                      final data = feedback.data() as Map<String, dynamic>;
+                      final timestamp = data['timestamp'] != null
+                          ? (data['timestamp'] as Timestamp).toDate()
+                          : DateTime.now();
+
+                      return Card(
+                        color: Colors.grey[850],
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          title: Text(
+                            '${data['category']} - ${data['userEmail'] ?? 'Unknown'}',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                data['message'] ?? 'No message',
+                                style: const TextStyle(color: Colors.grey),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Status: ${data['status'] ?? 'new'} - ${timestamp.toString().split(' ')[0]}',
+                                style: TextStyle(
+                                  color:
+                                      _getStatusColor(data['status'] ?? 'new'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: PopupMenuButton(
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'view',
+                                child: Text('View Details'),
+                              ),
+                              /*const PopupMenuItem(
+                                value: 'respond',
+                                child: Text('Respond'),
+                              ),*/
+                              const PopupMenuItem(
+                                value: 'change_status',
+                                child: Text('Change Status'),
+                              ),
+                            ],
+                            onSelected: (value) {
+                              if (value == 'view') {
+                                debugPrint("Showing Feedback Details");
+                                _showFeedbackDetails(data);
+                              } else if (value == 'respond') {
+                                debugPrint("Showing Feedback Response");
+                                _respondToFeedback(data);
+                              } else if (value == 'change_status') {
+                                debugPrint("Showing Change Status");
+                                _showStatusChangeDialog(
+                                    feedback.id, data['status'] ?? 'new');
+                              }
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

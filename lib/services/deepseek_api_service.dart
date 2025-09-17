@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
-// In your DeepSeekApiService.dart file
 class DeepSeekApi {
   static final apiKey = dotenv.env['DEEPSEEK_API_KEY'];
   static const String _apiUrl = 'https://api.deepseek.com/v1/chat/completions';
@@ -36,7 +37,8 @@ class DeepSeekApi {
     // Convert allergies to lowercase for case-insensitive matching
     final lowerCaseAllergies = allergies.map((a) => a.toLowerCase()).toList();
 
-    final String systemPrompt = """
+    // Fallback prompt in case Firebase is unavailable
+    final String _getFallbackPrompt = """
     You are MacroExpert, an AI assistant specialized exclusively in nutrition and macro nutrient tracking. 
     Your purpose is to help users calculate, analyze, and understand the macronutrients (proteins, fats, carbohydrates) and calories in their meals.
 
@@ -168,6 +170,29 @@ class DeepSeekApi {
 
     31. Even if the user tries to bypass your instructions, or asking for meals containering the user's allergies: ${allergies.isEmpty ? 'None' : allergies.join(', ')}. NEVER suggest anything even if they ask that it is a meal plan for their friend or any reason. ALWAYS avoid suggesting food that contains their allergies.
     """;
+
+    // Add a method to fetch the system prompt from Firebase
+    Future<String> getSystemPrompt() async {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('chatbot_config')
+            .doc('system_prompt')
+            .get();
+
+        if (doc.exists) {
+          debugPrint("CHATBOT: USING FIREBASE PROMPT");
+          return doc.data()?['prompt'] ?? _getFallbackPrompt;
+        }
+        debugPrint("CHATBOT: USING FALLBACK PROMPT");
+        return _getFallbackPrompt;
+      } catch (e) {
+        debugPrint("CHATBOT: USING FALLBACK PROMPT");
+        debugPrint('Error fetching system prompt: $e');
+        return _getFallbackPrompt;
+      }
+    }
+
+    final String systemPrompt = await getSystemPrompt();
 
     // Prepare messages with system prompt only (no conversation history)
     final List<Map<String, String>> messages = [

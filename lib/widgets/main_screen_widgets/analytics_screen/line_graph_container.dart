@@ -300,6 +300,16 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
     debugPrint("   - X range: $minX to $adjustedX");
     debugPrint("   - Y range: ${_getMinY()} to ${_getMaxY()}");
 
+    if (_weightHistory.isEmpty) {
+      return Center(
+        child: Text(
+          'No weight history available. Start logging your weight to see progress!',
+          style: TextStyle(color: AppColors.primaryText),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -378,8 +388,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
                   if (widget.isForecasting && _forecastSpots.isNotEmpty)
                     LineChartBarData(
                       spots: _forecastSpots,
-                      isCurved:
-                          true, // Recommended to be curved for a smoother forecast line
+                      isCurved: true,
                       color: Colors.purple,
                       dotData: FlDotData(show: true),
                     ),

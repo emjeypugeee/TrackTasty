@@ -23,42 +23,40 @@ class MacroInput extends StatefulWidget {
 class _MacroInputState extends State<MacroInput> {
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.all(4.0),
-        child: Column(
-          children: [
-            Icon(widget.icon, color: Colors.white, size: 28),
-            const SizedBox(height: 4),
-            Text(
-              widget.label,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              height: 36,
-              child: TextFormField(
-                controller: widget.controller,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.numberWithOptions(
-                    decimal: widget.allowDecimals),
-                decoration: InputDecoration(
-                  hintText: '0',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: Colors.grey[850],
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Column(
+        children: [
+          Icon(widget.icon, color: Colors.white, size: 28),
+          const SizedBox(height: 4),
+          Text(
+            widget.label,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 36,
+            child: TextFormField(
+              controller: widget.controller,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.numberWithOptions(
+                  decimal: widget.allowDecimals),
+              decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: const TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: Colors.grey[850],
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
                 ),
-                onChanged: widget.onChanged,
               ),
+              onChanged: widget.onChanged,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
