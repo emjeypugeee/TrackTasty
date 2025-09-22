@@ -62,12 +62,12 @@ class _MealSuggestionContainerState extends State<MealSuggestionContainer> {
 
       // Create the new food entry
       final newFood = {
-        'mealName': widget.mealData['meal_name'],
-        'servingSize': widget.mealData['serving_size'],
-        'calories': widget.mealData['calories'],
-        'protein': widget.mealData['protein'],
-        'carbs': widget.mealData['carbs'],
-        'fat': widget.mealData['fat'],
+        'mealName': widget.mealData['meal_name'] ?? "Unnamed Meal",
+        'servingSize': widget.mealData['serving_size'] ?? "1 serving",
+        'calories': widget.mealData['calories'] ?? 0,
+        'protein': widget.mealData['protein'] ?? 0,
+        'carbs': widget.mealData['carbs'] ?? 0,
+        'fat': widget.mealData['fat'] ?? 0,
         'loggedTime': Timestamp.now(),
         'adjustmentType': 'percent',
         'adjustmentValue': 100.0,

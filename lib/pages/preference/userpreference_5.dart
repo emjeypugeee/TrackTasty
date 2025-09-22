@@ -21,10 +21,15 @@ class _Userpreference5 extends State<Userpreference5> {
 
   //selectable button values
   final List<Map<String, String>> dietaryPreference = [
-    {'title': 'Vegetarian', 'subtitle': 'No meat, includes dairy & eggs'},
+    {'title': 'Omnivore', 'subtitle': 'All food groups included'},
+    {'title': 'Vegetarian', 'subtitle': 'No meat, includes dairy and eggs'},
     {'title': 'Vegan', 'subtitle': 'No animal products whatsoever'},
-    {'title': 'Pescatarian', 'subtitle': 'Vegetarian + fish & seafood'},
-    {'title': 'Omnivore', 'subtitle': 'All food groups included'}
+    {
+      'title': 'Pescatarian',
+      'subtitle': 'No meat, but includes fish and seafood'
+    },
+    {'title': 'Keto', 'subtitle': 'Low carbs, high fat'},
+    {'title': 'Paleo', 'subtitle': 'Focuses on whole, unprocessed foods'},
   ];
 
   @override
@@ -101,8 +106,7 @@ class _Userpreference5 extends State<Userpreference5> {
                     // Dietary Preference Input
                     // ---------------------
                     Text(
-                      'Thanks! Now let'
-                      's talk about on what is your dietary preferences.',
+                      'Thanks! Now, tell us about your dietary preferences. This helps our chatbot recommend meals you’ll love.',
                       style: TextStyle(
                         color: Colors.white,
                       ),

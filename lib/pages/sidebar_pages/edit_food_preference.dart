@@ -20,28 +20,34 @@ class _EditFoodPreferencePageState extends State<EditFoodPreferencePage> {
 
   // Dietary preferences
   final List<Map<String, String>> dietaryPreference = [
-    {'title': 'Vegetarian', 'subtitle': 'No meat, includes dairy & eggs'},
+    {'title': 'Omnivore', 'subtitle': 'All food groups included'},
+    {'title': 'Vegetarian', 'subtitle': 'No meat, includes dairy and eggs'},
     {'title': 'Vegan', 'subtitle': 'No animal products whatsoever'},
-    {'title': 'Pescatarian', 'subtitle': 'Vegetarian + fish & seafood'},
-    {'title': 'Omnivore', 'subtitle': 'All food groups included'}
+    {
+      'title': 'Pescatarian',
+      'subtitle': 'No meat, but includes fish and seafood'
+    },
+    {'title': 'Keto', 'subtitle': 'Low carbs, high fat'},
+    {'title': 'Paleo', 'subtitle': 'Focuses on whole, unprocessed foods'},
   ];
 
   // Allergies list
-  final List<String> allergies = [
-    "Celery",
-    "Crustacean",
-    "Dairy",
-    "Egg",
-    "Fish",
-    "Gluten",
-    "Lupine",
-    "Mustard",
-    "Peanut",
-    "Sesame",
-    "Shellfish",
-    "Soy",
-    "Tree-Nut",
-    "Wheat",
+  final List<Map<String, String>> allergies = [
+    {
+      'title': 'Crustacean Shellfish',
+      'subtitle': 'e.g., Shrimp, crab, lobster, crawfish'
+    },
+    {'title': 'Dairy (Milk)', 'subtitle': 'e.g., Milk, cheese, butter, yogurt'},
+    {'title': 'Egg', 'subtitle': 'e.g., Eggs, mayonnaise, custards'},
+    {'title': 'Fish', 'subtitle': 'e.g., Tuna, salmon, cod, trout'},
+    {'title': 'Peanut', 'subtitle': 'e.g., Peanuts, peanut butter, peanut oil'},
+    {'title': 'Sesame', 'subtitle': 'e.g., Sesame seeds, tahini, sesame oil'},
+    {'title': 'Soy', 'subtitle': 'e.g., Soybeans, edamame, tofu, soy sauce'},
+    {
+      'title': 'Tree Nuts',
+      'subtitle': 'e.g., Almonds, walnuts, cashews, pecans'
+    },
+    {'title': 'Wheat', 'subtitle': 'e.g., Bread, pasta, flour, cereals'},
   ];
 
   // User data
@@ -54,7 +60,7 @@ class _EditFoodPreferencePageState extends State<EditFoodPreferencePage> {
     _loadUserPreferences();
     // Initialize allergies map
     for (var allergy in allergies) {
-      selectedAllergies[allergy] = false;
+      selectedAllergies[allergy['title']!] = false;
     }
   }
 
@@ -83,7 +89,8 @@ class _EditFoodPreferencePageState extends State<EditFoodPreferencePage> {
           userAllergies =
               data['allergies'] is List ? List.from(data['allergies']) : [];
           for (var allergy in allergies) {
-            selectedAllergies[allergy] = userAllergies.contains(allergy);
+            selectedAllergies[allergy['title']!] =
+                userAllergies.contains(allergy);
           }
         });
       }
@@ -284,32 +291,33 @@ class _EditFoodPreferencePageState extends State<EditFoodPreferencePage> {
           ),
           SizedBox(height: 20),
           Column(
-            children: allergies.map((allergy) {
+            children: allergies.map((item) {
+              final allergyTitle = item['title']!;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: Material(
-                  color: Color(0xFF1E1E1E),
+                  color: const Color.fromARGB(255, 32, 32, 32),
                   borderRadius: BorderRadius.circular(20.0),
                   clipBehavior: Clip.antiAlias,
                   child: CheckboxListTile(
-                    title: Text(allergy, style: TextStyle(color: Colors.white)),
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: 4.0,
-                      horizontal: 20.0,
+                    title: Text(
+                      allergyTitle,
+                      style: TextStyle(color: Colors.white),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
-                      side: BorderSide(
-                        color: selectedAllergies[allergy] ?? false
-                            ? AppColors.primaryColor
-                            : Colors.transparent,
-                        width: 1.5,
-                      ),
+                    subtitle: Text(
+                      item['subtitle']!,
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
-                    value: selectedAllergies[allergy] ?? false,
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 4.0, horizontal: 20.0),
+                    tileColor: selectedAllergies[allergyTitle] ?? false
+                        ? AppColors.primaryColor
+                            .withValues(alpha: 0.2) // Highlight color
+                        : Colors.transparent,
+                    value: selectedAllergies[allergyTitle] ?? false,
                     onChanged: (bool? value) {
                       setState(() {
-                        selectedAllergies[allergy] = value!;
+                        selectedAllergies[allergyTitle] = value!;
                       });
                     },
                     activeColor: AppColors.primaryColor,

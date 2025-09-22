@@ -96,6 +96,57 @@ class _Userpreference4 extends State<Userpreference4> {
     );
   }
 
+  void _convertUnits() {
+    // Height conversion logic
+    if (heightController.text.isNotEmpty) {
+      if (!isMetric) {
+        // Convert from Imperial (in) to Metric (cm)
+        double totalInches = 0;
+        final value = heightController.text.trim().replaceAll('"', '');
+
+        // Check for the feet'inches format (e.g., 5'11, 5'11.5)
+        final feetInchesRegExp = RegExp(r"^(\d+)'(\d+(?:\.\d+)?)$");
+        final feetInchesMatch = feetInchesRegExp.firstMatch(value);
+
+        if (feetInchesMatch != null) {
+          final feet = double.tryParse(feetInchesMatch.group(1)!) ?? 0;
+          final inches = double.tryParse(feetInchesMatch.group(2)!) ?? 0;
+          totalInches = (feet * 12) + inches;
+        } else {
+          // Handle plain inches format (e.g., 71, 71.5)
+          totalInches = double.tryParse(value) ?? 0;
+        }
+
+        final cm = totalInches * 2.54;
+        heightController.text = cm.toStringAsFixed(1);
+      } else {
+        // Convert from Metric (cm) to Imperial (ft'in)
+        final cm = double.tryParse(heightController.text) ?? 0;
+        final totalInches = cm / 2.54;
+
+        final feet = (totalInches / 12).floor();
+        final inches = totalInches % 12;
+
+        heightController.text = "${feet}'${inches.toStringAsFixed(1)}";
+      }
+    }
+
+    // Weight conversion logic (unchanged)
+    if (weightController.text.isNotEmpty) {
+      if (!isMetric) {
+        // Convert from Pounds (lbs) to Kilograms (kg)
+        final lbs = double.tryParse(weightController.text) ?? 0;
+        final kg = lbs * 0.453592;
+        weightController.text = kg.toStringAsFixed(1);
+      } else {
+        // Convert from Kilograms (kg) to Pounds (lbs)
+        final kg = double.tryParse(weightController.text) ?? 0;
+        final lbs = kg * 2.20462;
+        weightController.text = lbs.toStringAsFixed(1);
+      }
+    }
+  }
+
   @override
   void dispose() {
     heightController.dispose();
@@ -155,7 +206,7 @@ class _Userpreference4 extends State<Userpreference4> {
                       ),
 
                       Text(
-                        'Next, what is your height, weight, and your weight goal in using this application?',
+                        'Next, what is your height, weight, and your weight goal in using this application? Your height and weight will be used to calculate your personalized daily macro intake. Your goal weight will be used to help you visualize your progress.',
                         style: TextStyle(
                           color: Colors.white,
                         ),
@@ -184,6 +235,8 @@ class _Userpreference4 extends State<Userpreference4> {
                                 }
                                 _isMetric = _selectedUnits[1];
                                 isMetric = _selectedUnits[1];
+
+                                _convertUnits();
                               });
 
                               // 2. Force keyboard refresh if field was focused
@@ -250,12 +303,12 @@ class _Userpreference4 extends State<Userpreference4> {
                               child: MyTextfield(
                                 hintText: isMetric
                                     ? 'Height (50-300 cm)'
-                                    : 'Height (20-120 in)',
+                                    : 'Height (e.g., 5\'11" or 20-120 in)',
                                 obscureText: false,
                                 controller: heightController,
                                 suffixText: isMetric ? 'cm' : 'in',
-                                keyboardType: _isMetric
-                                    ? TextInputType.numberWithOptions(
+                                keyboardType: isMetric
+                                    ? const TextInputType.numberWithOptions(
                                         decimal: true)
                                     : TextInputType.text,
                                 focusNode: _heightFocusNode,
@@ -266,6 +319,7 @@ class _Userpreference4 extends State<Userpreference4> {
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r"[0-9\']")),
+                                  LengthLimitingTextInputFormatter(6),
                                 ],
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -273,17 +327,14 @@ class _Userpreference4 extends State<Userpreference4> {
                                   }
 
                                   if (isMetric) {
-                                    // Metric validation (unchanged)
                                     final height = double.tryParse(value) ?? 0;
                                     if (height < 50 || height > 300) {
                                       return 'Height should be between 50-300 cm';
                                     }
                                   } else {
-                                    // feet'inches support
                                     double totalInches;
 
                                     if (value.contains("'")) {
-                                      // Handle feet'inches format (e.g. 5'3, 5'11.5)
                                       final parts = value.split("'");
                                       if (parts.length != 2 ||
                                           parts[1].isEmpty) {
@@ -301,19 +352,9 @@ class _Userpreference4 extends State<Userpreference4> {
                                       if (inches < 0 || inches >= 12) {
                                         return 'Inches should be between 0-11.99';
                                       }
-
                                       totalInches = feet * 12 + inches;
                                     } else {
-                                      // Handle plain inches
                                       totalInches = double.tryParse(value) ?? 0;
-                                    }
-
-                                    // Update the controller with the computed inches (if feet'inches format was used)
-                                    if (value.contains("'")) {
-                                      final formattedValue =
-                                          totalInches.toStringAsFixed(
-                                              totalInches % 1 == 0 ? 0 : 1);
-                                      heightController.text = formattedValue;
                                     }
 
                                     if (totalInches < 20 || totalInches > 120) {
@@ -361,6 +402,7 @@ class _Userpreference4 extends State<Userpreference4> {
                               },
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
                               ],
                               keyboardType: TextInputType.numberWithOptions(
                                   decimal: true),
@@ -418,6 +460,7 @@ class _Userpreference4 extends State<Userpreference4> {
                             },
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(6),
                             ],
                             keyboardType:
                                 TextInputType.numberWithOptions(decimal: true),

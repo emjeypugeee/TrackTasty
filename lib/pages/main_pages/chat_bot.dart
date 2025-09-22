@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/meal_suggestion_container.dart';
+import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/recipe_container.dart';
+
 import 'package:flutter/material.dart';
 import 'package:fitness/services/deepseek_api_service.dart';
 import 'package:provider/provider.dart';
@@ -320,6 +322,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   }
 
   // Parsing JSON response
+  // Update the _parseMixedResponse method in chat_bot.dart
   Map<String, dynamic> _parseMixedResponse(String content) {
     try {
       // First, try to parse the entire content as JSON
@@ -327,30 +330,66 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       if (jsonData is List) {
         return {
           'meals': jsonData.whereType<Map<String, dynamic>>().toList(),
+          'recipes': [],
+          'nutritional_info': [],
           'text': ''
         };
       }
       if (jsonData is Map<String, dynamic>) {
-        return {
-          'meals': [jsonData],
-          'text': ''
-        };
+        // Check the meal_type to determine the response type
+        final mealType = jsonData['meal_type']?.toString() ?? '';
+
+        if (mealType == 'recipe') {
+          return {
+            'meals': [],
+            'recipes': [jsonData],
+            'nutritional_info': [],
+            'text': ''
+          };
+        } else if (mealType == 'nutritional_info') {
+          return {
+            'meals': [],
+            'recipes': [],
+            'nutritional_info': [jsonData],
+            'text': ''
+          };
+        } else {
+          return {
+            'meals': [jsonData],
+            'recipes': [],
+            'nutritional_info': [],
+            'text': ''
+          };
+        }
       }
     } catch (e) {
       // If not pure JSON, look for JSON objects within text
-      final jsonPattern = r'\{.*?"meal_type".*?"suggestion".*?\}';
+      final jsonPattern = r'\{.*?\}';
       final matches = RegExp(jsonPattern, multiLine: true).allMatches(content);
 
       if (matches.isNotEmpty) {
         final meals = <Map<String, dynamic>>[];
+        final recipes = <Map<String, dynamic>>[];
+        final nutritionalInfo = <Map<String, dynamic>>[];
         var remainingText = content;
 
         for (final match in matches) {
           try {
             final jsonStr = match.group(0);
             if (jsonStr != null) {
-              final meal = jsonDecode(jsonStr) as Map<String, dynamic>;
-              meals.add(meal);
+              final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+              // Check the meal_type to determine the response type
+              final mealType = data['meal_type']?.toString() ?? '';
+
+              if (mealType == 'recipe') {
+                recipes.add(data);
+              } else if (mealType == 'nutritional_info') {
+                nutritionalInfo.add(data);
+              } else {
+                meals.add(data);
+              }
+
               remainingText = remainingText.replaceAll(jsonStr, '').trim();
             }
           } catch (e) {
@@ -360,12 +399,19 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
         return {
           'meals': meals,
+          'recipes': recipes,
+          'nutritional_info': nutritionalInfo,
           'text': remainingText.isNotEmpty ? remainingText : ''
         };
       }
     }
 
-    return {'meals': [], 'text': content};
+    return {
+      'meals': [],
+      'recipes': [],
+      'nutritional_info': [],
+      'text': content
+    };
   }
 
   Future<void> _sendMessage() async {
@@ -447,14 +493,42 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
       // Debug print for chatbot output
       debugPrint("PARSED RESPONSE: ${parsedResponse['meals'].length} meals, "
+          "${parsedResponse['recipes'].length} recipes, "
+          "${parsedResponse['nutritional_info'].length} nutritional info, "
           "text: '${parsedResponse['text']}'");
 
+      debugPrint(aiMessage);
+
+      // Add meal suggestions if any
       if (parsedResponse['meals'].isNotEmpty) {
         for (final meal in parsedResponse['meals']) {
           setState(() {
             _messages.add({
               "role": "meal_suggestion",
               "content": meal,
+            });
+          });
+        }
+      }
+
+      // Add recipes if any
+      if (parsedResponse['recipes'].isNotEmpty) {
+        for (final recipe in parsedResponse['recipes']) {
+          setState(() {
+            _messages.add({
+              "role": "recipe",
+              "content": recipe,
+            });
+          });
+        }
+      }
+
+      if (parsedResponse['nutritional_info'].isNotEmpty) {
+        for (final info in parsedResponse['nutritional_info']) {
+          setState(() {
+            _messages.add({
+              "role": "nutritional_info",
+              "content": info,
             });
           });
         }
@@ -556,52 +630,206 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                     final isSystem = message["role"] == "system";
                     final isMealSuggestion =
                         message["role"] == "meal_suggestion";
+                    final isRecipe = message["role"] == "recipe";
+                    final isNutritionalInfo =
+                        message["role"] == "nutritional_info";
 
                     if (isMealSuggestion) {
-                      final mealData =
-                          message["content"] as Map<String, dynamic>;
-                      return Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.85,
+                      try {
+                        final mealData =
+                            message["content"] as Map<String, dynamic>;
+
+                        // Validate that the meal data has the required fields
+                        if (mealData['meal_name'] == null) {
+                          throw FormatException(
+                              'Invalid meal data: missing meal_name');
+                        }
+
+                        return Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.85,
+                          ),
+                          child: MealSuggestionContainer(
+                            mealData: mealData,
+                            onAdded: _refreshUserData,
+                          ),
+                        );
+                      } catch (e) {
+                        // Log the error and show an error message instead
+                        debugPrint('Error rendering meal suggestion: $e');
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.85,
+                            ),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red[900],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Error: Invalid meal data format',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+
+                    if (isRecipe) {
+                      try {
+                        final recipeData =
+                            message["content"] as Map<String, dynamic>;
+
+                        // Validate that the recipe data has the required fields
+                        if (recipeData['recipe_name'] == null) {
+                          throw FormatException(
+                              'Invalid recipe data: missing recipe_name');
+                        }
+
+                        return Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.85,
+                          ),
+                          child: RecipeContainer(
+                            recipeData: recipeData,
+                          ),
+                        );
+                      } catch (e) {
+                        // Log the error and show an error message instead
+                        debugPrint('Error rendering recipe: $e');
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.85,
+                            ),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red[900],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Error: Invalid recipe data format',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+
+                    // Add handling for nutritional info
+                    if (isNutritionalInfo) {
+                      try {
+                        final infoData =
+                            message["content"] as Map<String, dynamic>;
+
+                        // Validate that the nutritional info has the required fields
+                        if (infoData['meal_name'] == null) {
+                          throw FormatException(
+                              'Invalid nutritional info: missing meal_name');
+                        }
+
+                        // Use the same MealSuggestionContainer for nutritional info
+                        return Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.85,
+                          ),
+                          child: MealSuggestionContainer(
+                            mealData: infoData,
+                            onAdded: _refreshUserData,
+                          ),
+                        );
+                      } catch (e) {
+                        // Log the error and show an error message instead
+                        debugPrint('Error rendering nutritional info: $e');
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.85,
+                            ),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red[900],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'Error: Invalid nutritional info format',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+
+                    // Handle regular messages with error checking
+                    try {
+                      final content = message["content"];
+                      final messageText =
+                          content is String ? content : content.toString();
+
+                      return Align(
+                        alignment: isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.85,
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isError
+                                ? Colors.red[900]
+                                : isSystem
+                                    ? Colors.green[800]
+                                    : isUser
+                                        ? Colors.blue[800]
+                                        : Colors.grey[800],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            messageText,
+                            style: TextStyle(
+                              color: isError
+                                  ? Colors.red[200]
+                                  : isSystem
+                                      ? Colors.green[100]
+                                      : Colors.white,
+                            ),
+                          ),
                         ),
-                        child: MealSuggestionContainer(
-                          mealData: mealData,
-                          onAdded: _refreshUserData,
+                      );
+                    } catch (e) {
+                      // Fallback for any message rendering errors
+                      debugPrint('Error rendering message: $e');
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.85,
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red[900],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Error displaying message: $e',
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
                       );
                     }
-
-                    return Align(
-                      alignment:
-                          isUser ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.85,
-                        ),
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isError
-                              ? Colors.red[900]
-                              : isSystem
-                                  ? Colors.green[800]
-                                  : isUser
-                                      ? Colors.blue[800]
-                                      : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          message["content"] as String,
-                          style: TextStyle(
-                            color: isError
-                                ? Colors.red[200]
-                                : isSystem
-                                    ? Colors.green[100]
-                                    : Colors.white,
-                          ),
-                        ),
-                      ),
-                    );
                   },
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
@@ -31,6 +32,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
   void initState() {
     super.initState();
     _loadCurrentMeasurement();
+  }
+
+  void refreshHomePage() {
+    if (homePageKey.currentState != null) {
+      homePageKey.currentState!.setState(() {});
+    }
   }
 
   Future<void> _loadCurrentMeasurement() async {
@@ -122,6 +129,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         const SnackBar(
                             content: Text('Nickname updated successfully!')),
                       );
+                      refreshHomePage();
                     }
                   },
                 ),
@@ -256,6 +264,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                                           content: Text(
                                               'Goals updated successfully!')),
                                     );
+                                    refreshHomePage();
                                   }
                                 }
                               },
@@ -295,7 +304,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
         // Controllers and variables for form fields
         TextEditingController weightController = TextEditingController();
         TextEditingController heightController = TextEditingController();
+        TextEditingController goalWeightController = TextEditingController();
         TextEditingController ageController = TextEditingController();
+
         String? selectedGender;
         String? selectedActivityLevel;
         String? selectedGoal;
@@ -303,6 +314,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
         // Initialize with current values
         weightController.text = userData['weight']?.toString() ?? '';
         heightController.text = userData['height']?.toString() ?? '';
+        goalWeightController.text = userData['goalWeight'].toString() ?? '';
         ageController.text = userData['age']?.toString() ?? '';
         selectedGender = userData['gender'] ?? 'male';
         selectedActivityLevel =
@@ -313,6 +325,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
           context: context,
           isScrollControlled: true,
           backgroundColor: AppColors.containerBg,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
@@ -389,6 +404,24 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               keyboardType: TextInputType.number,
                               decoration: InputDecoration(
                                 hintText: 'Enter your weight',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+// Goal Weight Field
+                            Text(
+                              'Goal Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: goalWeightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your goal weight',
                                 filled: true,
                                 fillColor: AppColors.textFieldBg,
                               ),
@@ -553,6 +586,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                                   "Weight from controller: ${weightController.text}");
                               debugPrint(
                                   "Height from controller: ${heightController.text}");
+                              debugPrint(
+                                  "Goal Weight from controller: ${goalWeightController.text}");
 
                               // Create updated user data with the new values
                               Map<String, dynamic> updatedUserData =
@@ -563,6 +598,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
                               updatedUserData['weight'] =
                                   double.tryParse(weightController.text) ??
                                       userData['weight'];
+                              updatedUserData['goalWeight'] =
+                                  double.tryParse(goalWeightController.text) ??
+                                      userData['goalWeight'];
                               updatedUserData['height'] =
                                   double.tryParse(heightController.text) ??
                                       userData['height'];

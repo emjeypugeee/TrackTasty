@@ -601,6 +601,26 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
 
   void _viewUserDetails(QueryDocumentSnapshot user) {
     final userData = user.data() as Map<String, dynamic>;
+    String dateCreatedString;
+
+    final dateAccountCreated = userData['dateAccountCreated'];
+
+    if (dateAccountCreated is int) {
+      // If it's an int, assume it's the year of account creation
+      final createdYear = dateAccountCreated;
+      dateCreatedString = 'Year $createdYear';
+    } else if (dateAccountCreated is Timestamp) {
+      // If it's a Timestamp, format it to YYYY-MM-DD
+      final date = dateAccountCreated.toDate();
+      final year = date.year.toString();
+      final month = date.month.toString().padLeft(2, '0');
+      final day = date.day.toString().padLeft(2, '0');
+      dateCreatedString = '$year-$month-$day';
+    } else {
+      // For any other case, set the string to 'Unknown'
+      dateCreatedString = 'Unknown';
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -628,13 +648,7 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
                   'Allergies',
                   (userData['allergies'] as List<dynamic>?)?.join(', ') ??
                       'None'),
-              _buildUserDetailRow(
-                  'Created',
-                  userData['dateAccountCreated'] != null
-                      ? (userData['dateAccountCreated'] as Timestamp)
-                          .toDate()
-                          .toString()
-                      : 'Unknown'),
+              _buildUserDetailRow('Created', dateCreatedString),
             ],
           ),
         ),

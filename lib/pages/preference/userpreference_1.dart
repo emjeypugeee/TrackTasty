@@ -128,7 +128,7 @@ class _Userpreference1 extends State<Userpreference1> {
                       ),
                       const SizedBox(height: 5),
                       const Text(
-                        'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                        'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you. Your age and gender are essential for us to calculate your Daily Macro Intake, which will help us tailor a personalized nutrition plan just for you.',
                         style: TextStyle(color: AppColors.secondaryText),
                       ),
                       const SizedBox(height: 20),
@@ -189,6 +189,7 @@ class _Userpreference1 extends State<Userpreference1> {
                         },
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
                         ],
                         controller: ageController,
                         validator: (value) {
@@ -211,7 +212,7 @@ class _Userpreference1 extends State<Userpreference1> {
                       // Gender Selection
                       // ---------------------
                       Text(
-                        'Please select your gender: \n',
+                        'Please select your gender assigned at birth: \n',
                         style: TextStyle(color: Colors.white),
                       ),
 
@@ -222,6 +223,7 @@ class _Userpreference1 extends State<Userpreference1> {
                           GenderIcon(
                               isSelected: selectedGender == Gender.male,
                               iconData: Icons.male,
+                              label: "Male",
                               onTap: () =>
                                   setState(() => selectedGender = Gender.male),
                               selectedColor: Colors.blue[800]!),
@@ -231,6 +233,7 @@ class _Userpreference1 extends State<Userpreference1> {
                           GenderIcon(
                               isSelected: selectedGender == Gender.female,
                               iconData: Icons.female,
+                              label: "Female",
                               onTap: () => setState(
                                   () => selectedGender = Gender.female),
                               selectedColor: Colors.pink[800]!)

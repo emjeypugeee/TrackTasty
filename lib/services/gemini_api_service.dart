@@ -27,12 +27,13 @@ class GeminiApiService {
     String base64Image = base64Encode(imageBytes);
 
     // Create the request body according to Gemini API format
+    // In gemini_api_service.dart, update the analyzeFoodImage method
     Map<String, dynamic> requestBody = {
       "contents": [
         {
           "parts": [
             {
-              "text": "Analyze this food image and provide exactly 5 meal suggestions in JSON format only. "
+              "text": "Analyze this image. If it contains food, provide exactly 5 meal or drink suggestions in JSON format only. "
                   "Use this exact format for each meal:\n"
                   "  \"meal_type\": \"suggestion\",\n"
                   "  \"mealorfood_name\": \"Meal Name Here\",\n"
@@ -41,7 +42,8 @@ class GeminiApiService {
                   "  \"protein\": 30,\n"
                   "  \"carbs\": 40,\n"
                   "  \"fat\": 15\n"
-                  "Return ONLY a JSON array with 5 meal objects. No additional text or explanations. "
+                  "If the image does NOT contain food, return this exact JSON: {\"is_food\": false, \"message\": \"No food detected\"}. "
+                  "Return ONLY JSON. No additional text or explanations."
             },
             {
               "inline_data": {"mime_type": "image/jpeg", "data": base64Image}
@@ -69,7 +71,7 @@ class GeminiApiService {
     }
   }
 
-  // First, let's check which models are available
+  // Check available models
   Future<List<dynamic>> getAvailableModels() async {
     var url = Uri.parse(
         'https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey');

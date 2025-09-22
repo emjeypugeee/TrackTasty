@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/meals_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
@@ -49,6 +50,13 @@ class _HomePageState extends State<HomePage> {
   void refreshData() {
     _loadNutritionData();
     setState(() {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    Provider.of<UserProvider>(context, listen: true);
+    _loadNutritionData();
   }
 
   @override
@@ -277,13 +285,61 @@ class _HomePageState extends State<HomePage> {
           .doc(FirebaseAuth.instance.currentUser?.email)
           .snapshots(),
       builder: (context, userSnapshot) {
+        // Handle connection errors with retry functionality
+        if (userSnapshot.hasError) {
+          // Check if it's a network error
+          final error = userSnapshot.error;
+          if (error is FirebaseException &&
+              (error.code == 'unavailable' || error.code == 'network-error')) {
+            // Retry after 3 seconds
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                _loadNutritionData(); // Retry loading data
+              }
+            });
+
+            return Column(
+              children: [
+                Icon(
+                  Icons.wifi_off,
+                  size: 40,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Connection issue\nRetrying in 3 seconds...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // For other errors, show error message
+          return Column(
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Colors.red[300],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Error fetching user data.',
+                style: TextStyle(color: Colors.red[300]),
+              ),
+            ],
+          );
+        }
+
         if (userSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (userSnapshot.hasError ||
-            !userSnapshot.hasData ||
-            !userSnapshot.data!.exists) {
+        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
           return const Text(
             'Error fetching user data.',
             style: TextStyle(color: Colors.red),
@@ -294,7 +350,7 @@ class _HomePageState extends State<HomePage> {
         final calorieGoal = (userData['dailyCalories'] ?? 2000).toInt();
         final proteinGoal = (userData['proteinGram'] ?? 100).toInt();
         final carbsGoal = (userData['carbsGram'] ?? 250).toInt();
-        final fatGoal = (userData['fatGram'] ?? 70).toInt();
+        final fatGoal = (userData['fatsGram'] ?? 70).toInt();
 
         final totalCalories = _nutritionData?['totalCalories'] ?? 0;
         final totalProtein = _nutritionData?['totalProtein'] ?? 0;
@@ -384,18 +440,65 @@ class _HomePageState extends State<HomePage> {
                       selectedDay.month, selectedDay.day + 1)))
               .snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+            // Handle connection errors with retry functionality
             if (snapshot.hasError) {
+              // Check if it's a network error
+              final error = snapshot.error;
+              if (error is FirebaseException &&
+                  (error.code == 'unavailable' ||
+                      error.code == 'network-error')) {
+                // Retry after 3 seconds
+                Future.delayed(const Duration(seconds: 3), () {
+                  if (mounted) {
+                    _loadNutritionData(); // Retry loading data
+                  }
+                });
+
+                return Column(
+                  children: [
+                    Icon(
+                      Icons.wifi_off,
+                      size: 40,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Connection issue\nRetrying in 3 seconds...',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              // For other errors, show error message
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 40,
+                      color: Colors.red[300],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
                 ),
               );
             }
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // Rest of the existing code remains the same...
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),
@@ -410,6 +513,13 @@ class _HomePageState extends State<HomePage> {
                 snapshot.data!.docs.first.data() as Map<String, dynamic>;
             final foods =
                 List<Map<String, dynamic>>.from(foodLog['foods'] ?? []);
+
+            // Sort the foods list from latest to oldest logged time
+            foods.sort((a, b) {
+              final aTime = (a['loggedTime'] as Timestamp).toDate();
+              final bTime = (b['loggedTime'] as Timestamp).toDate();
+              return bTime.compareTo(aTime); // b before a for latest first
+            });
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -15,21 +15,22 @@ class Userpreference6 extends StatefulWidget {
 }
 
 class _Userpreference6 extends State<Userpreference6> {
-  final List<String> allergies = [
-    "Celery",
-    "Crustacean",
-    "Dairy",
-    "Egg",
-    "Fish",
-    "Gluten",
-    "Lupine",
-    "Mustard",
-    "Peanut",
-    "Sesame",
-    "Shellfish",
-    "Soy",
-    "Tree-Nut",
-    "Wheat",
+  final List<Map<String, String>> allergies = [
+    {
+      'title': 'Crustacean Shellfish',
+      'subtitle': 'e.g., Shrimp, crab, lobster, crawfish'
+    },
+    {'title': 'Dairy (Milk)', 'subtitle': 'e.g., Milk, cheese, butter, yogurt'},
+    {'title': 'Egg', 'subtitle': 'e.g., Eggs, mayonnaise, custards'},
+    {'title': 'Fish', 'subtitle': 'e.g., Tuna, salmon, cod, trout'},
+    {'title': 'Peanut', 'subtitle': 'e.g., Peanuts, peanut butter, peanut oil'},
+    {'title': 'Sesame', 'subtitle': 'e.g., Sesame seeds, tahini, sesame oil'},
+    {'title': 'Soy', 'subtitle': 'e.g., Soybeans, edamame, tofu, soy sauce'},
+    {
+      'title': 'Tree Nuts',
+      'subtitle': 'e.g., Almonds, walnuts, cashews, pecans'
+    },
+    {'title': 'Wheat', 'subtitle': 'e.g., Bread, pasta, flour, cereals'},
   ];
 
   Map<String, bool> selectedAllergies = {};
@@ -43,20 +44,21 @@ class _Userpreference6 extends State<Userpreference6> {
   Future<void> _loadData() async {
     final provider =
         Provider.of<RegistrationDataProvider>(context, listen: false);
-    await provider.loadFromPreferences(); // Load data from SharedPreferences
+    await provider.loadFromPreferences();
 
-    // Pre-fill allergies if available
-    for (var allergy in allergies) {
-      selectedAllergies[allergy] = false;
+    // Pre-fill allergies with their title as the key and a default value of false
+    for (var item in allergies) {
+      selectedAllergies[item['title']!] = false;
     }
 
+    // Check and update the selected allergies from provider data
     if (provider.userData.allergies.isNotEmpty) {
-      for (var allergy in provider.userData.allergies) {
-        selectedAllergies[allergy] = true;
+      for (var allergyTitle in provider.userData.allergies) {
+        selectedAllergies[allergyTitle] = true;
       }
     }
 
-    setState(() {}); // Update the UI after loading data
+    setState(() {});
   }
 
   //saving user allergies
@@ -109,7 +111,7 @@ class _Userpreference6 extends State<Userpreference6> {
             ),
 
             Text(
-              'Lastly, what are the allergies you have that we should know about? ',
+              'Lastly, please let us know about any allergies you have. We\'ll use this information to ensure that all of our meal recommendations are safe and free from those ingredients.',
               style: TextStyle(
                 color: Colors.white,
               ),
@@ -124,39 +126,40 @@ class _Userpreference6 extends State<Userpreference6> {
             // ---------------------
             Expanded(
                 child: ListView(
-              children: allergies.map((allergy) {
+              children: allergies.map((item) {
+                final allergyTitle = item['title']!;
                 return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Material(
-                      color: const Color.fromARGB(255, 32, 32, 32),
-                      borderRadius: BorderRadius.circular(20.0),
-                      clipBehavior: Clip.antiAlias,
-                      child: CheckboxListTile(
-                        title: Text(allergy,
-                            style: TextStyle(color: Colors.white)),
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 4.0, horizontal: 20.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                          side: BorderSide(
-                            color: selectedAllergies[allergy] ?? false
-                                ? AppColors.primaryColor
-                                : Colors.transparent,
-                            width: 1.5,
-                          ),
-                        ),
-
-                        value: selectedAllergies[allergy] ??
-                            false, // Prevents null values
-                        onChanged: (bool? value) {
-                          setState(() {
-                            selectedAllergies[allergy] = value!;
-                          });
-                        },
-                        activeColor: AppColors.primaryColor,
-                        checkColor: Colors.black,
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Material(
+                    color: const Color.fromARGB(255, 32, 32, 32),
+                    borderRadius: BorderRadius.circular(20.0),
+                    clipBehavior: Clip.antiAlias,
+                    child: CheckboxListTile(
+                      title: Text(
+                        allergyTitle,
+                        style: TextStyle(color: Colors.white),
                       ),
-                    ));
+                      subtitle: Text(
+                        item['subtitle']!,
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 4.0, horizontal: 20.0),
+                      tileColor: selectedAllergies[allergyTitle] ?? false
+                          ? AppColors.primaryColor
+                              .withValues(alpha: 0.2) // Highlight color
+                          : Colors.transparent,
+                      value: selectedAllergies[allergyTitle] ?? false,
+                      onChanged: (bool? value) {
+                        setState(() {
+                          selectedAllergies[allergyTitle] = value!;
+                        });
+                      },
+                      activeColor: AppColors.primaryColor,
+                      checkColor: Colors.black,
+                    ),
+                  ),
+                );
               }).toList(),
             )),
 

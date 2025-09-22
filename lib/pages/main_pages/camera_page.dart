@@ -124,11 +124,24 @@ class _CameraScreenState extends State<CameraScreen> {
               final String textResponse = part['text'];
               debugPrint('Gemini Analysis: $textResponse');
 
+              // Check if it's a non-food response
+              if (_handleNonFoodResponse(textResponse)) {
+                // Non-food detected, show error and return
+                if (mounted) {
+                  _showError(
+                      'No food detected in the image. Please try with a food image.');
+                }
+                return;
+              }
+
               // Parse the response to extract food suggestions
               _parseFoodSuggestions(textResponse);
 
-              if (mounted) {
+              if (mounted && _suggestedFoods.isNotEmpty) {
                 _showAnalysisResult(textResponse);
+              } else if (mounted) {
+                _showError(
+                    'No food found in the image! For best results, try taking a picture with a better view and lighting.');
               }
               break;
             }
@@ -154,6 +167,33 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  bool _handleNonFoodResponse(String textResponse) {
+    try {
+      // Try to parse the JSON response
+      String jsonString = textResponse;
+
+      // Extract JSON from markdown if present
+      if (textResponse.contains('```json')) {
+        jsonString = textResponse.split('```json')[1].split('```')[0].trim();
+      } else if (textResponse.contains('```')) {
+        jsonString = textResponse.split('```')[1].split('```')[0].trim();
+      }
+
+      // Parse the JSON
+      final Map<String, dynamic> response = jsonDecode(jsonString);
+
+      // Check if it's a non-food response
+      if (response.containsKey('is_food') && response['is_food'] == false) {
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error checking for non-food response: $e');
+      // If we can't parse it, assume it's a food response
+    }
+
+    return false;
+  }
+
   void _parseFoodSuggestions(String textResponse) {
     try {
       // Try to parse the JSON response
@@ -172,7 +212,18 @@ class _CameraScreenState extends State<CameraScreen> {
 
       // Check if it's a single object or an array
       if (jsonString.trim().startsWith('{')) {
-        // It's a single object, wrap it in an array
+        // It might be a non-food response, check for is_food flag
+        final Map<String, dynamic> singleResponse = jsonDecode(jsonString);
+        if (singleResponse.containsKey('is_food') &&
+            singleResponse['is_food'] == false) {
+          // Non-food detected, clear suggestions
+          setState(() {
+            _suggestedFoods = [];
+          });
+          return;
+        }
+
+        // It's a single food object, wrap it in an array
         jsonString = '[$jsonString]';
       }
 
@@ -249,37 +300,9 @@ class _CameraScreenState extends State<CameraScreen> {
       });
     } catch (e) {
       debugPrint('Error parsing food suggestions: $e');
-      // Fallback suggestions if parsing fails
+      // Don't show fallback suggestions - instead show an error
       setState(() {
-        _suggestedFoods = [
-          FoodItem(
-            mealType: 'suggestion',
-            mealName: 'Classic Beef Burger',
-            servingSize: '1 burger (bun, patty, toppings)',
-            calories: 650,
-            protein: 35,
-            carbs: 45,
-            fat: 38,
-          ),
-          FoodItem(
-            mealType: 'suggestion',
-            mealName: 'Grilled Chicken Sandwich',
-            servingSize: '1 sandwich',
-            calories: 450,
-            protein: 40,
-            carbs: 35,
-            fat: 18,
-          ),
-          FoodItem(
-            mealType: 'suggestion',
-            mealName: 'Portobello Mushroom Burger',
-            servingSize: '1 burger',
-            calories: 400,
-            protein: 15,
-            carbs: 50,
-            fat: 15,
-          ),
-        ];
+        _suggestedFoods = [];
       });
     }
   }

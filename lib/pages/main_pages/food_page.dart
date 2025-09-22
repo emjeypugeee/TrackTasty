@@ -41,6 +41,12 @@ class _FoodPageState extends State<FoodPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   // Function to parse nutrients from food description
   Map<String, dynamic> _parseNutrients(String description) {
     double calories = 0;

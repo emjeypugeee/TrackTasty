@@ -20,16 +20,28 @@ class _Userpreference2 extends State<Userpreference2> {
 
   //selectable acitvity button values
   final List<Map<String, String>> activityLevels = [
-    {'title': 'Sedentary', 'subtitle': '(little or no exercise)'},
-    {'title': 'Lightly active', 'subtitle': '(exercise 1-3 days/week)'},
+    {
+      'title': 'Not active',
+      'subtitle':
+          '(You spend most of your time sitting and don\'t do any regular exercise)'
+    },
+    {
+      'title': 'Lightly active',
+      'subtitle': 'Light exercise or sports 1 to 3 days a week.)'
+    },
     {
       'title': 'Moderately active',
-      'subtitle': '(moderate exercise 4-5 days/week)'
+      'subtitle':
+          'You exercise or play sports consistently 4 to 5 times per week.'
     },
-    {'title': 'Very active', 'subtitle': '(intense exercise 6-7 days/week)'},
+    {
+      'title': 'Very active',
+      'subtitle': 'Intense exercise or sports 6 to 7 days a week.'
+    },
     {
       'title': 'Extra active',
-      'subtitle': '(very intense exercise, or physical job)'
+      'subtitle':
+          'Very intense, daily exercise or a highly demanding physical job.'
     },
   ];
 
@@ -98,7 +110,7 @@ class _Userpreference2 extends State<Userpreference2> {
                     ),
                     SizedBox(height: 20),
                     Text(
-                      'Next, how would you describe your activity level usually?',
+                      'Next, how would you describe your activity level usually? Your activity level is essential for us to calculate your Daily Macro Intake, which will help us tailor a personalized nutrition plan just for you.',
                       style: TextStyle(color: Colors.white),
                     ),
                     SizedBox(height: 30),

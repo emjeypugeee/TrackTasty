@@ -20,11 +20,11 @@ class _Userpreference3 extends State<Userpreference3> {
 
   //selectable goal button values
   final List<Map<String, String>> activityLevels = [
-    {'title': 'Mild Lose Weight', 'subtitle': '0.5 lb (0.25 kg) per week'},
-    {'title': 'Lose Weight', 'subtitle': '1 lb (0.5 kg) per week'},
-    {'title': 'Maintain Weight'},
-    {'title': 'Mild Gain Weight', 'subtitle': '0.5 lb (0.25 kg) per week'},
-    {'title': 'Gain Weight', 'subtitle': '1 lb (0.5 kg) per week'},
+    {'title': 'Lose Weight', 'subtitle': 'Lose 1 lb (0.5 kg) per week'},
+    {'title': 'Mild Lose Weight', 'subtitle': 'Lose 0.5 lb (0.25 kg) per week'},
+    {'title': 'Maintain Weight', 'subtitle': 'Keep your current weight'},
+    {'title': 'Mild Gain Weight', 'subtitle': 'Gain 0.5 lb (0.25 kg) per week'},
+    {'title': 'Gain Weight', 'subtitle': 'Gain 1 lb (0.5 kg) per week'},
   ];
 
   @override
@@ -90,7 +90,7 @@ class _Userpreference3 extends State<Userpreference3> {
                     SizedBox(height: 5),
 
                     Text(
-                      'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                      'Welcome to TrackTasty! To determine your assigned daily macro intake, we need to know your goal. This information, combined with your age, gender, and activity level, will help us create a personalized nutrition plan just for you.',
                       style: TextStyle(color: Colors.grey),
                     ),
 
