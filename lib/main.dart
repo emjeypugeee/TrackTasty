@@ -344,36 +344,32 @@ final GoRouter _router = GoRouter(
       ),
     ),
     //shell route for main screen
-    ShellRoute(
-        builder: (context, state, child) => MainScreen(child: child),
-        routes: [
-          GoRoute(
-            path: '/home',
-            builder: (context, state) => const HomePage(),
-          ),
-          GoRoute(
-            path: '/chatbot',
-            builder: (context, state) => const ChatBot(),
-          ),
-          GoRoute(
-            path: '/analytics',
-            builder: (context, state) => AnalyticsPage(),
-          ),
-          GoRoute(
-            path: '/profile',
-            builder: (context, state) => ProfilePage(),
-          ),
-          GoRoute(
-            path: '/adminonly',
-            builder: (context, state) => AdminPage(),
-          ),
-        ])
+    ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
+      GoRoute(
+        path: '/home',
+        builder: (context, state) => const HomePage(),
+      ),
+      GoRoute(
+        path: '/chatbot',
+        builder: (context, state) => const ChatBot(),
+      ),
+      GoRoute(
+        path: '/analytics',
+        builder: (context, state) => AnalyticsPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => ProfilePage(),
+      ),
+      GoRoute(
+        path: '/adminonly',
+        builder: (context, state) => AdminPage(),
+      ),
+    ])
 
     //shell route for sidebar pages
   ],
 );
-
-const _authPaths = ['/startup', '/login', '/register'];
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
