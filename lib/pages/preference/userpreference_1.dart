@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:fitness/model/user_data_models.dart';
+import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -9,9 +8,9 @@ import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import 'package:fitness/widgets/components/gender_button.dart';
+import 'package:provider/provider.dart';
 
 class Userpreference1 extends StatefulWidget {
   const Userpreference1({super.key});
@@ -24,7 +23,6 @@ enum Gender { male, female }
 
 class _Userpreference1 extends State<Userpreference1> {
   Gender? selectedGender;
-  File? image;
   bool _isLoading = false;
 
   final TextEditingController usernameController = TextEditingController();
@@ -33,93 +31,67 @@ class _Userpreference1 extends State<Userpreference1> {
   final FocusNode _usernameFocusNode = FocusNode();
   final FocusNode _ageFocusNode = FocusNode();
 
-  // Image picker
-  Future uploadImage(ImageSource source) async {
-    try {
-      final image = await ImagePicker().pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-      if (image == null) return;
-
-      final imageTemporary = File(image.path);
-      setState(() => this.image = imageTemporary);
-    } on PlatformException catch (e) {
-      print('Failed to pick image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: ${e.message}')),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
 
-  Future<String?> uploadImageToFirebase(File imageFile) async {
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) return null;
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
 
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('user_images')
-          .child('${user.uid}.jpg');
+    // Pre-fill data if available
+    usernameController.text = provider.userData.username ?? '';
+    ageController.text = provider.userData.age?.toString() ?? '';
+    selectedGender = provider.userData.gender == 'male'
+        ? Gender.male
+        : provider.userData.gender == 'female'
+            ? Gender.female
+            : null;
 
-      await ref.putFile(imageFile);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      print('Error uploading image: $e');
-      return null;
-    }
+    setState(() {}); // Update the UI after loading data
   }
 
   Future<bool> saveNickname() async {
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null || user.email == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No user logged in')),
-        );
-        return false;
+    if (_formKey.currentState!.validate() && selectedGender != null) {
+      final provider =
+          Provider.of<RegistrationDataProvider>(context, listen: false);
+
+      // Update the provider with new data
+      provider.updateBasicInfo(
+        username: usernameController.text,
+        age: int.tryParse(ageController.text),
+        gender: selectedGender?.name,
+      );
+
+      return true;
+    }
+    return false;
+  }
+
+  void _saveDataOnBack() async {
+    if (usernameController.text.isNotEmpty ||
+        ageController.text.isNotEmpty ||
+        selectedGender != null) {
+      final provider =
+          Provider.of<RegistrationDataProvider>(context, listen: false);
+
+      if (usernameController.text.isNotEmpty) {
+        provider.updateBasicInfo(username: usernameController.text);
       }
 
-      String? imageUrl;
-      if (image != null) {
-        // Show loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 10),
-                Text('Uploading image...'),
-              ],
-            ),
-            duration: Duration(seconds: 5),
-          ),
-        );
-
-        imageUrl = await uploadImageToFirebase(image!);
-        if (imageUrl == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to upload image')),
-          );
-          return false;
+      if (ageController.text.isNotEmpty) {
+        final age = int.tryParse(ageController.text);
+        if (age != null) {
+          provider.updateBasicInfo(age: age);
         }
       }
 
-      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'username': usernameController.text,
-        'age': ageController.text,
-        'gender': selectedGender?.name,
-        'profileImage': imageUrl,
-      }, SetOptions(merge: true));
-
-      return true;
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
-      return false;
+      if (selectedGender != null) {
+        provider.updateBasicInfo(gender: selectedGender!.name);
+      }
     }
   }
 
@@ -156,7 +128,7 @@ class _Userpreference1 extends State<Userpreference1> {
                       ),
                       const SizedBox(height: 5),
                       const Text(
-                        'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                        'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you. Your age and gender are essential for us to calculate your Daily Macro Intake, which will help us tailor a personalized nutrition plan just for you.',
                         style: TextStyle(color: AppColors.secondaryText),
                       ),
                       const SizedBox(height: 20),
@@ -217,6 +189,7 @@ class _Userpreference1 extends State<Userpreference1> {
                         },
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(3),
                         ],
                         controller: ageController,
                         validator: (value) {
@@ -239,7 +212,7 @@ class _Userpreference1 extends State<Userpreference1> {
                       // Gender Selection
                       // ---------------------
                       Text(
-                        'Please select your gender: \n',
+                        'Please select your gender assigned at birth: \n',
                         style: TextStyle(color: Colors.white),
                       ),
 
@@ -250,6 +223,7 @@ class _Userpreference1 extends State<Userpreference1> {
                           GenderIcon(
                               isSelected: selectedGender == Gender.male,
                               iconData: Icons.male,
+                              label: "Male",
                               onTap: () =>
                                   setState(() => selectedGender = Gender.male),
                               selectedColor: Colors.blue[800]!),
@@ -259,6 +233,7 @@ class _Userpreference1 extends State<Userpreference1> {
                           GenderIcon(
                               isSelected: selectedGender == Gender.female,
                               iconData: Icons.female,
+                              label: "Female",
                               onTap: () => setState(
                                   () => selectedGender = Gender.female),
                               selectedColor: Colors.pink[800]!)
@@ -279,12 +254,34 @@ class _Userpreference1 extends State<Userpreference1> {
                 child: Row(
                   children: [
                     CustomTextButton(
-                        title: 'Back',
-                        onTap: () async {
-                          await FirebaseAuth.instance.signOut();
-                          context.push('/login');
-                        },
-                        size: 16),
+                      title: 'Back',
+                      onTap: () async {
+                        final provider = Provider.of<RegistrationDataProvider>(
+                            context,
+                            listen: false);
+
+                        // Save data before navigating back
+                        if (usernameController.text.isNotEmpty) {
+                          provider.updateBasicInfo(
+                              username: usernameController.text);
+                        }
+
+                        if (ageController.text.isNotEmpty) {
+                          final age = int.tryParse(ageController.text);
+                          if (age != null) {
+                            provider.updateBasicInfo(age: age);
+                          }
+                        }
+
+                        if (selectedGender != null) {
+                          provider.updateBasicInfo(
+                              gender: selectedGender!.name);
+                        }
+
+                        context.push('/startup');
+                      },
+                      size: 16,
+                    ),
                     const SizedBox(width: 50),
                     Expanded(
                       child: MyButtons(
@@ -303,29 +300,15 @@ class _Userpreference1 extends State<Userpreference1> {
                                       backgroundColor:
                                           AppColors.snackBarBgError,
                                     ));
+                                    setState(() => _isLoading = false);
+                                    return;
                                   }
-                                  try {
-                                    await saveNickname();
 
-                                    if (mounted && selectedGender != null) {
-                                      /*
-                                      // Show success message
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                        content: Text('Saved!'),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor:
-                                            AppColors.snackBarBgSaved,
-                                      ));*/
-                                      context.push('/preference2');
-                                    }
-                                  } catch (_) {
-                                    // Error handled in saveNickname()
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() => _isLoading = false);
-                                    }
+                                  bool success = await saveNickname();
+                                  if (success && mounted) {
+                                    context.push('/preference2');
                                   }
+                                  setState(() => _isLoading = false);
                                 }
                               },
                       ),

@@ -45,7 +45,7 @@ class AppColors {
   static const Color graphBg = Color(0xFF262626);
 
   // Drawer Colors
-  static const Color drawerIcons = Color(0xFF7CB342);
+  static const Color drawerIcons = Color.fromARGB(255, 199, 130, 130);
 
   // Button Colors
   static const Color buttonColor = Color(0xFFE99797);
@@ -65,7 +65,7 @@ class AppColors {
   static const Color twoStarColor = Color.fromARGB(255, 212, 206, 206);
   static const Color oneStarColor = Color(0xFFCD7F32);
 
-   // Light theme colors
+  // Light theme colors
   static const Color _lightPrimaryColor = Color(0xFFFAA4A4);
   static const Color _lightSecondaryColor = Color.fromARGB(255, 141, 92, 92);
   static const Color _lightIndicatorBg = Color(0xFFe8def8);

@@ -6,12 +6,14 @@ class GenderIcon extends StatelessWidget {
   final VoidCallback onTap;
   final Color selectedColor;
   final Color unselectedColor;
+  final String label;
 
   const GenderIcon({
     super.key,
     required this.isSelected,
     required this.iconData,
     required this.onTap,
+    required this.label,
     this.selectedColor = Colors.black,
     this.unselectedColor = Colors.grey,
   });
@@ -22,16 +24,29 @@ class GenderIcon extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 80,
-        width: 80,
+        width: 100,
         decoration: BoxDecoration(
           color: isSelected ? selectedColor : unselectedColor,
           borderRadius: BorderRadius.circular(20), // Perfect circle
           border: isSelected ? Border.all(color: Colors.white, width: 2) : null,
         ),
-        child: Icon(
-          iconData,
-          size: 40,
-          color: Colors.white,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              iconData,
+              size: 40,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 8), // Spacing between icon and text
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );

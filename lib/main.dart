@@ -1,3 +1,12 @@
+import 'dart:io';
+import 'package:fitness/provider/registration_data_provider.dart';
+import 'package:fitness/pages/main_pages/camera_page.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:fitness/firebase_options.dart';
@@ -11,23 +20,24 @@ import 'package:fitness/animations/fade_out_page_transition.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // SIDEBAR PAGES
-import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
 import 'package:fitness/pages/sidebar_pages/recalculate_macros_page.dart';
+import 'package:fitness/pages/sidebar_pages/notification_settings.dart';
 import 'package:fitness/pages/sidebar_pages/edit_food_preference.dart';
+import 'package:fitness/pages/sidebar_pages/send_feedback_page.dart';
 
 // LOGIN PAGES
 import 'package:fitness/pages/login/forgetpassword_page.dart';
+import 'package:fitness/pages/login/register_page.dart';
 import 'package:fitness/pages/login/startup_page.dart';
 import 'package:fitness/pages/login/login_page.dart';
-import 'package:fitness/pages/login/register_page.dart';
 
 // MAIN PAGES
 import 'package:fitness/pages/main_pages/analytics_page.dart';
-import 'package:fitness/pages/main_pages/chat_bot.dart';
+import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/pages/main_pages/admin_page.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
-import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:fitness/pages/main_pages/food_page.dart';
+import 'package:fitness/pages/main_pages/chat_bot.dart';
 
 // FOOD PREFERENCE PAGES
 import 'package:fitness/pages/preference/userpreference_2.dart';
@@ -37,6 +47,17 @@ import 'package:fitness/pages/preference/userpreference_4.dart';
 import 'package:fitness/pages/preference/userpreference_5.dart';
 import 'package:fitness/pages/preference/userpreference_6.dart';
 import 'package:fitness/pages/preference/userpreference_7.dart';
+
+// Global instance of notifications plugin
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// Top-level function for background notification handling
+@pragma('vm:entry-point')
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  // Handle background notification tap
+  debugPrint('Background notification tapped: ${notificationResponse.payload}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,12 +70,113 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  await FirebaseAppCheck.instance.activate(
+    webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
+    androidProvider: AndroidProvider.debug,
+    appleProvider: AppleProvider.appAttest,
+  );
+
+  // Initialize SharedPreferences
+  _initializeSharedPreferences();
+
+  // Initialize time zones for notifications
+  tz.initializeTimeZones();
+
+  // Initialize notifications
+  await _initializeNotifications();
+
+  // Request notification permissions
+  await _requestNotificationPermissions();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => MealsState(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => RegistrationDataProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..fetchUserData()),
+        ChangeNotifierProvider(create: (_) => MealsState()),
+      ],
       child: const MyApp(),
     ),
   );
+}
+
+// Initialize SharedPreferences
+Future<void> _initializeSharedPreferences() async {
+  try {
+    await SharedPreferences.getInstance();
+    debugPrint("SharedPreferences initialized successfully");
+  } catch (e) {
+    debugPrint("SharedPreferences initialization failed: $e");
+    // The app will use fallback storage instead
+  }
+}
+
+// Initialize Notifications
+Future<void> _initializeNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  // For iOS/macOS initialization
+  final DarwinInitializationSettings initializationSettingsDarwin =
+      DarwinInitializationSettings(
+    requestSoundPermission: false,
+    requestBadgePermission: false,
+    requestAlertPermission: false,
+  );
+
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsDarwin,
+    macOS: initializationSettingsDarwin,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse:
+        (NotificationResponse notificationResponse) {
+      // Handle foreground notification tap
+      debugPrint('Notification tapped: ${notificationResponse.payload}');
+    },
+    onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+  );
+}
+
+// Initialize Notification Settings
+Future<void> _requestNotificationPermissions() async {
+  if (Platform.isIOS || Platform.isMacOS) {
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>() // Changed from DarwinFlutterLocalNotificationsPlugin
+        ?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+  } else if (Platform.isAndroid) {
+    // For Android 13+ (API level 33), we need to request the POST_NOTIFICATIONS permission
+    if (await _isAndroid13OrHigher()) {
+      final status = await Permission.notification.request();
+      if (status.isGranted) {
+        debugPrint('Notification permission granted');
+      } else {
+        debugPrint('Notification permission denied');
+      }
+    }
+    // For Android 12 and below, notifications work without explicit permission
+  }
+}
+
+Future<bool> _isAndroid13OrHigher() async {
+  if (Platform.isAndroid) {
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      return androidInfo.version.sdkInt >= 33; // Android 13 = SDK version 33
+    } catch (e) {
+      debugPrint("Failed to get Android version: $e");
+      return false;
+    }
+  }
+  return false;
 }
 
 final GoRouter _router = GoRouter(
@@ -76,13 +198,7 @@ final GoRouter _router = GoRouter(
         key: state.pageKey,
       ),
     ),
-    GoRoute(
-      path: '/register',
-      pageBuilder: (context, state) => FadeOutPageTransition(
-        child: RegisterPage(),
-        key: state.pageKey,
-      ),
-    ),
+
     GoRoute(
       path: '/forgetpassword',
       pageBuilder: (context, state) => FadeOutPageTransition(
@@ -93,49 +209,77 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/preference1',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference1(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference1(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference2',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference2(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference2(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference3',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference3(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference3(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference4',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference4(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference4(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference5',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference5(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference5(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference6',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference6(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference6(),
+        ),
         key: state.pageKey,
       ),
     ),
     GoRoute(
       path: '/preference7',
       pageBuilder: (context, state) => FadeOutPageTransition(
-        child: Userpreference7(),
+        child: ChangeNotifierProvider(
+          create: (context) => RegistrationDataProvider(),
+          child: Userpreference7(),
+        ),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/register',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: RegisterPage(),
         key: state.pageKey,
       ),
     ),
@@ -168,11 +312,19 @@ final GoRouter _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/notificationsettings',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: NotificationSettings(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
       path: '/recalcmacros',
       pageBuilder: (context, state) {
         final extraData = state.extra as Map<String, dynamic>?;
-        final userData = extraData?['userData'] as Map<String, dynamic>? ?? {};
-        final selectedGoal = extraData?['selectedGoal'] as String? ?? 'Maintain Weight';
+        final Map<String, dynamic> userData = extraData?['userData'] ?? {};
+        final String selectedGoal =
+            extraData?['selectedGoal'] ?? 'Maintain Weight';
 
         return FadeOutPageTransition(
           child: RecalculateMacrosPage(
@@ -182,6 +334,14 @@ final GoRouter _router = GoRouter(
           key: state.pageKey,
         );
       },
+    ),
+    GoRoute(
+      path: '/camera',
+      name: 'camera',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: CameraScreen(),
+        key: state.pageKey,
+      ),
     ),
     //shell route for main screen
     ShellRoute(builder: (context, state, child) => MainScreen(child: child), routes: [
@@ -216,15 +376,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => UserProvider()..fetchUserData(),
-      child: MaterialApp.router(
-        theme: ThemeData(
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212))),
-        debugShowCheckedModeBanner: false,
-        routerConfig: _router,
+    return MaterialApp.router(
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212)),
       ),
+      debugShowCheckedModeBanner: false,
+      routerConfig: _router,
     );
   }
 }

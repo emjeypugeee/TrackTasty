@@ -46,19 +46,46 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-<string>Need camera access to take pictures</string>
-<key>LSApplicationQueriesSchemes</key>
-<array>
-    <string>https</string>
-    <string>http</string>
-    <string>mailto</string>
-    <string>sms</string>
-    <string>tel</string>
-</array>
-<key>NSPhotoLibraryUsageDescription</key>
-<string>Need photo library access to select pictures</string>
-<key>NSMicrophoneUsageDescription</key>
-<string>Need microphone access for video recording</string>
+	<string>Need camera access to take pictures</string>
 
+	<!--EMAIL LAUNCHER-->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>mailto</string>
+		<string>sms</string>
+		<string>tel</string>
+	</array>
+
+	<!--NOTIFICATION SETTINGS-->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- Notification permission message -->
+	<key>NSUserNotificationAlertStyle</key>
+	<string>alert</string>
+	
+	<!-- For iOS 10+ -->
+	<key>UNUserNotificationCenterEnabled</key>
+	<true/>
+	
+	<!-- Permission messages (customize these as needed) -->
+	<key>NSUserNotificationsUsageDescription</key>
+		<string>This app needs notification permissions to send you meal reminders and progress updates.</string>
+		
+		<!-- For iOS 12+ -->
+		<key>UIUserNotificationAlertStyle</key>
+		<string>alert</string>
+		
+		<!-- For iOS 10+ -->
+		<key>UNUserNotificationCenterEnabled</key>
+		<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Need photo library access to select pictures</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Need microphone access for video recording</string>
 </dict>
 </plist>

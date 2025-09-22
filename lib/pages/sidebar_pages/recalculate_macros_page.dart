@@ -1,6 +1,8 @@
 // recalculate_macros_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/pages/main_pages/home_page.dart';
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/components/percentage_slider.dart';
@@ -9,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
+import 'package:provider/provider.dart';
 
 class RecalculateMacrosPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -60,6 +63,12 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     _initializeFormData();
   }
 
+  void refreshHomePage() {
+    if (homePageKey.currentState != null) {
+      homePageKey.currentState!.setState(() {});
+    }
+  }
+
   void _initializeFormData() {
     final data = widget.userData;
 
@@ -78,12 +87,15 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     debugPrint("Setting height: ${heightController.text}");
 
     // Set initial macro percentages if they exist
-    if (data['carbsPercentage'] != null)
+    if (data['carbsPercentage'] != null) {
       carbsPercentage = data['carbsPercentage'].toDouble();
-    if (data['fatsPercentage'] != null)
+    }
+    if (data['fatsPercentage'] != null) {
       fatsPercentage = data['fatsPercentage'].toDouble();
-    if (data['proteinPercentage'] != null)
+    }
+    if (data['proteinPercentage'] != null) {
       proteinPercentage = data['proteinPercentage'].toDouble();
+    }
 
     // Now calculate macros after initializing all values
     _calculateMacros();
@@ -92,14 +104,16 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
   void _calculateMacros() {
     // Parse form values with defaults
     final age = int.tryParse(widget.userData['age']?.toString() ?? '0') ?? 0;
-    final measurementSystem = widget.userData['measurementSystem'] ?? 'metric';
+    final measurementSystem = widget.userData['measurementSystem'] ?? 'Metric';
     final weight = widget.userData['weight'] ?? 0;
     final height = widget.userData['height'] ?? 0;
+    final goalWeight = widget.userData['goalWeight'] ?? 0;
 
     debugPrint("Current age: $age");
     debugPrint("Measurement System: $measurementSystem");
     debugPrint("Raw weight: $weight");
     debugPrint("Raw height: $height");
+    debugPrint("Raw Goal Weight: $goalWeight");
 
     // Use safe defaults if selections are null
     final gender = selectedGender ?? 'male';
@@ -224,17 +238,15 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
           ? widget.userData['weight'] as double
           : double.tryParse(widget.userData['weight']?.toString() ?? '0') ?? 0;
 
-      if (currentWeight != oldWeight) {
-        final today = DateTime.now();
-        await FirebaseFirestore.instance
-            .collection('weight_history')
-            .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
-            .set({
-          'userId': user.uid,
-          'weight': currentWeight,
-          'date': Timestamp.now(),
-        }, SetOptions(merge: true));
-      }
+      final today = DateTime.now();
+      await FirebaseFirestore.instance
+          .collection('weight_history')
+          .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
+          .set({
+        'userId': user.uid,
+        'weight': currentWeight,
+        'date': Timestamp.now(),
+      }, SetOptions(merge: true));
 
       // Update user data in Firestore
       await FirebaseFirestore.instance
@@ -244,6 +256,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
         'age': int.tryParse(widget.userData['age']?.toString() ?? '0') ?? 0,
         'weight': currentWeight,
         'height': double.tryParse(heightController.text) ?? 0,
+        'goalWeight': widget.userData['goalWeight'],
         'gender': selectedGender,
         'selectedActivityLevel': selectedActivityLevel,
         'goal': selectedGoal,
@@ -261,6 +274,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
           const SnackBar(content: Text('Macros recalculated successfully!')),
         );
         context.pop();
+        await context.read<UserProvider>().fetchUserData();
       }
     } catch (e) {
       if (mounted) {
@@ -441,8 +455,9 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
                       onLockToggle: () {
                         setState(() {
                           _lockProtein = !_lockProtein;
-                          if (_lockProtein)
+                          if (_lockProtein) {
                             _lockedProteinValue = proteinPercentage;
+                          }
                           _normalizeMacros();
                         });
                       },
@@ -468,6 +483,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
               text: 'Save New Macros',
               onTap: () async {
                 await _saveUserData();
+                refreshHomePage();
               },
             ),
           ],

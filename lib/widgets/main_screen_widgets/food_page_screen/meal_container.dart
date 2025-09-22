@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 class MealContainer extends StatelessWidget {
   final String foodName;
   final String foodDescription;
-  final int calories;
-  final int protein;
-  final int carbs;
-  final int fat;
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
   final String serving;
   final void Function()? onPressed;
 
-  MealContainer({
+  const MealContainer({
     super.key,
     required this.foodName,
     required this.foodDescription,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/meals_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
@@ -49,6 +50,13 @@ class _HomePageState extends State<HomePage> {
   void refreshData() {
     _loadNutritionData();
     setState(() {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    Provider.of<UserProvider>(context, listen: true);
+    _loadNutritionData();
   }
 
   @override
@@ -133,7 +141,7 @@ class _HomePageState extends State<HomePage> {
         .snapshots()
         .listen((snapshot) {
       if (snapshot.docs.isNotEmpty) {
-        final foodLog = snapshot.docs.first.data() as Map<String, dynamic>;
+        final foodLog = snapshot.docs.first.data();
         setState(() {
           _nutritionData = {
             'totalCalories': foodLog['totalCalories'] ?? 0,
@@ -277,13 +285,61 @@ class _HomePageState extends State<HomePage> {
           .doc(FirebaseAuth.instance.currentUser?.email)
           .snapshots(),
       builder: (context, userSnapshot) {
+        // Handle connection errors with retry functionality
+        if (userSnapshot.hasError) {
+          // Check if it's a network error
+          final error = userSnapshot.error;
+          if (error is FirebaseException &&
+              (error.code == 'unavailable' || error.code == 'network-error')) {
+            // Retry after 3 seconds
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                _loadNutritionData(); // Retry loading data
+              }
+            });
+
+            return Column(
+              children: [
+                Icon(
+                  Icons.wifi_off,
+                  size: 40,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Connection issue\nRetrying in 3 seconds...',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // For other errors, show error message
+          return Column(
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: Colors.red[300],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Error fetching user data.',
+                style: TextStyle(color: Colors.red[300]),
+              ),
+            ],
+          );
+        }
+
         if (userSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (userSnapshot.hasError ||
-            !userSnapshot.hasData ||
-            !userSnapshot.data!.exists) {
+        if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
           return const Text(
             'Error fetching user data.',
             style: TextStyle(color: Colors.red),
@@ -294,7 +350,7 @@ class _HomePageState extends State<HomePage> {
         final calorieGoal = (userData['dailyCalories'] ?? 2000).toInt();
         final proteinGoal = (userData['proteinGram'] ?? 100).toInt();
         final carbsGoal = (userData['carbsGram'] ?? 250).toInt();
-        final fatGoal = (userData['fatGram'] ?? 70).toInt();
+        final fatGoal = (userData['fatsGram'] ?? 70).toInt();
 
         final totalCalories = _nutritionData?['totalCalories'] ?? 0;
         final totalProtein = _nutritionData?['totalProtein'] ?? 0;
@@ -309,7 +365,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('calories-$selectedDay'),
                   macroType: 'Calories',
                   progressColor: AppColors.caloriesColor,
-                  value: '${(totalCalories - calorieGoal).abs()}g',
+                  value: '${(totalCalories - calorieGoal).abs().toInt()}g',
                   label: totalCalories > calorieGoal
                       ? 'Calories over'
                       : 'Calories remaining',
@@ -320,7 +376,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('protein-$selectedDay'),
                   macroType: 'Protein',
                   progressColor: AppColors.proteinColor,
-                  value: '${(totalProtein - proteinGoal).abs()}g',
+                  value: '${(totalProtein - proteinGoal).abs().toInt()}g',
                   label: totalProtein > proteinGoal
                       ? 'Protein over'
                       : 'Protein remaining',
@@ -335,7 +391,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('carbs-$selectedDay'),
                   macroType: 'Carbs',
                   progressColor: AppColors.carbsColor,
-                  value: '${(totalCarbs - carbsGoal).abs()}g',
+                  value: '${(totalCarbs - carbsGoal).abs().toInt()}g',
                   label:
                       totalCarbs > carbsGoal ? 'Carbs over' : 'Carbs remaining',
                   selectedDate: selectedDay,
@@ -345,7 +401,7 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('fat-$selectedDay'),
                   macroType: 'Fat',
                   progressColor: AppColors.fatColor,
-                  value: '${(totalFat - fatGoal).abs()}g',
+                  value: '${(totalFat - fatGoal).abs().toInt()}g',
                   label: totalFat > fatGoal ? 'Fat over' : 'Fat remaining',
                   selectedDate: selectedDay,
                 ),
@@ -384,18 +440,65 @@ class _HomePageState extends State<HomePage> {
                       selectedDay.month, selectedDay.day + 1)))
               .snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+            // Handle connection errors with retry functionality
             if (snapshot.hasError) {
+              // Check if it's a network error
+              final error = snapshot.error;
+              if (error is FirebaseException &&
+                  (error.code == 'unavailable' ||
+                      error.code == 'network-error')) {
+                // Retry after 3 seconds
+                Future.delayed(const Duration(seconds: 3), () {
+                  if (mounted) {
+                    _loadNutritionData(); // Retry loading data
+                  }
+                });
+
+                return Column(
+                  children: [
+                    Icon(
+                      Icons.wifi_off,
+                      size: 40,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Connection issue\nRetrying in 3 seconds...',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              // For other errors, show error message
               return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 40,
+                      color: Colors.red[300],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
                 ),
               );
             }
+
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // Rest of the existing code remains the same...
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),
@@ -411,6 +514,13 @@ class _HomePageState extends State<HomePage> {
             final foods =
                 List<Map<String, dynamic>>.from(foodLog['foods'] ?? []);
 
+            // Sort the foods list from latest to oldest logged time
+            foods.sort((a, b) {
+              final aTime = (a['loggedTime'] as Timestamp).toDate();
+              final bTime = (b['loggedTime'] as Timestamp).toDate();
+              return bTime.compareTo(aTime); // b before a for latest first
+            });
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -419,10 +529,14 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: MealsContainer(
                       mealName: food['mealName'] ?? '',
-                      calories: food['calories'] ?? 0,
-                      protein: food['protein'] ?? 0,
-                      carbs: food['carbs'] ?? 0,
-                      fat: food['fat'] ?? 0,
+                      calories: (food['calories'] ?? 0).toDouble(),
+                      protein: (food['protein'] ?? 0).toDouble(),
+                      carbs: (food['carbs'] ?? 0).toDouble(),
+                      fat: (food['fat'] ?? 0).toDouble(),
+                      servingSize: food['servingSize'] ?? '',
+                      adjustmentType: food['adjustmentType'] ?? 'percent',
+                      adjustmentValue:
+                          (food['adjustmentValue'] ?? 100.0).toDouble(),
                       loggedTime: (food['loggedTime'] as Timestamp).toDate(),
                       onEdit: () => _handleEditMeal(food),
                       onDelete: () => _handleDeleteMeal(food),

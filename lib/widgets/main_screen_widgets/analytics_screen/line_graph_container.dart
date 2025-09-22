@@ -10,8 +10,16 @@ import 'package:intl/intl.dart';
 class LineGraphContainer extends StatefulWidget {
   final double goalWeight;
   final String goal;
+  final bool isForecasting;
+  final Map<String, dynamic>? forecastData;
+  final double userHeight;
   const LineGraphContainer(
-      {super.key, required this.goalWeight, required this.goal});
+      {super.key,
+      required this.goalWeight,
+      required this.goal,
+      required this.userHeight,
+      this.isForecasting = false,
+      this.forecastData});
 
   @override
   State<LineGraphContainer> createState() => _LineGraphContainerState();
@@ -20,27 +28,56 @@ class LineGraphContainer extends StatefulWidget {
 class _LineGraphContainerState extends State<LineGraphContainer> {
   String _selectedPeriod = '3 months';
   List<FlSpot> _weightHistory = [];
+  List<DateTime> _weightDates = [];
   bool isLoading = true;
   bool isMetric = false;
   StreamSubscription? _weightHistorySubscription;
+  List<FlSpot> _forecastSpots = [];
+  List<DateTime> _forecastDates = [];
 
   @override
   void initState() {
     super.initState();
+    debugPrint("📊 LineGraphContainer initialized");
+    debugPrint("🎯 Goal weight: ${widget.goalWeight}, Goal: ${widget.goal}");
+    debugPrint("🔮 Forecasting enabled: ${widget.isForecasting}");
     _loadData();
   }
 
   @override
   void dispose() {
     _weightHistorySubscription?.cancel();
+    debugPrint("📊 LineGraphContainer disposed");
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(LineGraphContainer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint("🔄 LineGraphContainer updated");
+    debugPrint("   - Old forecasting: ${oldWidget.isForecasting}");
+    debugPrint("   - New forecasting: ${widget.isForecasting}");
+    if (widget.isForecasting != oldWidget.isForecasting ||
+        widget.forecastData != oldWidget.forecastData) {
+      if (widget.isForecasting) {
+        debugPrint("🎯 Forecasting enabled, setting period to 6 months");
+        _selectedPeriod = '6 months';
+      }
+      _loadWeightHistory();
+      _prepareForecastData();
+    }
   }
 
   Future<void> _loadData() async {
     try {
       if (!mounted) return;
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint("❌ No user logged in");
+        return;
+      }
+
+      debugPrint("👤 Loading data for user: ${user.uid}");
 
       // Load current weight
       final userDoc = await FirebaseFirestore.instance
@@ -59,7 +96,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
       // Load weight history
       await _loadWeightHistory();
     } catch (e) {
-      debugPrint("Error loading data: $e");
+      debugPrint("❌ Error loading data: $e");
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -81,25 +118,36 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
     DateTime endDate = DateTime.now();
     DateTime startDate;
 
-    switch (_selectedPeriod) {
-      case '1 month':
-        startDate = endDate.subtract(const Duration(days: 30));
-        break;
-      case '3 months':
-        startDate = endDate.subtract(const Duration(days: 90));
-        break;
-      case '6 months':
-        startDate = endDate.subtract(const Duration(days: 180));
-        break;
-      case '1 year':
-        startDate = endDate.subtract(const Duration(days: 365));
-        break;
-      default:
-        startDate = endDate.subtract(const Duration(days: 90));
+    if (widget.isForecasting) {
+      // For forecasting, show past 2 months and next 4 months (total 6 months)
+      startDate = DateTime.now().subtract(const Duration(days: 60));
+      _selectedPeriod = '6 months'; // Force 6 months view
+      debugPrint("📅 Forecasting mode: Loading 60 days of history + forecast");
+    } else {
+      switch (_selectedPeriod) {
+        case '1 month':
+          startDate = endDate.subtract(const Duration(days: 30));
+          break;
+        case '3 months':
+          startDate = endDate.subtract(const Duration(days: 90));
+          break;
+        case '6 months':
+          startDate = endDate.subtract(const Duration(days: 180));
+          break;
+        case '1 year':
+          startDate = endDate.subtract(const Duration(days: 365));
+          break;
+        default:
+          startDate = endDate.subtract(const Duration(days: 90));
+      }
+      debugPrint("📅 Normal mode: Loading $_selectedPeriod of history");
     }
 
+    debugPrint(
+        "📅 Date range: ${DateFormat('yyyy-MM-dd').format(startDate)} to ${DateFormat('yyyy-MM-dd').format(endDate)}");
+
     try {
-      debugPrint('Querying weight history for user: ${user.uid}');
+      debugPrint('🔍 Querying weight history for user: ${user.uid}');
       _weightHistorySubscription?.cancel();
       final snapshot = await FirebaseFirestore.instance
           .collection('weight_history')
@@ -108,7 +156,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
           .orderBy('date')
           .get();
 
-      debugPrint('Retrieved ${snapshot.docs.length} documents');
+      debugPrint('✅ Retrieved ${snapshot.docs.length} weight documents');
 
       List<FlSpot> spots = [];
       List<DateTime> dates = [];
@@ -117,17 +165,14 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final date = (data['date'] as Timestamp).toDate();
-        debugPrint('Date: $date');
         final weight = (data['weight'] as num).toDouble();
-        debugPrint('Weight: $weight (type: ${data['weight'].runtimeType})');
-
-        // Calculate days since start
         final daysSinceStart = date.difference(startDate).inDays.toDouble();
-        debugPrint('Days since start: $daysSinceStart');
+
         spots.add(FlSpot(daysSinceStart, weight));
         dates.add(date);
         weights.add(weight);
-        debugPrint('Added spot: (${daysSinceStart}, $weight)\n');
+        debugPrint(
+            '   📍 ${DateFormat('yyyy-MM-dd').format(date)}: $weight kg (day $daysSinceStart)');
       }
       debugPrint('Total spots created: ${spots.length}');
       debugPrint('First spot: ${spots.isNotEmpty ? spots.first : "N/A"}');
@@ -137,21 +182,110 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
       spots.sort((a, b) => a.x.compareTo(b.x));
       dates.sort((a, b) => a.compareTo(b));
       weights.sort((a, b) => a.compareTo(b));
+
+      debugPrint('📈 Total spots created: ${spots.length}');
+      if (spots.isNotEmpty) {
+        debugPrint('📈 First spot: (${spots.first.x}, ${spots.first.y})');
+        debugPrint('📈 Last spot: (${spots.last.x}, ${spots.last.y})');
+      }
+
       if (mounted) {
         setState(() {
           _weightHistory = spots;
+          _weightDates = dates;
           isLoading = false;
         });
+        debugPrint('✅ Weight history loaded successfully');
+
+        // Prepare forecast data if forecasting is enabled
+        if (widget.isForecasting) {
+          _prepareForecastData();
+        }
       }
     } catch (e) {
-      debugPrint("Error loading weight history: $e");
+      debugPrint("❌ Error loading weight history: $e");
       if (mounted) {
         setState(() {
           isLoading = false;
           _weightHistory = [];
+          _weightDates = [];
         });
       }
     }
+  }
+
+  void _prepareForecastData() {
+    if (!widget.isForecasting || widget.forecastData == null) {
+      setState(() {
+        _forecastSpots = [];
+        _forecastDates = [];
+      });
+      return;
+    }
+
+    final forecast = widget.forecastData!['projectedWeight'] as List<dynamic>;
+    if (forecast.isEmpty) {
+      setState(() {
+        _forecastSpots = [];
+        _forecastDates = [];
+      });
+      return;
+    }
+
+    List<FlSpot> spots = [];
+    List<DateTime> dates = [];
+
+    // Find the last actual data point to connect forecast to
+    double lastX = _weightHistory.isNotEmpty ? _weightHistory.last.x : 0;
+    double lastY =
+        _weightHistory.isNotEmpty ? _weightHistory.last.y : widget.goalWeight;
+    DateTime lastDate =
+        _weightDates.isNotEmpty ? _weightDates.last : DateTime.now();
+
+    // Start the forecast from the last historical point
+    spots.add(FlSpot(lastX, lastY));
+    dates.add(lastDate);
+
+    for (var dayData in forecast) {
+      final week = dayData['week'] as int;
+      final projectedWeight = dayData['weight']?.toDouble() ?? lastY;
+
+      // Calculate the x-value (days since start of history)
+      final xValue = lastX + (week * 7);
+
+      // Calculate the actual date for the forecast point
+      final forecastDate = lastDate.add(Duration(days: week * 7));
+
+      spots.add(FlSpot(xValue, projectedWeight));
+    }
+
+    setState(() {
+      _forecastSpots = spots;
+      _forecastDates = dates;
+    });
+  }
+
+  // Calculate BMI function
+  double _calculateBMI(double weight) {
+    if (widget.userHeight <= 0) return 0;
+
+    // Convert height to meters for BMI calculation
+    double heightMeters = isMetric
+        ? widget.userHeight / 100 // cm to meters
+        : widget.userHeight * 0.0254; // inches to meters
+
+    // Convert weight to kg if using imperial system
+    double weightKg = isMetric ? weight : weight * 0.453592; // lbs to kg
+
+    return weightKg / (heightMeters * heightMeters);
+  }
+
+  // Get BMI category
+  String _getBMICategory(double bmi) {
+    if (bmi < 18.5) return 'Underweight';
+    if (bmi < 25) return 'Normal';
+    if (bmi < 30) return 'Overweight';
+    return 'Obese';
   }
 
   @override
@@ -159,6 +293,22 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
     final minX = 0.0;
     final maxX = _getMaxX();
     final adjustedX = maxX + (maxX * 0.1);
+
+    debugPrint("📊 Building graph with:");
+    debugPrint("   - Weight history points: ${_weightHistory.length}");
+    debugPrint("   - Forecast spots: ${_forecastSpots.length}");
+    debugPrint("   - X range: $minX to $adjustedX");
+    debugPrint("   - Y range: ${_getMinY()} to ${_getMaxY()}");
+
+    if (_weightHistory.isEmpty) {
+      return Center(
+        child: Text(
+          'No weight history available. Start logging your weight to see progress!',
+          style: TextStyle(color: AppColors.primaryText),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -204,6 +354,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
                   ),
                 ),
                 lineBarsData: [
+                  // Actual Weight Data
                   LineChartBarData(
                     spots: _weightHistory,
                     isCurved: false,
@@ -219,6 +370,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
                       ),
                     ),
                   ),
+                  // Goal Line
                   LineChartBarData(
                     spots: [
                       FlSpot(0, widget.goalWeight),
@@ -231,21 +383,48 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
                     color: Colors.red,
                     dashArray: [5, 5],
                   ),
+
+                  // Forecast data (only show when enabled)
+                  if (widget.isForecasting && _forecastSpots.isNotEmpty)
+                    LineChartBarData(
+                      spots: _forecastSpots,
+                      isCurved: true,
+                      color: Colors.purple,
+                      dotData: FlDotData(show: true),
+                    ),
                 ],
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipItems: (List<LineBarSpot> touchedSpots) {
                       return touchedSpots.map((spot) {
-                        final date = DateFormat('MMM d, y').format(
-                          DateTime.now().subtract(Duration(
-                            days: (maxX - spot.x).toInt(),
-                          )),
-                        );
+                        final isForecast = widget.isForecasting &&
+                            _forecastSpots.contains(
+                                spot); // Check if the point is forecasted
+
+                        // Calculate the actual date for the data point
+                        final startDate = widget.isForecasting
+                            ? DateTime.now().subtract(const Duration(days: 60))
+                            : DateTime.now()
+                                .subtract(Duration(days: _getMaxX().toInt()));
+
+                        final date =
+                            startDate.add(Duration(days: spot.x.toInt()));
+                        // Calculate BMI
+                        final bmi = _calculateBMI(spot.y);
+                        final bmiCategory = _getBMICategory(bmi);
+
                         return LineTooltipItem(
-                          isMetric
-                              ? '${spot.y.toStringAsFixed(1)} kg\n$date'
-                              : '${spot.y.toStringAsFixed(1)} lbs\n$date',
-                          const TextStyle(color: Colors.white),
+                          '${spot.y.toStringAsFixed(1)} ${isMetric ? 'kg' : 'lbs'}\n'
+                          'BMI: ${bmi.toStringAsFixed(1)} ($bmiCategory)\n'
+                          '${DateFormat('MMM d, y').format(date)}'
+                          '${isForecast ? ' (forecasted)' : ''}',
+                          TextStyle(
+                            color: isForecast
+                                ? const Color.fromARGB(255, 210, 72, 235)
+                                : Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
                         );
                       }).toList();
                     },
@@ -266,6 +445,8 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
 
   Widget _buildPeriodButton(String period) {
     final isSelected = _selectedPeriod == period;
+    final isDisabled = widget.isForecasting && period != '6 months';
+
     return TextButton(
       onPressed: () {
         setState(() {
@@ -276,7 +457,11 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
       child: Text(
         period,
         style: TextStyle(
-          color: isSelected ? AppColors.primaryText : AppColors.secondaryText,
+          color: isDisabled
+              ? AppColors.secondaryText.withValues(alpha: 0.5)
+              : isSelected
+                  ? AppColors.primaryText
+                  : AppColors.secondaryText,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -284,6 +469,11 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
   }
 
   double _getMaxX() {
+    if (widget.isForecasting && _forecastSpots.isNotEmpty) {
+      // For forecasting, show past 2 months + next 4 months = 6 months total
+      return _forecastSpots.last.x;
+    }
+
     if (_weightHistory.isEmpty) {
       switch (_selectedPeriod) {
         case '1 month':
@@ -309,16 +499,29 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
           reservedSize: 30,
           interval: _getTitleInterval(maxX - minX),
           getTitlesWidget: (value, meta) {
-            final date = DateTime.now().subtract(Duration(
-              days: (maxX - value).toInt(),
-            ));
+            final startDate = widget.isForecasting
+                ? DateTime.now().subtract(const Duration(days: 60))
+                : DateTime.now().subtract(Duration(days: maxX.toInt()));
+
+            final date = startDate.add(Duration(days: value.toInt()));
+
+            // Use different date formats based on selected period
+            String dateText;
+            if (_selectedPeriod == '1 month' || _selectedPeriod == '3 months') {
+              // Show full date (M/d/yy) for 1 and 3 month views
+              dateText = DateFormat('M/d/yy').format(date);
+            } else {
+              // Show month and year for longer periods
+              dateText = DateFormat('MMM y').format(date);
+            }
+
             return Transform.rotate(
               angle: -0.4,
               alignment: Alignment.center,
               child: Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
-                  DateFormat('MMM y').format(date),
+                  dateText,
                   style: TextStyle(
                     color: AppColors.primaryText,
                     fontSize: 10,
@@ -359,7 +562,8 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
   }
 
   double _getTitleInterval(double range) {
-    if (range <= 30) return 7;
+    if (_selectedPeriod == '1 month') return 7;
+    if (_selectedPeriod == '3 months') return 14;
     if (range <= 90) return 15;
     if (range <= 180) return 30;
     if (range <= 365) return 60;

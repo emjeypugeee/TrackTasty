@@ -1,3 +1,4 @@
+import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -7,11 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 const List<Widget> units = <Widget>[
-  Text('US'),
+  Text('Imperial'),
   Text('Metric'),
 ];
 
@@ -43,42 +43,12 @@ class _Userpreference4 extends State<Userpreference4> {
   // Goal
   String? _goal = 'Maintain Weight';
 
-  //saving user height, weight and goalweight
-  //saving username and fullname
-  Future<void> saveUserGoal() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.email != null) {
-      final weight = double.tryParse(weightController.text);
-      final height = double.tryParse(heightController.text);
-      final goalWeight = double.tryParse(goalWeightController.text);
-      final today = DateTime.now();
-
-      // save current weight to history
-      await FirebaseFirestore.instance
-          .collection('weight_history')
-          .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
-          .set({
-        'userId': user.uid,
-        'weight': weight,
-        'date': Timestamp.now(),
-      }, SetOptions(merge: true));
-
-      // update user profile
-      await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
-        'height': height,
-        'weight': weight,
-        'goalWeight': goalWeight,
-        'measurementSystem': isMetric ? 'Metric' : 'US',
-      }, SetOptions(merge: true));
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    _fetchGoalData();
 
-    // listener to sync values with the current weight
+    _loadData();
+
     weightController.addListener(() {
       if (_goal == 'Maintain Weight') {
         goalWeightController.text = weightController.text;
@@ -94,6 +64,89 @@ class _Userpreference4 extends State<Userpreference4> {
     }
   }
 
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+
+    // Pre-fill body metrics if available
+    heightController.text = provider.userData.height?.toString() ?? '';
+    weightController.text = provider.userData.weight?.toString() ?? '';
+    goalWeightController.text = provider.userData.goalWeight?.toString() ?? '';
+    isMetric = provider.userData.measurementSystem == 'Metric';
+    _goal = provider.userData.goal?.toString() ?? 'Maintain Weight';
+
+    setState(() {}); // Update the UI after loading data
+  }
+
+  //saving user height, weight and goalweight
+  Future<void> saveUserGoal() async {
+    final height = double.tryParse(heightController.text);
+    final weight = double.tryParse(weightController.text);
+    final goalWeight = double.tryParse(goalWeightController.text);
+
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+
+    provider.updateBodyMetrics(
+      height: height,
+      weight: weight,
+      goalWeight: goalWeight,
+      isMetric: isMetric,
+    );
+  }
+
+  void _convertUnits() {
+    // Height conversion logic
+    if (heightController.text.isNotEmpty) {
+      if (!isMetric) {
+        // Convert from Imperial (in) to Metric (cm)
+        double totalInches = 0;
+        final value = heightController.text.trim().replaceAll('"', '');
+
+        // Check for the feet'inches format (e.g., 5'11, 5'11.5)
+        final feetInchesRegExp = RegExp(r"^(\d+)'(\d+(?:\.\d+)?)$");
+        final feetInchesMatch = feetInchesRegExp.firstMatch(value);
+
+        if (feetInchesMatch != null) {
+          final feet = double.tryParse(feetInchesMatch.group(1)!) ?? 0;
+          final inches = double.tryParse(feetInchesMatch.group(2)!) ?? 0;
+          totalInches = (feet * 12) + inches;
+        } else {
+          // Handle plain inches format (e.g., 71, 71.5)
+          totalInches = double.tryParse(value) ?? 0;
+        }
+
+        final cm = totalInches * 2.54;
+        heightController.text = cm.toStringAsFixed(1);
+      } else {
+        // Convert from Metric (cm) to Imperial (ft'in)
+        final cm = double.tryParse(heightController.text) ?? 0;
+        final totalInches = cm / 2.54;
+
+        final feet = (totalInches / 12).floor();
+        final inches = totalInches % 12;
+
+        heightController.text = "${feet}'${inches.toStringAsFixed(1)}";
+      }
+    }
+
+    // Weight conversion logic (unchanged)
+    if (weightController.text.isNotEmpty) {
+      if (!isMetric) {
+        // Convert from Pounds (lbs) to Kilograms (kg)
+        final lbs = double.tryParse(weightController.text) ?? 0;
+        final kg = lbs * 0.453592;
+        weightController.text = kg.toStringAsFixed(1);
+      } else {
+        // Convert from Kilograms (kg) to Pounds (lbs)
+        final kg = double.tryParse(weightController.text) ?? 0;
+        final lbs = kg * 2.20462;
+        weightController.text = lbs.toStringAsFixed(1);
+      }
+    }
+  }
+
   @override
   void dispose() {
     heightController.dispose();
@@ -103,32 +156,6 @@ class _Userpreference4 extends State<Userpreference4> {
     _weightFocusNode.dispose();
     _goalWeightFocusNode.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchGoalData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection("Users")
-          .doc(user.email)
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Retrieve user data
-        _goal = data['goal'] ?? 'Maintain Weight';
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching user data: $e')),
-        );
-      }
-      debugPrint('Error fetching user data: $e');
-    }
   }
 
   @override
@@ -179,7 +206,7 @@ class _Userpreference4 extends State<Userpreference4> {
                       ),
 
                       Text(
-                        'Next, what is your height, weight, and your weight goal in using this application?',
+                        'Next, what is your height, weight, and your weight goal in using this application? Your height and weight will be used to calculate your personalized daily macro intake. Your goal weight will be used to help you visualize your progress.',
                         style: TextStyle(
                           color: Colors.white,
                         ),
@@ -208,6 +235,8 @@ class _Userpreference4 extends State<Userpreference4> {
                                 }
                                 _isMetric = _selectedUnits[1];
                                 isMetric = _selectedUnits[1];
+
+                                _convertUnits();
                               });
 
                               // 2. Force keyboard refresh if field was focused
@@ -274,12 +303,12 @@ class _Userpreference4 extends State<Userpreference4> {
                               child: MyTextfield(
                                 hintText: isMetric
                                     ? 'Height (50-300 cm)'
-                                    : 'Height (20-120 in)',
+                                    : 'Height (e.g., 5\'11" or 20-120 in)',
                                 obscureText: false,
                                 controller: heightController,
                                 suffixText: isMetric ? 'cm' : 'in',
-                                keyboardType: _isMetric
-                                    ? TextInputType.numberWithOptions(
+                                keyboardType: isMetric
+                                    ? const TextInputType.numberWithOptions(
                                         decimal: true)
                                     : TextInputType.text,
                                 focusNode: _heightFocusNode,
@@ -290,6 +319,7 @@ class _Userpreference4 extends State<Userpreference4> {
                                 inputFormatters: [
                                   FilteringTextInputFormatter.allow(
                                       RegExp(r"[0-9\']")),
+                                  LengthLimitingTextInputFormatter(6),
                                 ],
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -297,17 +327,14 @@ class _Userpreference4 extends State<Userpreference4> {
                                   }
 
                                   if (isMetric) {
-                                    // Metric validation (unchanged)
                                     final height = double.tryParse(value) ?? 0;
                                     if (height < 50 || height > 300) {
                                       return 'Height should be between 50-300 cm';
                                     }
                                   } else {
-                                    // feet'inches support
                                     double totalInches;
 
                                     if (value.contains("'")) {
-                                      // Handle feet'inches format (e.g. 5'3, 5'11.5)
                                       final parts = value.split("'");
                                       if (parts.length != 2 ||
                                           parts[1].isEmpty) {
@@ -325,19 +352,9 @@ class _Userpreference4 extends State<Userpreference4> {
                                       if (inches < 0 || inches >= 12) {
                                         return 'Inches should be between 0-11.99';
                                       }
-
                                       totalInches = feet * 12 + inches;
                                     } else {
-                                      // Handle plain inches
                                       totalInches = double.tryParse(value) ?? 0;
-                                    }
-
-                                    // Update the controller with the computed inches (if feet'inches format was used)
-                                    if (value.contains("'")) {
-                                      final formattedValue =
-                                          totalInches.toStringAsFixed(
-                                              totalInches % 1 == 0 ? 0 : 1);
-                                      heightController.text = formattedValue;
                                     }
 
                                     if (totalInches < 20 || totalInches > 120) {
@@ -385,6 +402,7 @@ class _Userpreference4 extends State<Userpreference4> {
                               },
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
                               ],
                               keyboardType: TextInputType.numberWithOptions(
                                   decimal: true),
@@ -442,13 +460,15 @@ class _Userpreference4 extends State<Userpreference4> {
                             },
                             inputFormatters: [
                               FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(6),
                             ],
                             keyboardType:
                                 TextInputType.numberWithOptions(decimal: true),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please your desired weight';
+                                return 'Please enter your desired weight';
                               }
+
                               // Validate the weight input based on the measurement system
                               final weight = double.tryParse(value) ?? 0;
                               if (isMetric && (weight < 20 || weight > 300)) {
@@ -457,22 +477,24 @@ class _Userpreference4 extends State<Userpreference4> {
                                   (weight < 40 || weight > 660)) {
                                 return 'Weight should be around 40-660 lbs';
                               }
+
                               // Validate the weight input based on the goal
-                              if (goalWeightController.text.isNotEmpty &&
-                                  weightController.text.isNotEmpty) {
-                                final goalWeight =
-                                    double.parse(goalWeightController.text);
+                              if (weightController.text.isNotEmpty) {
+                                final goalWeight = double.tryParse(value) ?? 0;
                                 final currentWeight =
-                                    double.parse(weightController.text);
+                                    double.tryParse(weightController.text) ?? 0;
+
                                 if (_goal == 'Maintain Weight' &&
                                     goalWeight != currentWeight) {
-                                  return 'Goal weight should be equal to the current weight';
-                                } else if (_goal == 'Lose Weight' &&
+                                  return 'Goal weight should be equal to the current weight for maintenance';
+                                } else if ((_goal == 'Lose Weight' ||
+                                        _goal == 'Mild Lose Weight') &&
                                     goalWeight >= currentWeight) {
-                                  return 'Goal weight should be less than current weight';
-                                } else if (_goal == 'Gain Weight' &&
+                                  return 'Goal weight should be less than current weight for weight loss';
+                                } else if ((_goal == 'Gain Weight' ||
+                                        _goal == 'Mild Gain Weight') &&
                                     goalWeight <= currentWeight) {
-                                  return 'Goal weight should be more than current weight';
+                                  return 'Goal weight should be more than current weight for weight gain';
                                 }
                               }
                               return null;
@@ -526,8 +548,8 @@ class _Userpreference4 extends State<Userpreference4> {
                       child: MyButtons(
                         text: 'Next',
                         onTap: () async {
-                          await saveUserGoal();
                           if (_formKey.currentState!.validate()) {
+                            await saveUserGoal();
                             context.push('/preference5');
                           }
                         },

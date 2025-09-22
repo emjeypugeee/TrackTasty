@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 
 class MealsContainer extends StatefulWidget {
   final String mealName;
-  final int calories;
-  final int protein;
-  final int carbs;
-  final int fat;
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
+  final String servingSize;
+  final String adjustmentType;
+  final double adjustmentValue;
   final DateTime loggedTime;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -18,6 +21,9 @@ class MealsContainer extends StatefulWidget {
     required this.protein,
     required this.carbs,
     required this.fat,
+    required this.servingSize,
+    required this.adjustmentType,
+    required this.adjustmentValue,
     required this.loggedTime,
     required this.onEdit,
     required this.onDelete,
@@ -36,17 +42,27 @@ class _MealsContainerState extends State<MealsContainer> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Move all context-dependent operations here
     _formattedTime = TimeOfDay.fromDateTime(widget.loggedTime).format(context);
     final screenWidth = MediaQuery.of(context).size.width;
     _isSmall = screenWidth < 350;
     _isMedium = screenWidth < 500;
 
-    // Check if the logged time is from today
     final now = DateTime.now();
     _isToday = widget.loggedTime.year == now.year &&
         widget.loggedTime.month == now.month &&
         widget.loggedTime.day == now.day;
+  }
+
+  String _getServingInfoText() {
+    String info = widget.servingSize;
+    if (widget.adjustmentType == 'percent' && widget.adjustmentValue != 100) {
+      info += ' (${widget.adjustmentValue.round()}%)';
+    } else if (widget.adjustmentType == 'pieces' &&
+        widget.adjustmentValue != 1) {
+      info +=
+          ' (${widget.adjustmentValue.toStringAsFixed(1)} ${widget.adjustmentValue == 1 ? 'piece' : 'pieces'})';
+    }
+    return info;
   }
 
   @override
@@ -74,26 +90,59 @@ class _MealsContainerState extends State<MealsContainer> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Meal name with proper vertical alignment
-              Container(
-                height: 24, // Fixed height for proper alignment
-                width: 200,
-                alignment: Alignment.centerLeft,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    widget.mealName,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: _isSmall
-                          ? 16
-                          : _isMedium
-                              ? 18
-                              : 20,
+              // Meal name and serving info in same row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment:
+                    CrossAxisAlignment.center, // Align items to the center
+                children: [
+                  // Meal name and serving size with flexible width
+                  Flexible(
+                    flex: 8, // Allocate 70% of the row's width
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          Text(
+                            widget.mealName,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: _isSmall
+                                  ? 16
+                                  : _isMedium
+                                      ? 18
+                                      : 20,
+                            ),
+                          ),
+                          // Serving info beside the food name (inside scroll)
+                          if (widget.servingSize.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                _getServingInfoText(),
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: _isSmall ? 8 : 10,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  // Popup menu with fixed alignment
+                  if (_isToday)
+                    IconButton(
+                      icon: Icon(Icons.more_vert,
+                          size: 20, color: Colors.grey[400]),
+                      onPressed: () => _showMenu(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      alignment: Alignment
+                          .center, // Align the icon to the center of the row
+                    ),
+                ],
               ),
               const SizedBox(height: 12),
 
@@ -129,19 +178,6 @@ class _MealsContainerState extends State<MealsContainer> {
               ),
             ],
           ),
-
-          // Popup menu positioned at top right (considering padding)
-          if (_isToday)
-            Positioned(
-              top: 0, // Align with top padding
-              right: 0, // Align with right padding
-              child: IconButton(
-                icon: Icon(Icons.more_vert, size: 20, color: Colors.grey[400]),
-                onPressed: () => _showMenu(context),
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints(),
-              ),
-            ),
         ],
       ),
     );
@@ -160,7 +196,7 @@ class _MealsContainerState extends State<MealsContainer> {
         offset.dy + renderBox.size.height,
       ),
       items: [
-        PopupMenuItem<String>(
+        /*PopupMenuItem<String>(
           value: 'edit',
           child: Row(
             children: [
@@ -169,7 +205,7 @@ class _MealsContainerState extends State<MealsContainer> {
               const Text('Edit'),
             ],
           ),
-        ),
+        ),*/
         PopupMenuItem<String>(
           value: 'delete',
           child: Row(
@@ -190,10 +226,10 @@ class _MealsContainerState extends State<MealsContainer> {
 
 class _MacrosRow extends StatelessWidget {
   final bool isSmall;
-  final int? calories;
-  final int? protein;
-  final int? carbs;
-  final int? fat;
+  final double? calories;
+  final double? protein;
+  final double? carbs;
+  final double? fat;
 
   const _MacrosRow({
     required this.isSmall,
@@ -244,7 +280,7 @@ class _MacrosRow extends StatelessWidget {
 
 class _MacroChip extends StatelessWidget {
   final String label;
-  final int value;
+  final double value;
   final Color color;
   final double fontSize;
 
@@ -265,7 +301,7 @@ class _MacroChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '$label: $value\g',
+        '$label: ${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2)}g',
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,

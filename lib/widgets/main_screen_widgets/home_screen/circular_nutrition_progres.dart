@@ -111,7 +111,7 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
         value = data['proteinGram'] ?? 100.0;
         break;
       case 'Fat':
-        value = data['fatGram'] ?? 70.0;
+        value = data['fatsGram'] ?? 70.0;
         break;
       default:
         value = 0.0;

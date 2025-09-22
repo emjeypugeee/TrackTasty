@@ -71,7 +71,6 @@ class UserProvider extends ChangeNotifier {
   // Initialize user data
   Future<void> fetchUserData() async {
     _isLoading = true;
-    notifyListeners();
 
     try {
       _user = _auth.currentUser;
@@ -84,7 +83,7 @@ class UserProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print("Error fetching user data: $e");
+      debugPrint("Error fetching user data: $e");
     } finally {
       _isLoading = false;
       notifyListeners(); // Update UI
@@ -163,7 +162,7 @@ class UserProvider extends ChangeNotifier {
   Future<void> forgetPassword(String email) async {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       // Re-throw to handle in UI
       rethrow;
     } catch (e) {

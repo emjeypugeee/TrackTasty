@@ -1,3 +1,4 @@
+import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/selectable_Activity_Button.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -5,8 +6,7 @@ import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 class Userpreference2 extends StatefulWidget {
   const Userpreference2({super.key});
@@ -18,59 +18,59 @@ class Userpreference2 extends StatefulWidget {
 class _Userpreference2 extends State<Userpreference2> {
   int selectedIndex = -1; // Track selected button (-1 means no selection)
 
-  //fetch process
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  Future<void> fetchUserActivityLevel() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null && user.email != null) {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection("Users")
-          .doc(user.email)
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        setState(() {
-          selectedIndex =
-              (doc.data() as Map<String, dynamic>)["selectedActivityLevel"] ??
-                  -1;
-        });
-      }
-    }
-  }
-
   //selectable acitvity button values
   final List<Map<String, String>> activityLevels = [
-    {'title': 'Sedentary', 'subtitle': '(little or no exercise)'},
-    {'title': 'Lightly active', 'subtitle': '(exercise 1-3 days/week)'},
+    {
+      'title': 'Not active',
+      'subtitle':
+          '(You spend most of your time sitting and don\'t do any regular exercise)'
+    },
+    {
+      'title': 'Lightly active',
+      'subtitle': 'Light exercise or sports 1 to 3 days a week.)'
+    },
     {
       'title': 'Moderately active',
-      'subtitle': '(moderate exercise 4-5 days/week)'
+      'subtitle':
+          'You exercise or play sports consistently 4 to 5 times per week.'
     },
-    {'title': 'Very active', 'subtitle': '(intense exercise 6-7 days/week)'},
+    {
+      'title': 'Very active',
+      'subtitle': 'Intense exercise or sports 6 to 7 days a week.'
+    },
     {
       'title': 'Extra active',
-      'subtitle': '(very intense exercise, or physical job)'
+      'subtitle':
+          'Very intense, daily exercise or a highly demanding physical job.'
     },
   ];
 
   //saving activity levels thru firebase
   Future<void> saveUserActivityLevel() async {
-    try {
-      final email = FirebaseAuth.instance.currentUser?.email;
-      if (email == null || selectedIndex == -1) return;
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    provider.updateActivityLevel(activityLevels[selectedIndex]['title']!);
+  }
 
-      await FirebaseFirestore.instance.collection("Users").doc(email).set(
-        {"selectedActivityLevel": activityLevels[selectedIndex]['title']},
-        SetOptions(merge: true),
-      );
-    } catch (e) {
-      debugPrint('Error saving activity level: $e');
-      // Optionally show error to user
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+
+    // Pre-fill activity level if available
+    final activityLevel = provider.userData.activityLevel;
+    if (activityLevel != null) {
+      selectedIndex =
+          activityLevels.indexWhere((level) => level['title'] == activityLevel);
     }
+
+    setState(() {}); // Update the UI after loading data
   }
 
   @override
@@ -110,7 +110,7 @@ class _Userpreference2 extends State<Userpreference2> {
                     ),
                     SizedBox(height: 20),
                     Text(
-                      'Next, how would you describe your activity level usually?',
+                      'Next, how would you describe your activity level usually? Your activity level is essential for us to calculate your Daily Macro Intake, which will help us tailor a personalized nutrition plan just for you.',
                       style: TextStyle(color: Colors.white),
                     ),
                     SizedBox(height: 30),
@@ -144,7 +144,17 @@ class _Userpreference2 extends State<Userpreference2> {
                 children: [
                   CustomTextButton(
                     title: 'Back',
-                    onTap: () {
+                    onTap: () async {
+                      final provider = Provider.of<RegistrationDataProvider>(
+                          context,
+                          listen: false);
+
+                      // Save data before navigating back
+                      if (selectedIndex != -1) {
+                        provider.updateActivityLevel(
+                            activityLevels[selectedIndex]['title']!);
+                      }
+
                       context.push('/preference1');
                     },
                     size: 16,

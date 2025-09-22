@@ -1,116 +1,205 @@
-import 'package:fitness/provider/user_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/widgets/main_screen_widgets/analytics_screen/bar_graph_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/analytics_screen/line_graph_container.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Import your UserProvider
+import 'package:fitness/services/weight_forecaster.dart'; // Add this import
 
 class AnalyticsPage extends StatefulWidget {
-  AnalyticsPage({super.key});
+  const AnalyticsPage({super.key});
 
   @override
   State<AnalyticsPage> createState() => _AnalyticsPageState();
 }
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
-  @override
-  void initState() {
-    super.initState();
-    // Refresh user data when the page loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      if (userProvider.userData == null) {
-        userProvider.fetchUserData();
+  // Current logged-in user
+  final User? currentUser = FirebaseAuth.instance.currentUser;
+  bool isForecastingEnabled = false;
+  Map<String, dynamic>? forecastData;
+  bool isLoadingForecast = false;
+  bool isProvisionalData = false;
+
+  // Future to fetch user details
+  Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
+    return await FirebaseFirestore.instance
+        .collection("Users")
+        .doc(currentUser!.email)
+        .get();
+  }
+
+  // Toggle forecasting
+  void toggleForecasting() async {
+    final userData = (await getUserDetails()).data();
+    if (userData == null) {
+      return;
+    }
+
+    setState(() {
+      isForecastingEnabled = !isForecastingEnabled;
+      if (isForecastingEnabled) {
+        isLoadingForecast = true;
+      } else {
+        forecastData = null;
+        isProvisionalData = false;
       }
     });
+
+    if (isForecastingEnabled) {
+      final forecaster = WeightForecaster(currentUser!.uid);
+      final forecast = await forecaster.forecastWeight(
+        currentWeight: userData['weight']?.toDouble() ?? 0,
+        height: userData['height']?.toDouble() ?? 0,
+        age: userData['age'] ?? 0,
+        gender: userData['gender'] ?? 'male',
+        activityLevel: userData['selectedActivityLevel'] ??
+            userData['activityLevel'] ??
+            'Sedentary',
+        dailyCalorieGoal: userData['dailyCalories']?.toDouble() ?? 2000,
+      );
+
+      setState(() {
+        forecastData = forecast;
+        isProvisionalData = forecast['isProvisionalData'] ?? false;
+        isLoadingForecast = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Access the UserProvider
-    final userProvider = Provider.of<UserProvider>(context);
-
-    // Show loading if user data is not yet loaded
-    if (userProvider.isLoading) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    // Show error or empty state if no user data
-    if (userProvider.userData == null || userProvider.user == null) {
-      return Scaffold(
-        body: Center(
-          child: Text(
-            "User data not available",
-            style: TextStyle(color: AppColors.primaryText),
-          ),
-        ),
-      );
-    }
-
-    // Extract data from provider using the getters you defined
-    double userGoalWeight = _parseDouble(userProvider.userData?['goalWeight']);
-    String userGoal = userProvider.goal ?? 'Maintain Weight';
-    double dailyCalories = _parseDouble(userProvider.userData?['dailyCalories']);
-
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Padding(
-        padding: EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nutrition Analysis',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                'Calorie Intake',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 10),
-              BarGraphContainer(
-                calorieGoal: dailyCalories,
-              ),
-              SizedBox(height: 30),
-              Text(
-                'Weight Progress',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 10),
-              LineGraphContainer(
-                goalWeight: userGoalWeight,
-                goal: userGoal,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+      body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: getUserDetails(),
+          builder: (context, snapshot) {
+            // Waiting...
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
 
-  // Helper method to parse double values safely
-  double _parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
+            // If there's an error
+            if (snapshot.hasError) {
+              return Center(
+                  child: Text("Error loading profile",
+                      style: TextStyle(color: AppColors.primaryText)));
+            }
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              var userData = snapshot.data!.data();
+              double userGoalWeight =
+                  double.tryParse(userData?['goalWeight']?.toString() ?? '0') ??
+                      0.0;
+              String userGoal = userData?['goal'] ?? "null";
+              double userHeight = userData?['height']?.toDouble() ?? 0.0;
+
+              return Scaffold(
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                body: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Analytics',
+                              style: TextStyle(
+                                color: AppColors.primaryText,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            // Forecast toggle button
+                            ElevatedButton.icon(
+                              onPressed: () => toggleForecasting(),
+                              icon: isForecastingEnabled
+                                  ? Icon(Icons.close)
+                                  : Icon(Icons.lightbulb_outline),
+                              label: Text(
+                                isForecastingEnabled
+                                    ? 'Hide Forecast'
+                                    : 'Show Forecast',
+                                style: TextStyle(
+                                  color: isForecastingEnabled
+                                      ? AppColors.primaryText
+                                      : Colors.blue,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isForecastingEnabled
+                                    ? Colors.red[800]
+                                    : Colors.grey[800],
+                                foregroundColor: AppColors.primaryText,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isForecastingEnabled && isProvisionalData)
+                          Container(
+                            margin: EdgeInsets.only(top: 10),
+                            padding: EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.orange[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'This is provisional data assuming you hit your daily calorie goals consistently. Log more data for personalized forecasts.',
+                              style: TextStyle(
+                                color: Colors.orange[800],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        SizedBox(height: 20),
+                        Text(
+                          'Calorie Intake',
+                          style: TextStyle(
+                            color: AppColors.primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        BarGraphContainer(
+                          calorieGoal:
+                              userData?['dailyCalories']?.toDouble() ?? 2000,
+                          isForecasting: isForecastingEnabled,
+                          forecastData: forecastData,
+                        ),
+                        SizedBox(height: 30),
+                        Text(
+                          'Weight Progress',
+                          style: TextStyle(
+                            color: AppColors.primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        LineGraphContainer(
+                          goalWeight: userGoalWeight,
+                          goal: userGoal,
+                          isForecasting: isForecastingEnabled,
+                          userHeight: userHeight,
+                          forecastData: forecastData,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            //return if no user found
+            return Center(child: Text("User not found"));
+          }),
+    );
   }
 }

@@ -49,38 +49,46 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // log in method
+  // log in method
   void login() async {
-    //shows loading cricle
+    // Validate form first
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Show loading circle
     showDialog(
-        context: context,
-        builder: (context) => const Center(
-              child: CircularProgressIndicator(),
-            ));
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
 
     // try sign in
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim());
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
-      //pop loading circle
+      // Pop loading circle
       if (context.mounted) {
-        if (_formKey.currentState!.validate()) {
-          Navigator.pop(context);
-          sleep(Durations.medium4);
-          context.push('/home');
-        }
+        Navigator.pop(context);
+        context.push('/home');
       }
-
-      //display error
     } on FirebaseAuthException catch (e) {
-      // pop loading screen
-      Navigator.pop(context);
-
-      displayMessageToUser(e.code, context);
+      // Pop loading screen
+      if (context.mounted) {
+        Navigator.pop(context);
+        displayMessageToUser(e.code, context);
+      }
     } catch (e) {
-      Navigator.pop(context); // Close loading circle
-      displayMessageToUser("An unexpected Error: $e", context);
+      // Close loading circle
+      if (context.mounted) {
+        Navigator.pop(context);
+        displayMessageToUser("An unexpected Error: $e", context);
+      }
     }
   }
 

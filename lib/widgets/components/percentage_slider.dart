@@ -49,21 +49,21 @@ class PercentageSlider extends StatelessWidget {
             Expanded(
               child: SfSliderTheme(
                 data: SfSliderThemeData(
-                  inactiveTrackColor: Colors.grey.withOpacity(0.3),
+                  inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
                   activeTrackColor: isLocked ? Colors.grey : activeColor,
                   thumbColor: isLocked ? Colors.grey : activeColor,
                   overlayColor: isLocked
                       ? Colors.transparent
                       : activeColor.withOpacity(0.1),
                   activeDividerColor: isLocked ? Colors.grey : activeColor,
-                  inactiveDividerColor: Colors.grey.withOpacity(0.3),
+                  inactiveDividerColor: Colors.grey.withValues(alpha: 0.3),
                   activeTickColor: isLocked ? Colors.grey : activeColor,
-                  inactiveTickColor: Colors.grey.withOpacity(0.3),
+                  inactiveTickColor: Colors.grey.withValues(alpha: 0.3),
                   activeLabelStyle: TextStyle(
                     color: isLocked ? Colors.grey : labelColor,
                   ),
                   inactiveLabelStyle: TextStyle(
-                    color: Colors.grey.withOpacity(0.5),
+                    color: Colors.grey.withValues(alpha: 0.5),
                   ),
                 ),
                 child: SfSlider(

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -32,11 +34,20 @@ class _CustomDrawerState extends State<CustomDrawer> {
     _loadCurrentMeasurement();
   }
 
+  void refreshHomePage() {
+    if (homePageKey.currentState != null) {
+      homePageKey.currentState!.setState(() {});
+    }
+  }
+
   Future<void> _loadCurrentMeasurement() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final doc = await FirebaseFirestore.instance.collection('Users').doc(user.email).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.email)
+        .get();
 
     if (doc.exists) {
       setState(() {
@@ -51,7 +62,36 @@ class _CustomDrawerState extends State<CustomDrawer> {
   // Editting username
   void _showEditUsernameDialog(BuildContext context) {
     TextEditingController usernameController = TextEditingController();
-    final userProvider = context.read<UserProvider>();
+
+    Future<bool> saveNickname() async {
+      try {
+        User? user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No user logged in!')),
+          );
+          return false;
+        }
+
+        await FirebaseFirestore.instance
+            .collection("Users")
+            .doc(user.email)
+            .set(
+          {
+            'username': usernameController.text,
+          },
+          SetOptions(merge: true),
+        );
+
+        return true;
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+        return false;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -82,30 +122,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: MyButtons(
                   text: 'Save',
                   onTap: () async {
-                    final username = usernameController.text.trim();
-                    // Basic validations
-                    if (username.isEmpty) {
+                    bool success = await saveNickname();
+                    if (success && context.mounted) {
+                      Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a username')),
+                        const SnackBar(
+                            content: Text('Nickname updated successfully!')),
                       );
-                      return;
-                    }
-                    try {
-                      final success = await userProvider.updateUsername(username);
-                      if (success) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Nickname updated successfully!')),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Failed to update nickname')),
-                        );
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: ${e.toString()}')),
-                      );
+                      refreshHomePage();
                     }
                   },
                 ),
@@ -122,15 +146,35 @@ class _CustomDrawerState extends State<CustomDrawer> {
   //
   void _showEditWeightDialog(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
+
     final formKey = GlobalKey<FormState>();
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     TextEditingController editWeightController = TextEditingController();
     FocusNode editWeightNode = FocusNode();
 
-    // Initialize with current weight if available
-    if (userProvider.weight != null) {
-      editWeightController.text = userProvider.weight!.toStringAsFixed(1);
+    final today = DateTime.now();
+
+    Future<bool> saveUserPreferences(double weight) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.email != null) {
+        await FirebaseFirestore.instance
+            .collection("Users")
+            .doc(user.email)
+            .set({
+          'weight': weight,
+        }, SetOptions(merge: true));
+
+        await FirebaseFirestore.instance
+            .collection('weight_history')
+            .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
+            .set({
+          'userId': user.uid,
+          'weight': weight,
+          'date': Timestamp.now(),
+        }, SetOptions(merge: true));
+        return true;
+      }
+      return false;
     }
 
     showDialog(
@@ -142,7 +186,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
             title: Text(
               'Update Weight',
               style: TextStyle(
-                  color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 27),
+                  color: AppColors.primaryText,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 27),
             ),
             content: Form(
               key: formKey,
@@ -157,18 +203,19 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         children: [
                           Text(
                             'Weight:',
-                            style: TextStyle(color: AppColors.primaryText, fontSize: 20),
+                            style: TextStyle(
+                                color: AppColors.primaryText, fontSize: 20),
                             textAlign: TextAlign.left,
                           ),
                         ],
                       ),
                       MyTextfield(
-                        hintText: userProvider.measurementSystem == 'Metric'
+                        hintText: isMetric
                             ? 'Weight (20-300 kg)'
                             : 'Weight (40-660 lbs)',
                         obscureText: false,
                         focusNode: editWeightNode,
-                        suffixText: userProvider.measurementSystem == 'Metric' ? 'kg' : 'lb',
+                        suffixText: isMetric ? 'kg' : 'lb',
                         textInputAction: TextInputAction.next,
                         onFieldSubmitted: (_) {
                           editWeightNode.unfocus();
@@ -176,7 +223,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
-                        keyboardType: TextInputType.numberWithOptions(decimal: true),
+                        keyboardType:
+                            TextInputType.numberWithOptions(decimal: true),
                         controller: editWeightController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -184,50 +232,39 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           }
                           final weight = double.tryParse(value) ?? 0;
 
-                          final isMetric = userProvider.measurementSystem == 'Metric';
                           if (isMetric && (weight < 20 || weight > 300)) {
                             return 'Weight should be around 20-300 kg';
-                          } else if (!isMetric && (weight < 40 || weight > 660)) {
+                          } else if (!isMetric &&
+                              (weight < 40 || weight > 660)) {
                             return 'Weight should be around 40-660 lbs';
                           }
                           return null;
                         },
                       ),
-                      SizedBox(height: 30),
+                      SizedBox(
+                        height: 30,
+                      ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Expanded(
-                            child: CustomTextButton(
-                              size: 20,
-                              title: 'Cancel',
-                              onTap: () => Navigator.pop(context),
-                            ),
-                          ),
-                          SizedBox(width: 10),
                           Expanded(
                             child: MyButtons(
                               text: 'Save',
                               onTap: () async {
+                                // validate the form
                                 if (formKey.currentState!.validate()) {
-                                  final newWeight =
-                                      double.tryParse(editWeightController.text) ?? 0.0;
-                                  bool success = await userProvider.updateWeight(newWeight);
-
-                                  if (context.mounted) {
-                                    if (success) {
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content: Text('Weight updated successfully!')),
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content:
-                                                Text('Failed to update weight. Please try again.')),
-                                      );
-                                    }
+                                  bool success = await saveUserPreferences(
+                                      double.tryParse(
+                                              editWeightController.text) ??
+                                          0.0);
+                                  if (success && context.mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Goals updated successfully!')),
+                                    );
+                                    refreshHomePage();
                                   }
                                 }
                               },
@@ -244,298 +281,353 @@ class _CustomDrawerState extends State<CustomDrawer> {
         },
       ),
     );
+
+    // end of alertdialog
   }
 
   //
   // CHANGE GOAL WEIGHT DIALOG
   //
   void _showEditGoalSheet(BuildContext context) {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Controllers and variables for form fields
-    TextEditingController weightController = TextEditingController();
-    TextEditingController heightController = TextEditingController();
-    TextEditingController ageController = TextEditingController();
-    String? selectedGender;
-    String? selectedActivityLevel;
-    String? selectedGoal;
+    // Fetch user data
+    FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.email)
+        .get()
+        .then((doc) {
+      if (doc.exists) {
+        final userData = doc.data() as Map<String, dynamic>;
 
-    // Initialize with current values from provider
-    ageController.text = userProvider.age?.toString() ?? '';
-    weightController.text = userProvider.weight?.toString() ?? '';
-    heightController.text = userProvider.height?.toString() ?? '';
-    selectedGender = userProvider.gender ?? 'male';
-    selectedActivityLevel = userProvider.selectedActivityLevel ?? 'Sedentary';
-    selectedGoal = userProvider.goal ?? 'Maintain Weight';
+        // Controllers and variables for form fields
+        TextEditingController weightController = TextEditingController();
+        TextEditingController heightController = TextEditingController();
+        TextEditingController goalWeightController = TextEditingController();
+        TextEditingController ageController = TextEditingController();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.containerBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return Container(
-            padding: const EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Container(
-                  width: 40,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+        String? selectedGender;
+        String? selectedActivityLevel;
+        String? selectedGoal;
+
+        // Initialize with current values
+        weightController.text = userData['weight']?.toString() ?? '';
+        heightController.text = userData['height']?.toString() ?? '';
+        goalWeightController.text = userData['goalWeight'].toString() ?? '';
+        ageController.text = userData['age']?.toString() ?? '';
+        selectedGender = userData['gender'] ?? 'male';
+        selectedActivityLevel =
+            userData['selectedActivityLevel'] ?? 'Sedentary';
+        selectedGoal = userData['goal'] ?? 'Maintain Weight';
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: AppColors.containerBg,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (context) => StatefulBuilder(
+            builder: (context, setState) {
+              return Container(
+                padding: const EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
                 ),
-                const SizedBox(height: 16),
-
-                // Title
-                Center(
-                  child: Text(
-                    'Update Your Information',
-                    style: TextStyle(
-                        color: AppColors.primaryText, fontWeight: FontWeight.bold, fontSize: 24),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Scrollable form content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag handle
+                    Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 16),
+
+                    // Title
+                    Center(
+                      child: Text(
+                        'Update Your Information',
+                        style: TextStyle(
+                            color: AppColors.primaryText,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Scrollable form content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Age Field
+                            Text(
+                              'Age',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: ageController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your age',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Weight Field
+                            Text(
+                              'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: weightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your weight',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+// Goal Weight Field
+                            Text(
+                              'Goal Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: goalWeightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your goal weight',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Height Field
+                            Text(
+                              'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            TextFormField(
+                              controller: heightController,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your height',
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Gender Dropdown
+                            Text(
+                              'Gender',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: selectedGender,
+                              dropdownColor:
+                                  const Color.fromARGB(255, 15, 15, 15),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                              items: ['male', 'female']
+                                  .map((gender) => DropdownMenuItem(
+                                        value: gender,
+                                        child: Text(gender == 'male'
+                                            ? 'Male'
+                                            : 'Female'),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedGender = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Activity Level Dropdown
+                            Text(
+                              'Activity Level',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: selectedActivityLevel,
+                              dropdownColor:
+                                  const Color.fromARGB(255, 15, 15, 15),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                              items: [
+                                'Sedentary',
+                                'Lightly active',
+                                'Moderately active',
+                                'Very active',
+                                'Extra active'
+                              ]
+                                  .map((level) => DropdownMenuItem(
+                                        value: level,
+                                        child: Text(level),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedActivityLevel = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 15),
+
+                            // Goal Dropdown
+                            Text(
+                              'Goal',
+                              style: TextStyle(
+                                  color: AppColors.primaryText, fontSize: 16),
+                            ),
+                            DropdownButtonFormField<String>(
+                              value: selectedGoal,
+                              dropdownColor:
+                                  const Color.fromARGB(255, 15, 15, 15),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textFieldBg,
+                              ),
+                              style: TextStyle(color: AppColors.primaryText),
+                              items: [
+                                'Mild Lose Weight',
+                                'Lose Weight',
+                                'Maintain Weight',
+                                'Mild Gain Weight',
+                                'Gain Weight'
+                              ]
+                                  .map((goal) => DropdownMenuItem(
+                                        value: goal,
+                                        child: Text(goal),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedGoal = value;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 30),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Buttons at the bottom
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Age Field
-                        Text(
-                          'Age',
-                          style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-                        ),
-                        TextFormField(
-                          controller: ageController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: 'Enter your age',
-                            filled: true,
-                            fillColor: AppColors.textFieldBg,
+                        Expanded(
+                          child: CustomTextButton(
+                            title: 'Cancel',
+                            onTap: () => Navigator.pop(context),
+                            size: 18,
                           ),
-                          style: TextStyle(color: AppColors.primaryText),
                         ),
-                        const SizedBox(height: 15),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: MyButtons(
+                            text: 'Recalculate',
+                            onTap: () {
+                              Navigator.pop(context); // Close the bottom sheet
 
-                        // Weight Field
-                        Text(
-                          'Weight (${userProvider.measurementSystem == 'Metric' ? 'kg' : 'lbs'})',
-                          style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-                        ),
-                        TextFormField(
-                          controller: weightController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: 'Enter your weight',
-                            filled: true,
-                            fillColor: AppColors.textFieldBg,
-                          ),
-                          style: TextStyle(color: AppColors.primaryText),
-                        ),
-                        const SizedBox(height: 15),
+                              // Debug prints
+                              debugPrint(
+                                  "Age from controller: ${ageController.text}");
+                              debugPrint(
+                                  "Weight from controller: ${weightController.text}");
+                              debugPrint(
+                                  "Height from controller: ${heightController.text}");
+                              debugPrint(
+                                  "Goal Weight from controller: ${goalWeightController.text}");
 
-                        // Height Field
-                        Text(
-                          'Height (${userProvider.measurementSystem == 'Metric' ? 'cm' : 'inches'})',
-                          style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-                        ),
-                        TextFormField(
-                          controller: heightController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: 'Enter your height',
-                            filled: true,
-                            fillColor: AppColors.textFieldBg,
-                          ),
-                          style: TextStyle(color: AppColors.primaryText),
-                        ),
-                        const SizedBox(height: 15),
+                              // Create updated user data with the new values
+                              Map<String, dynamic> updatedUserData =
+                                  Map.from(userData);
+                              updatedUserData['age'] =
+                                  int.tryParse(ageController.text) ??
+                                      userData['age'];
+                              updatedUserData['weight'] =
+                                  double.tryParse(weightController.text) ??
+                                      userData['weight'];
+                              updatedUserData['goalWeight'] =
+                                  double.tryParse(goalWeightController.text) ??
+                                      userData['goalWeight'];
+                              updatedUserData['height'] =
+                                  double.tryParse(heightController.text) ??
+                                      userData['height'];
+                              updatedUserData['gender'] = selectedGender;
+                              updatedUserData['selectedActivityLevel'] =
+                                  selectedActivityLevel;
+                              updatedUserData['goal'] = selectedGoal;
 
-                        // Gender Dropdown
-                        Text(
-                          'Gender',
-                          style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: selectedGender,
-                          dropdownColor: const Color.fromARGB(255, 15, 15, 15),
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.textFieldBg,
+                              // Navigate to the recalculate macros page with all parameters
+                              context.push('/recalcmacros', extra: {
+                                'userData': updatedUserData,
+                                'selectedGoal': selectedGoal!,
+                              });
+                            },
                           ),
-                          style: TextStyle(color: AppColors.primaryText),
-                          items: ['male', 'female']
-                              .map((gender) => DropdownMenuItem(
-                                    value: gender,
-                                    child: Text(gender == 'male' ? 'Male' : 'Female'),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedGender = value;
-                            });
-                          },
                         ),
-                        const SizedBox(height: 15),
-
-                        // Activity Level Dropdown
-                        Text(
-                          'Activity Level',
-                          style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: selectedActivityLevel,
-                          dropdownColor: const Color.fromARGB(255, 15, 15, 15),
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.textFieldBg,
-                          ),
-                          style: TextStyle(color: AppColors.primaryText),
-                          items: [
-                            'Sedentary',
-                            'Lightly active',
-                            'Moderately active',
-                            'Very active',
-                            'Extra active'
-                          ]
-                              .map((level) => DropdownMenuItem(
-                                    value: level,
-                                    child: Text(level),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedActivityLevel = value;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 15),
-
-                        // Goal Dropdown
-                        Text(
-                          'Goal',
-                          style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-                        ),
-                        DropdownButtonFormField<String>(
-                          value: selectedGoal,
-                          dropdownColor: const Color.fromARGB(255, 15, 15, 15),
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.textFieldBg,
-                          ),
-                          style: TextStyle(color: AppColors.primaryText),
-                          items: [
-                            'Mild Lose Weight',
-                            'Lose Weight',
-                            'Maintain Weight',
-                            'Mild Gain Weight',
-                            'Gain Weight'
-                          ]
-                              .map((goal) => DropdownMenuItem(
-                                    value: goal,
-                                    child: Text(goal),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedGoal = value;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 30),
                       ],
                     ),
-                  ),
-                ),
-
-                // Buttons at the bottom (outside the scrollable area)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
-                      child: MyButtons(
-                          text: 'Recalculate',
-                          onTap: () async {
-                            try {
-                              final success = await userProvider.updateUserProfile(
-                                age: int.tryParse(ageController.text) ?? userProvider.age ?? 0,
-                                weight: double.tryParse(weightController.text) ??
-                                    userProvider.weight ??
-                                    0,
-                                height: double.tryParse(heightController.text) ??
-                                    userProvider.height ??
-                                    0,
-                                gender: selectedGender!,
-                                activityLevel: selectedActivityLevel!,
-                                goal: selectedGoal!,
-                              );
-
-                              if (success) {
-                                // Close the bottom sheet first
-                                Navigator.pop(context);
-
-                                // Then navigate using go_router
-                                context.push('/recalcmacros', extra: {
-                                  'userData': {
-                                    'age': int.tryParse(ageController.text),
-                                    'weight': double.tryParse(weightController.text),
-                                    'height': double.tryParse(heightController.text),
-                                    'gender': selectedGender,
-                                    'selectedActivityLevel': selectedActivityLevel,
-                                    'goal': selectedGoal,
-                                    'measurementSystem': userProvider.measurementSystem,
-                                  },
-                                  'selectedGoal': selectedGoal!,
-                                });
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed to update profile')),
-                                );
-                              }
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')),
-                              );
-                            }
-                          }),
-                    )
+                    const SizedBox(height: 20),
                   ],
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+              );
+            },
+          ),
+        );
+      }
+    });
   }
 
   //
@@ -544,26 +636,32 @@ class _CustomDrawerState extends State<CustomDrawer> {
   void _showlogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         actions: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Expanded(
                 child: CustomTextButton(
-                  title: 'Back',
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                  size: 20,
-                ),
+                    title: 'Back',
+                    onTap: () {
+                      Navigator.pop(dialogContext);
+                    },
+                    size: 20),
               ),
               Expanded(
                 child: MyButtons(
                   text: 'Log out',
-                  onTap: () {
-                    context.read<UserProvider>().logout();
-                    context.push('/login');
+                  onTap: () async {
+                    // Clear chatbot conversation from SharedPreferences
+                    final prefs = await SharedPreferences.getInstance();
+                    const String chatStorageKey = 'chatbot_conversation';
+                    await prefs.remove(chatStorageKey);
+
+                    // log out the user
+                    dialogContext.read<UserProvider>().logout();
+                    Navigator.pop(dialogContext);
+                    context.go('/startup');
                   },
                 ),
               ),
@@ -594,7 +692,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.containerBg,
-      isScrollControlled: true, // Allows the sheet to expand to needed height
+      isScrollControlled: true,
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.8,
       ),
@@ -606,7 +704,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Takes only needed space
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Drag handle
@@ -637,7 +735,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
             // Divider
             Divider(
-              color: AppColors.primaryText.withOpacity(0.3),
+              color: AppColors.primaryText.withValues(alpha: 0.3),
               thickness: 1,
             ),
             const SizedBox(height: 20),
@@ -802,9 +900,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 20),
 
-              // 3. User Responsibilities
+              // 3. User GUIDELINES
               Text(
-                '3. USER RESPONSIBILITIES',
+                '3. USER GUIDELINES',
                 style: TextStyle(
                   color: AppColors.primaryText,
                   fontSize: 18,
@@ -856,7 +954,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 8),
               Text(
-                'We collect personal information including dietary preferences, and usage data to provide personalized services. Your data is stored securely and handled in accordance with our Privacy Policy. By using TrackTasty, you consent to the collection and processing of your data as described in our Privacy Policy.',
+                'We collect personal information (such as your preferences and app usage) to provide and improve our services. Your data is stored securely and handled according to our Privacy Policy. By using TrackTasty, you agree to the collection and processing of your data as described in our Privacy Policy. We comply with the Data Privacy Act of 2012 (Republic Act No. 10173) and ensure that your personal information is collected, used, and protected in accordance with Philippine data privacy laws.',
                 style: TextStyle(
                   color: AppColors.secondaryText,
                   fontSize: 16,
@@ -877,7 +975,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 8),
               Text(
-                'All content, features, and functionality of TrackTasty are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works without explicit permission.',
+                'All content, features, and functionality developed by us for the TrackTasty application are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works of our proprietary content without our explicit permission.\n\nHowever, the application utilizes data and services provided by third-party APIs, including but not limited to Gemini API (Google), FatSecret Platform (FatSecret), and DeepSeek API (DeepSeek). The use of any content, data, or functionality provided by these third-party APIs is governed by their respective terms of service and intellectual property policies. You acknowledge and agree that we are not the owners of this third-party content and are not responsible for your use of it.',
                 style: TextStyle(
                   color: AppColors.secondaryText,
                   fontSize: 16,
@@ -949,27 +1047,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               const SizedBox(height: 20),
 
-              // 10. Governing Law
-              Text(
-                '10. GOVERNING LAW',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'These Terms shall be governed by and construed in accordance with the laws of the jurisdiction where TrackTasty is operated, without regard to its conflict of law provisions.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // Acceptance Note
               Center(
                 child: Text(
@@ -1021,7 +1098,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Username',
-                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () => _showEditUsernameDialog(context),
                 ),
@@ -1029,28 +1107,32 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Goals',
-                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
-                  onTap: () => _showEditGoalSheet(context), // This should call the updated function
+                  onTap: () => _showEditGoalSheet(context),
                 ),
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Food Preference',
-                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
                   onTap: () {
-                    Navigator.pop(context); // Close the drawer
-                    context.push('/editfoodpreference'); // Navigate to the new page
+                    Navigator.pop(context);
+                    context.push(
+                        '/editfoodpreference'); // Navigate to the new page
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
                     'Edit Weight',
-                    style: TextStyle(color: AppColors.primaryText, fontSize: 14),
+                    style:
+                        TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
-                  onTap: () => editWeightDialog(context),
+                  onTap: () => _showEditWeightDialog(context),
                 ),
               ],
             ),
@@ -1072,16 +1154,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
               onTap: () {
-                Navigator.pop(context); // Close the drawer
+                Navigator.pop(context);
                 context.push('/feedback'); // Navigate to feedback page
               },
             ),
             ListTile(
-              leading: Icon(Icons.settings, color: AppColors.drawerIcons),
+              leading: Icon(Icons.notifications, color: AppColors.drawerIcons),
               title: Text(
-                'Settings',
+                'Notification Settings',
                 style: TextStyle(color: AppColors.primaryText, fontSize: 16),
               ),
+              onTap: () {
+                Navigator.pop(context);
+                context.push(
+                    '/notificationsettings'); // Navigate to notification settings
+              },
             ),
             ListTile(
               leading: Icon(Icons.people_rounded, color: AppColors.drawerIcons),
@@ -1093,10 +1180,12 @@ class _CustomDrawerState extends State<CustomDrawer> {
             ),
             isAdmin
                 ? ListTile(
-                    leading: Icon(Icons.admin_panel_settings, color: AppColors.drawerIcons),
+                    leading: Icon(Icons.admin_panel_settings,
+                        color: AppColors.drawerIcons),
                     title: Text(
                       'Admin Page',
-                      style: TextStyle(color: AppColors.primaryText, fontSize: 16),
+                      style:
+                          TextStyle(color: AppColors.primaryText, fontSize: 16),
                     ),
                     onTap: () => context.push('/adminonly'),
                   )
@@ -1116,6 +1205,4 @@ class _CustomDrawerState extends State<CustomDrawer> {
       ),
     );
   }
-
-  void editWeightDialog(BuildContext context) => _showEditWeightDialog(context);
 }

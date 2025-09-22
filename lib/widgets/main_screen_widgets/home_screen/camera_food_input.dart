@@ -14,18 +14,17 @@ class CameraFoodInputSheet extends StatefulWidget {
   final Function(Map<String, dynamic>) onGallery;
   final bool isEditing;
 
-  const CameraFoodInputSheet({
-    super.key,
-    this.initialMealName,
-    this.initialCalories,
-    this.initialProtein,
-    this.initialCarbs,
-    this.initialFat,
-    required this.onSubmit,
-    this.isEditing = false,
-    required this.onTakePhoto,
-    required this.onGallery
-  });
+  const CameraFoodInputSheet(
+      {super.key,
+      this.initialMealName,
+      this.initialCalories,
+      this.initialProtein,
+      this.initialCarbs,
+      this.initialFat,
+      required this.onSubmit,
+      this.isEditing = false,
+      required this.onTakePhoto,
+      required this.onGallery});
 
   @override
   State<CameraFoodInputSheet> createState() => _CameraFoodInputSheet();
@@ -41,11 +40,16 @@ class _CameraFoodInputSheet extends State<CameraFoodInputSheet> {
   @override
   void initState() {
     super.initState();
-    mealNameController = TextEditingController(text: widget.initialMealName ?? '');
-    caloriesController = TextEditingController(text: widget.initialCalories?.toString() ?? '');
-    proteinController = TextEditingController(text: widget.initialProtein?.toString() ?? '');
-    carbsController = TextEditingController(text: widget.initialCarbs?.toString() ?? '');
-    fatController = TextEditingController(text: widget.initialFat?.toString() ?? '');
+    mealNameController =
+        TextEditingController(text: widget.initialMealName ?? '');
+    caloriesController =
+        TextEditingController(text: widget.initialCalories?.toString() ?? '');
+    proteinController =
+        TextEditingController(text: widget.initialProtein?.toString() ?? '');
+    carbsController =
+        TextEditingController(text: widget.initialCarbs?.toString() ?? '');
+    fatController =
+        TextEditingController(text: widget.initialFat?.toString() ?? '');
   }
 
   @override
@@ -95,7 +99,8 @@ class _CameraFoodInputSheet extends State<CameraFoodInputSheet> {
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(12.0),
                     ),
-                    child: const Icon(Icons.image, color: Colors.grey, size: 40),
+                    child:
+                        const Icon(Icons.image, color: Colors.grey, size: 40),
                   ),
                 ),
 
@@ -108,7 +113,6 @@ class _CameraFoodInputSheet extends State<CameraFoodInputSheet> {
                     MyButtons(
                       text: 'Take a photo',
                       onTap: () {
-                        
                         // Add your upload logic here
                       },
                     ),
@@ -206,8 +210,8 @@ class _CameraFoodInputSheet extends State<CameraFoodInputSheet> {
                   };
                   widget.onSubmit(mealData);
                 },
-                child:
-                    Text(widget.isEditing ? 'Update' : 'Add', style: const TextStyle(fontSize: 18)),
+                child: Text(widget.isEditing ? 'Update' : 'Add',
+                    style: const TextStyle(fontSize: 18)),
               ),
             ),
           ],

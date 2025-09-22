@@ -1,4 +1,3 @@
-// food_page.dart
 import 'dart:ffi';
 
 import 'package:fitness/services/fat_secret_api_service.dart';
@@ -42,9 +41,15 @@ class _FoodPageState extends State<FoodPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   // Function to parse nutrients from food description
   Map<String, dynamic> _parseNutrients(String description) {
-    int calories = 0;
+    double calories = 0;
     double protein = 0;
     double carbs = 0;
     double fat = 0;
@@ -62,7 +67,7 @@ class _FoodPageState extends State<FoodPage> {
         final caloriesPart =
             description.split("Calories:")[1].split("|")[0].trim();
         calories =
-            int.tryParse(caloriesPart.replaceAll("kcal", "").trim()) ?? 0;
+            double.tryParse(caloriesPart.replaceAll("kcal", "").trim()) ?? 0;
       }
 
       if (description.contains("Fat:")) {
@@ -81,14 +86,14 @@ class _FoodPageState extends State<FoodPage> {
         protein = double.tryParse(proteinPart.replaceAll("g", "").trim()) ?? 0;
       }
     } catch (e) {
-      print("Error parsing nutrients: $e");
+      debugPrint("Error parsing nutrients: $e");
     }
 
     return {
       'calories': calories,
-      'protein': protein.round(), // Convert to int for storage
-      'carbs': carbs.round(), // Convert to int for storage
-      'fat': fat.round(), // Convert to int for storage
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
       'serving': perValue,
     };
   }

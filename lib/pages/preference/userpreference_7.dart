@@ -1,6 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:fitness/provider/registration_data_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/components/percentage_slider.dart';
@@ -8,8 +7,6 @@ import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:syncfusion_flutter_sliders/sliders.dart';
-import 'package:syncfusion_flutter_core/theme.dart';
 
 class Userpreference7 extends StatefulWidget {
   const Userpreference7({super.key});
@@ -49,68 +46,49 @@ class _Userpreference7 extends State<Userpreference7> {
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _calculateInitialMacros();
   }
 
-  Future<void> _fetchUserData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  void _calculateInitialMacros() async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    await provider.loadFromPreferences(); // Load data from SharedPreferences
+    final userData = provider.userData;
 
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection("Users")
-          .doc(user.email)
-          .get();
+    // Debug print to verify data is being loaded
+    debugPrint("Loaded User Data: ${userData.toMap()}");
 
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data() as Map<String, dynamic>;
+    // Use actual user data instead of defaults
+    final age = userData.age ?? 25;
+    final measurementSystem = userData.measurementSystem ?? 'Metric';
+    final gender = userData.gender ?? 'male';
+    final weight = userData.weight ?? 70.0;
+    final height = userData.height ?? 170.0;
+    final activityLevel = userData.activityLevel ?? 'Sedentary';
+    final goal = userData.goal ?? 'Maintain Weight';
 
-        // Retrieve user data
-        final age = data['age'] is int
-            ? data['age'] as int
-            : int.tryParse(data['age'] ?? '0') ?? 0;
-        final measurementSystem = data['measurementSystem'] ?? 'metric';
-        final gender = data['gender'] ?? 'male';
-        final weight = data['weight'] is double
-            ? data['weight'] as double
-            : double.tryParse(data['weight']?.toString() ?? '0') ?? 0;
-        final height = data['height'] is double
-            ? data['height'] as double
-            : double.tryParse(data['height']?.toString() ?? '0') ?? 0;
-        final activityLevel = data['activitylevel'] ?? 'Sedentary';
-        final goal = data['goal'] ?? 'Maintain Weight';
+    // Convert weight and height to metric if necessary
+    final isMetric = measurementSystem == 'Metric';
+    final weightKg = isMetric ? weight : weight * 0.453592;
+    final heightCm = isMetric ? height : height * 2.54;
 
-        // Converts weight and height to metric if necessary
-        final isMetric = measurementSystem == 'Metric';
-        final weightKg = isMetric ? weight : weight * 0.453592; //
-        final heightCm = isMetric ? height : height * 2.54; //
+    // Calculate daily calories using Mifflin St. Jeor formula
+    double bmr = gender == "male"
+        ? (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5
+        : (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
 
-        // Calculate daily calories using Mifflin St. Jeor formula
-        double bmr = gender == "male"
-            ? (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5
-            : (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
+    // Adjust BMR based on activity level
+    double activityMultiplier = _getActivityMultiplier(activityLevel);
+    bmr *= activityMultiplier;
 
-        // Adjust BMR based on activity level
-        double activityMultiplier = _getActivityMultiplier(activityLevel);
-        bmr *= activityMultiplier;
+    // Adjust BMR based on goal
+    bmr = _adjustCaloriesForGoal(bmr, goal);
 
-        // Adjust BMR based on goal
-        bmr = _adjustCaloriesForGoal(bmr, goal);
-
-        setState(() {
-          dailyCalories = bmr;
-          _calculateMacros();
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching user data: $e')),
-        );
-      }
-      debugPrint('Error fetching user data: $e');
-    }
+    setState(() {
+      dailyCalories = bmr;
+      _calculateMacros();
+      isLoading = false;
+    });
   }
 
   double _getActivityMultiplier(String activityLevel) {
@@ -532,7 +510,7 @@ class _Userpreference7 extends State<Userpreference7> {
                     //back button with gesture detectore
                     CustomTextButton(
                         title: 'Back',
-                        onTap: () {
+                        onTap: () async {
                           context.push('/preference6');
                         },
                         size: 16),
@@ -542,32 +520,24 @@ class _Userpreference7 extends State<Userpreference7> {
                     //continue button
                     Expanded(
                       child: MyButtons(
-                        text: 'Next',
+                        text: 'Create Account',
                         onTap: () async {
                           if (_formKey.currentState!.validate()) {
-                            // Save the calculated macros to firestore
-                            final user = FirebaseAuth.instance.currentUser;
-                            if (user != null) {
-                              await FirebaseFirestore.instance
-                                  .collection("Users")
-                                  .doc(user.email)
-                                  .update({
-                                'dailyCalories': dailyCalories,
-                                'carbsPercentage': carbsPercentage,
-                                'fatsPercentage': fatsPercentage,
-                                'proteinPercentage': proteinPercentage,
-                                'carbsGram': carbsGram,
-                                'fatsGram': fatsGram,
-                                'proteinGram': proteinGram
-                              });
-                            }
+                            final provider =
+                                Provider.of<RegistrationDataProvider>(context,
+                                    listen: false);
+                            provider.updateMacros(
+                              dailyCalories: dailyCalories,
+                              carbsPercentage: carbsPercentage,
+                              fatsPercentage: fatsPercentage,
+                              proteinPercentage: proteinPercentage,
+                              carbsGram: carbsGram,
+                              fatsGram: fatsGram,
+                              proteinGram: proteinGram,
+                            );
 
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Saved!'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: AppColors.snackBarBgSaved,
-                            ));
-                            context.push('/home');
+                            // Redirect to register page
+                            context.push('/register');
                           }
                         },
                       ),

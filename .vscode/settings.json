@@ -3,5 +3,6 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[dart]": {
     "editor.defaultFormatter": "Dart-Code.dart-code"
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
 }
