@@ -20,6 +20,7 @@ class ChatBot extends StatefulWidget {
 
 class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageNode = FocusNode();
   final List<Map<String, dynamic>> _messages = [];
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
@@ -38,9 +39,8 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _initializeUserData();
     _loadNutritionData();
-    _loadUserGoals();
     _loadConversationHistory();
 
     _scrollController.addListener(() {
@@ -65,8 +65,35 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
   @override
   void dispose() {
+    _messageNode.dispose();
+    _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Initialize user data using UserProvider
+  Future<void> _initializeUserData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = context.read<UserProvider>();
+
+      // Fetch the latest user data from Firestore
+      await userProvider.fetchUserData();
+
+      // Get the updated user data
+      _currentUserData = userProvider.userData;
+
+      // Load user goals after fetching user data
+      await _loadUserGoals();
+
+      debugPrint("USER DATA INITIALIZED: $_currentUserData");
+      debugPrint("USER GOALS INITIALIZED: $_userGoals");
+    } catch (e) {
+      debugPrint('ERROR INITIALIZING USER DATA: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   // Load saved conversation from local storage
@@ -136,40 +163,49 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     _scrollToTop();
   }
 
-  void _loadUserData() {
-    final userProvider = context.read<UserProvider>();
-    _currentUserData = userProvider.userData;
-    debugPrint("USER DATA LOADED: $_currentUserData");
-  }
-
-  // Load user's nutrition goals
+  // Load user's nutrition goals using UserProvider
   Future<void> _loadUserGoals() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(user.email)
-          .get();
+      final userProvider = context.read<UserProvider>();
+      final userData = userProvider.userData;
 
-      if (userDoc.exists) {
+      if (userData != null) {
         setState(() {
           _userGoals = {
-            'calorieGoal': _convertToInt(userDoc.data()?['dailyCalories']),
-            'proteinGoal': _convertToInt(userDoc.data()?['proteinGram']),
-            'carbsGoal': _convertToInt(userDoc.data()?['carbsGram']),
-            'fatGoal': _convertToInt(userDoc.data()?['fatsGram']),
+            'calorieGoal': _convertToInt(userData['dailyCalories']),
+            'proteinGoal': _convertToInt(userData['proteinGram']),
+            'carbsGoal': _convertToInt(userData['carbsGram']),
+            'fatGoal': _convertToInt(userData['fatsGram']),
           };
         });
         debugPrint("USER GOALS LOADED: $_userGoals");
+      } else {
+        // Fallback to default values if user data is null
+        setState(() {
+          _userGoals = {
+            'calorieGoal': 2000,
+            'proteinGoal': 100,
+            'carbsGoal': 250,
+            'fatGoal': 70,
+          };
+        });
+        debugPrint("USER DATA IS NULL, USING DEFAULT GOALS: $_userGoals");
       }
     } catch (e) {
       debugPrint('ERROR LOADING USER GOALS: $e');
+      // Fallback to default values on error
+      setState(() {
+        _userGoals = {
+          'calorieGoal': 2000,
+          'proteinGoal': 100,
+          'carbsGoal': 250,
+          'fatGoal': 70,
+        };
+      });
     }
   }
 
-  // Load today's nutrition data
+  // Load today's nutrition data (unchanged - this is working properly)
   Future<void> _loadNutritionData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -256,22 +292,43 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     // Simulate a small delay for better UX
     await Future.delayed(const Duration(milliseconds: 500));
 
-    final userProvider = context.read<UserProvider>();
-    final newUserData = userProvider.userData;
+    try {
+      final userProvider = context.read<UserProvider>();
 
-    // Reload nutrition data and goals
-    await _loadNutritionData();
-    await _loadUserGoals();
+      // Fetch the latest user data from Firestore
+      await userProvider.fetchUserData();
 
-    setState(() {
-      _currentUserData = newUserData;
-      _isLoading = false;
-    });
+      // Get the updated user data
+      final newUserData = userProvider.userData;
 
-    debugPrint("USER DATA REFRESHED: $_currentUserData");
+      // Reload nutrition data and goals
+      await _loadNutritionData();
+      await _loadUserGoals();
 
-    // Show confirmation message
-    _showRefreshConfirmation();
+      setState(() {
+        _currentUserData = newUserData;
+        _isLoading = false;
+      });
+
+      debugPrint("USER DATA REFRESHED: $_currentUserData");
+      debugPrint("USER GOALS REFRESHED: $_userGoals");
+
+      // Show confirmation message
+      _showRefreshConfirmation();
+    } catch (e) {
+      debugPrint('ERROR REFRESHING USER DATA: $e');
+      setState(() => _isLoading = false);
+
+      // Show error message
+      setState(() {
+        _messages.add({
+          "role": "error",
+          "content": "Failed to refresh user data. Please try again.",
+        });
+      });
+      _saveConversation();
+      _scrollToBottom();
+    }
   }
 
   void _showRefreshConfirmation() {
@@ -286,11 +343,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
           (_nutritionData?['totalCarbs'] ?? 0);
       final remainingFat =
           (_userGoals?['fatGoal'] ?? 70) - (_nutritionData?['totalFat'] ?? 0);
-      isMetric = newUserData['measurementSystem'] == "Metric";
 
       isMetric = newUserData['measurementSystem'] == "Metric";
 
-// Helper variables for unit conversion
+      // Helper variables for unit conversion
       final weightUnit = isMetric ? 'kg' : 'lbs';
       final heightUnit = isMetric ? 'cm' : 'inches';
 
@@ -321,8 +377,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Parsing JSON response
-  // Update the _parseMixedResponse method in chat_bot.dart
+  // Parsing JSON response (unchanged)
   Map<String, dynamic> _parseMixedResponse(String content) {
     try {
       // First, try to parse the entire content as JSON
@@ -432,24 +487,32 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
     try {
       // Debug print for API request data
-      debugPrint("API REQUEST DATA:");
-      debugPrint(
-          "- Username: ${_currentUserData?['username']?.toString() ?? 'Guest'}");
-      debugPrint("- Age: ${_currentUserData?['age']?.toString() ?? '25'}");
-      debugPrint(
-          "- Weight: ${_currentUserData?['weight']?.toString() ?? '65'}");
-      debugPrint(
-          "- Height: ${_currentUserData?['height']?.toString() ?? '170'}");
-      debugPrint(
-          "- Goal: ${_currentUserData?['goal']?.toString() ?? 'maintenance'}");
-      debugPrint(
-          "- Calories: ${_nutritionData?['totalCalories'] ?? 0}/${_userGoals?['calorieGoal'] ?? 2000}");
-      debugPrint(
-          "- Protein: ${_nutritionData?['totalProtein'] ?? 0}/${_userGoals?['proteinGoal'] ?? 100}g");
-      debugPrint(
-          "- Carbs: ${_nutritionData?['totalCarbs'] ?? 0}/${_userGoals?['carbsGoal'] ?? 250}g");
-      debugPrint(
-          "- Fat: ${_nutritionData?['totalFat'] ?? 0}/${_userGoals?['fatGoal'] ?? 70}g");
+      debugPrint('''
+      --------------------------------------------------
+      CALLING DEEPSEEK API WITH THE FOLLOWING DATA:
+      - Prompt: $userMessage
+      - User Data:
+        - username: ${_currentUserData?['username']?.toString() ?? 'Guest'}
+        - age: ${_currentUserData?['age']?.toString() ?? '25'}
+        - allergies: ${List<String>.from(_currentUserData?['allergies'] ?? [])}
+        - weight: ${_currentUserData?['weight']?.toString() ?? '65'}
+        - height: ${_currentUserData?['height']?.toString() ?? '170'}
+        - goal: ${_currentUserData?['goal']?.toString() ?? 'maintenance'}
+        - goalWeight: ${_currentUserData?['goalWeight']?.toString() ?? '0'}
+        - gender: ${_currentUserData?['gender']?.toString() ?? 'prefer not to say'}
+        - dietaryPreference: ${_currentUserData?['dietaryPreference']?.toString() ?? 'none'}
+      - Nutrition Data:
+        - totalCalories: ${_nutritionData?['totalCalories'] ?? 0}
+        - totalProtein: ${_nutritionData?['totalProtein'] ?? 0}
+        - totalCarbs: ${_nutritionData?['totalCarbs'] ?? 0}
+        - totalFat: ${_nutritionData?['totalFat'] ?? 0}
+      - Goals:
+        - calorieGoal: ${_userGoals?['calorieGoal'] ?? 2000}
+        - proteinGoal: ${_userGoals?['proteinGoal'] ?? 100}
+        - carbsGoal: ${_userGoals?['carbsGoal'] ?? 250}
+        - fatGoal: ${_userGoals?['fatGoal'] ?? 70}
+      --------------------------------------------------
+      ''');
 
       // Convert history to the correct type (Map<String, String>)
       final List<Map<String, String>> history = _messages
@@ -841,6 +904,8 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                     Expanded(
                       child: TextField(
                         controller: _messageController,
+                        focusNode: _messageNode,
+                        autofocus: false,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: "Type a message...",

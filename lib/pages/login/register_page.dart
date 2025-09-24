@@ -603,42 +603,47 @@ class _RegisterPageState extends State<RegisterPage> {
       children: [
         Checkbox(
           value: _agreeToTerms,
-          onChanged: (value) {
-            setState(() {
-              _agreeToTerms = value ?? false;
-            });
-          },
+          onChanged: _emailSent
+              ? null
+              : (value) {
+                  setState(() {
+                    _agreeToTerms = value ?? false;
+                  });
+                },
           activeColor: AppColors.primaryColor,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _agreeToTerms = !_agreeToTerms;
-              });
-            },
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 14,
-                ),
-                children: [
-                  const TextSpan(text: 'I agree to the '),
-                  TextSpan(
-                    text: 'Terms and Conditions',
-                    style: TextStyle(
-                      color: AppColors.primaryColor,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () {
-                        _showTermsAndCondition(context);
-                      },
+        AbsorbPointer(
+          absorbing: _emailSent,
+          child: Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _agreeToTerms = !_agreeToTerms;
+                });
+              },
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    color: AppColors.primaryText,
+                    fontSize: 14,
                   ),
-                ],
+                  children: [
+                    const TextSpan(text: 'I agree to the '),
+                    TextSpan(
+                      text: 'Terms and Conditions',
+                      style: TextStyle(
+                        color: AppColors.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          _showTermsAndCondition(context);
+                        },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

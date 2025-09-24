@@ -1,6 +1,4 @@
 import 'package:fitness/pages/main_pages/food_page.dart';
-import 'package:camera/camera.dart';
-import 'package:fitness/widgets/main_screen_widgets/home_screen/camera_food_input.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
@@ -8,14 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/widgets/main_screen_widgets/home_screen/macro_input.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitness/utils/achievement_utils.dart';
 import 'package:fitness/pages/main_pages/analytics_page.dart';
 import 'package:fitness/pages/main_pages/chat_bot.dart';
 import 'package:fitness/pages/main_pages/profile_page.dart';
-import 'package:fitness/pages/main_pages/camera_page.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class MainScreen extends StatefulWidget {
@@ -34,14 +30,7 @@ class _MainScreenState extends State<MainScreen> {
     '/profile',
   ];
 
-  final List<Widget> _screens = [
-    HomePage(
-      key: homePageKey,
-    ),
-    const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
-    AnalyticsPage(), // Replace with your actual analytics page
-    ProfilePage(), // Replace with your actual achievements page
-  ];
+  late List<Widget> _screens;
   int _selectedIndexFromLocation(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     final List<String> routes = [
@@ -67,296 +56,284 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _screens = [
+      HomePage(
+        key: homePageKey,
+        onEditMeal: (context, existingFood) {
+          debugPrint('editFoodManually callback triggered');
+          editFoodManually(context, existingFood); // Call your actual method
+        },
+      ),
+      const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
+      AnalyticsPage(), // Replace with your actual analytics page
+      ProfilePage(), // Replace with your actual achievements page
+    ];
+  }
+
+  //
+  // MODAL BOTTOM SHEET
+  //
+  void showFoodInputSheet({
+    BuildContext? context,
+    String? initialMealName,
+    double? initialCalories,
+    double? initialProtein,
+    double? initialCarbs,
+    double? initialFat,
+    bool isEditing = false,
+    required Function(Map<String, dynamic>) onSubmit,
+  }) {
+    showModalBottomSheet(
+      context: context!,
+      isScrollControlled: true,
+      backgroundColor: AppColors.loginPagesBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: AppColors.primaryText, width: 2),
+      ),
+      builder: (context) {
+        return FoodInputSheet(
+          initialMealName: initialMealName,
+          initialCalories: initialCalories,
+          initialProtein: initialProtein,
+          initialCarbs: initialCarbs,
+          initialFat: initialFat,
+          onSubmit: onSubmit,
+          isEditing: isEditing,
+        );
+      },
+    );
+  }
+
+  //
+  // ADD FOOD FUNCTION
+  //
+  void addFoodManually(BuildContext context) {
+    showFoodInputSheet(
+      context: context,
+      onSubmit: (mealData) async {
+        DateTime? lastPressed;
+        final now = DateTime.now();
+        if (lastPressed != null &&
+            now.difference(lastPressed) < Duration(seconds: 2)) {
+          return; // Ignore if pressed within 2 seconds
+        }
+        lastPressed = now;
+
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final today = DateTime.now();
+          final foodLogId =
+              '${user.uid}_${today.year}-${today.month}-${today.day}';
+
+          try {
+            // Fetch existing food log for today or create a new one
+            final foodLogDoc = await FirebaseFirestore.instance
+                .collection('food_logs')
+                .doc(foodLogId)
+                .get();
+
+            Map<String, dynamic> foodLogData = {
+              'userId': user.uid,
+              'date': Timestamp.fromDate(today),
+              'totalCalories': 0,
+              'totalCarbs': 0,
+              'totalProtein': 0,
+              'totalFat': 0,
+              'foods': [],
+            };
+
+            // If the document exists, update the data
+            if (foodLogDoc.exists && foodLogDoc.data() != null) {
+              foodLogData = foodLogDoc.data() as Map<String, dynamic>;
+            }
+
+            // Update total macros (convert to double)
+            final calories = (mealData['calories'] ?? 0).toDouble();
+            final carbs = (mealData['carbs'] ?? 0).toDouble();
+            final protein = (mealData['protein'] ?? 0).toDouble();
+            final fat = (mealData['fat'] ?? 0).toDouble();
+
+            foodLogData['totalCalories'] += calories;
+            foodLogData['totalCarbs'] += carbs;
+            foodLogData['totalProtein'] += protein;
+            foodLogData['totalFat'] += fat;
+
+            // Add the new food item
+            foodLogData['foods'].add({
+              'mealName': mealData['mealName'] ?? '',
+              'calories': calories,
+              'carbs': carbs,
+              'protein': protein,
+              'fat': fat,
+              'servingSize': mealData['servingSize'] ?? '',
+              'adjustmentType': mealData['adjustmentType'] ?? 'percent',
+              'adjustmentValue': mealData['adjustmentValue'] ?? 100.0,
+              'loggedTime': Timestamp.fromDate(DateTime.now()),
+            });
+
+            // Save updated food log data
+            await FirebaseFirestore.instance
+                .collection('food_logs')
+                .doc(foodLogId)
+                .set(foodLogData);
+
+            // Update achievement
+            await AchievementUtils.updateAchievementsOnFoodLog(
+                userId: user.uid,
+                foodLogData: foodLogData,
+                newMealName: mealData['mealName'] ?? '',
+                isImageLog: false,
+                context: context);
+
+            Navigator.pop(context);
+          } catch (e) {
+            debugPrint('Error saving food log: $e');
+          }
+        }
+      },
+    );
+  }
+
+  //
+  // EDIT FOOD FUNCTION
+  //
+  void editFoodManually(
+      BuildContext context, Map<String, dynamic> existingFood) {
+    // Use the safeToDouble function as it's good practice
+    double? safeToDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
+    showFoodInputSheet(
+      context: context,
+      initialMealName: existingFood['mealName'],
+      initialCalories: safeToDouble(existingFood['calories']),
+      initialProtein: safeToDouble(existingFood['protein']),
+      initialCarbs: safeToDouble(existingFood['carbs']),
+      initialFat: safeToDouble(existingFood['fat']),
+      isEditing: true,
+      onSubmit: (updatedMealData) async {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          // Use the original food's logged time to find the correct day
+          final originalLoggedTime = existingFood['loggedTime'] as Timestamp;
+          final originalDate = originalLoggedTime.toDate();
+          final foodLogId =
+              '${user.uid}_${originalDate.year}-${originalDate.month}-${originalDate.day}';
+
+          try {
+            final foodLogDoc = await FirebaseFirestore.instance
+                .collection('food_logs')
+                .doc(foodLogId)
+                .get();
+
+            if (foodLogDoc.exists) {
+              final foodLogData = foodLogDoc.data() as Map<String, dynamic>;
+              final foods =
+                  List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
+
+              // Find the exact food item to update using ONLY the loggedTime
+              final index = foods.indexWhere((f) {
+                final fTime = f['loggedTime'] as Timestamp;
+                return fTime == originalLoggedTime;
+              });
+
+              if (index != -1) {
+                // Convert all values to double for consistent math
+                final updatedCalories =
+                    (updatedMealData['calories'] as num).toDouble();
+                final updatedProtein =
+                    (updatedMealData['protein'] as num).toDouble();
+                final updatedCarbs =
+                    (updatedMealData['carbs'] as num).toDouble();
+                final updatedFat = (updatedMealData['fat'] as num).toDouble();
+
+                final originalCalories =
+                    (foods[index]['calories'] as num).toDouble();
+                final originalProtein =
+                    (foods[index]['protein'] as num).toDouble();
+                final originalCarbs = (foods[index]['carbs'] as num).toDouble();
+                final originalFat = (foods[index]['fat'] as num).toDouble();
+
+                // Calculate the difference
+                final caloriesDiff = updatedCalories - originalCalories;
+                final proteinDiff = updatedProtein - originalProtein;
+                final carbsDiff = updatedCarbs - originalCarbs;
+                final fatDiff = updatedFat - originalFat;
+
+                // Update totals by adding the difference
+                foodLogData['totalCalories'] =
+                    (foodLogData['totalCalories'] ?? 0) + caloriesDiff;
+                foodLogData['totalProtein'] =
+                    (foodLogData['totalProtein'] ?? 0) + proteinDiff;
+                foodLogData['totalCarbs'] =
+                    (foodLogData['totalCarbs'] ?? 0) + carbsDiff;
+                foodLogData['totalFat'] =
+                    (foodLogData['totalFat'] ?? 0) + fatDiff;
+
+                // Update the food item
+                foods[index] = {
+                  ...foods[index],
+                  'mealName': updatedMealData['mealName'],
+                  'calories': updatedCalories,
+                  'protein': updatedProtein,
+                  'carbs': updatedCarbs,
+                  'fat': updatedFat,
+                  'servingSize': updatedMealData['servingSize'],
+                  'adjustmentType': updatedMealData['adjustmentType'],
+                  'adjustmentValue': updatedMealData['adjustmentValue'],
+                };
+
+                foodLogData['foods'] = foods;
+
+                await FirebaseFirestore.instance
+                    .collection('food_logs')
+                    .doc(foodLogId)
+                    .set(foodLogData);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Meal updated successfully')),
+                );
+
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Meal not found in food log')),
+                );
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Food log not found for this date')),
+              );
+            }
+          } catch (e) {
+            debugPrint('Error updating food: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error updating meal: $e')),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final selectedIndex = _selectedIndexFromLocation(context);
     DateTime? lastPressed;
-
-    //
-    // MODAL BOTTOM SHEET
-    //
-    void showFoodInputSheet({
-      BuildContext? context,
-      String? initialMealName,
-      double? initialCalories,
-      double? initialProtein,
-      double? initialCarbs,
-      double? initialFat,
-      bool isEditing = false,
-      required Function(Map<String, dynamic>) onSubmit,
-    }) {
-      showModalBottomSheet(
-        context: context!,
-        isScrollControlled: true,
-        backgroundColor: AppColors.loginPagesBg,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          side: BorderSide(color: AppColors.primaryText, width: 2),
-        ),
-        builder: (context) {
-          return FoodInputSheet(
-            initialMealName: initialMealName,
-            initialCalories: initialCalories,
-            initialProtein: initialProtein,
-            initialCarbs: initialCarbs,
-            initialFat: initialFat,
-            onSubmit: onSubmit,
-            isEditing: isEditing,
-          );
-        },
-      );
-    }
 
     void refreshHomePage() {
       if (homePageKey.currentState != null) {
         homePageKey.currentState!.setState(() {});
       }
-    }
-
-    //
-    // ADD FOOD FUNCTION
-    //
-    void addFoodManually(BuildContext context) {
-      showFoodInputSheet(
-        context: context,
-        onSubmit: (mealData) async {
-          DateTime? lastPressed;
-          final now = DateTime.now();
-          if (lastPressed != null &&
-              now.difference(lastPressed) < Duration(seconds: 2)) {
-            return; // Ignore if pressed within 2 seconds
-          }
-          lastPressed = now;
-
-          final user = FirebaseAuth.instance.currentUser;
-          if (user != null) {
-            final today = DateTime.now();
-            final foodLogId =
-                '${user.uid}_${today.year}-${today.month}-${today.day}';
-
-            try {
-              // Fetch existing food log for today or create a new one
-              final foodLogDoc = await FirebaseFirestore.instance
-                  .collection('food_logs')
-                  .doc(foodLogId)
-                  .get();
-
-              Map<String, dynamic> foodLogData = {
-                'userId': user.uid,
-                'date': Timestamp.fromDate(today),
-                'totalCalories': 0,
-                'totalCarbs': 0,
-                'totalProtein': 0,
-                'totalFat': 0,
-                'foods': [],
-              };
-
-              // If the document exists, update the data
-              if (foodLogDoc.exists && foodLogDoc.data() != null) {
-                foodLogData = foodLogDoc.data() as Map<String, dynamic>;
-              }
-
-              // Update total macros
-              final calories = mealData['calories'] ?? 0;
-              final carbs = mealData['carbs'] ?? 0;
-              final protein = mealData['protein'] ?? 0;
-              final fat = mealData['fat'] ?? 0;
-
-              foodLogData['totalCalories'] += calories;
-              foodLogData['totalCarbs'] += carbs;
-              foodLogData['totalProtein'] += protein;
-              foodLogData['totalFat'] += fat;
-
-              // Add the new food item
-              foodLogData['foods'].add({
-                'mealName': mealData['mealName'] ?? '',
-                'calories': mealData['calories'] ?? 0,
-                'carbs': mealData['carbs'] ?? 0,
-                'protein': mealData['protein'] ?? 0,
-                'fat': mealData['fat'] ?? 0,
-                'servingSize': mealData['servingSize'] ?? '',
-                'adjustmentType': mealData['adjustmentType'] ?? 'percent',
-                'adjustmentValue': mealData['adjustmentValue'] ?? 100.0,
-                'loggedTime': Timestamp.fromDate(DateTime.now()),
-              });
-
-              // Save updated food log data
-              await FirebaseFirestore.instance
-                  .collection('food_logs')
-                  .doc(foodLogId)
-                  .set(foodLogData);
-
-              // Update achievement
-              await AchievementUtils.updateAchievementsOnFoodLog(
-                  userId: user.uid,
-                  foodLogData: foodLogData,
-                  newMealName: mealData['mealName'] ?? '',
-                  isImageLog: false,
-                  context: context);
-
-              Navigator.pop(context);
-            } catch (e) {
-              debugPrint('Error saving food log: $e');
-            }
-          }
-        },
-      );
-    }
-
-    //
-    // EDIT FOOD FUNCTION
-    //
-    void editFoodManually(
-        BuildContext context, Map<String, dynamic> existingFood) {
-      showFoodInputSheet(
-        context: context,
-        initialMealName: existingFood['mealName'],
-        initialCalories: existingFood['calories'],
-        initialProtein: existingFood['protein'],
-        initialCarbs: existingFood['carbs'],
-        initialFat: existingFood['fat'],
-        isEditing: true,
-        onSubmit: (updatedMealData) async {
-          // Handle the update logic
-          final user = FirebaseAuth.instance.currentUser;
-          if (user != null) {
-            // Use the original food's logged time to find the correct day
-            final originalLoggedTime = existingFood['loggedTime'] as Timestamp;
-            final originalDate = originalLoggedTime.toDate();
-            final foodLogId =
-                '${user.uid}_${originalDate.year}-${originalDate.month}-${originalDate.day}';
-
-            try {
-              final foodLogDoc = await FirebaseFirestore.instance
-                  .collection('food_logs')
-                  .doc(foodLogId)
-                  .get();
-
-              if (foodLogDoc.exists) {
-                final foodLogData = foodLogDoc.data() as Map<String, dynamic>;
-                final foods =
-                    List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
-
-                // Find the exact food item to update
-                final index = foods.indexWhere((f) {
-                  // Convert all values to the same data type for comparison
-                  final fCalories = (f['calories'] is int)
-                      ? f['calories']
-                      : (f['calories'] as num).toInt();
-                  final existingCalories = (existingFood['calories'] is int)
-                      ? existingFood['calories']
-                      : (existingFood['calories'] as num).toInt();
-
-                  final fProtein = (f['protein'] is int)
-                      ? f['protein']
-                      : (f['protein'] as num).toInt();
-                  final existingProtein = (existingFood['protein'] is int)
-                      ? existingFood['protein']
-                      : (existingFood['protein'] as num).toInt();
-
-                  final fCarbs = (f['carbs'] is int)
-                      ? f['carbs']
-                      : (f['carbs'] as num).toInt();
-                  final existingCarbs = (existingFood['carbs'] is int)
-                      ? existingFood['carbs']
-                      : (existingFood['carbs'] as num).toInt();
-
-                  final fFat =
-                      (f['fat'] is int) ? f['fat'] : (f['fat'] as num).toInt();
-                  final existingFat = (existingFood['fat'] is int)
-                      ? existingFood['fat']
-                      : (existingFood['fat'] as num).toInt();
-
-                  // Compare loggedTime by converting both to DateTime
-                  final fTime = (f['loggedTime'] as Timestamp).toDate();
-                  final existingTime =
-                      (existingFood['loggedTime'] as Timestamp).toDate();
-
-                  return f['mealName'] == existingFood['mealName'] &&
-                      fCalories == existingCalories &&
-                      fProtein == existingProtein &&
-                      fCarbs == existingCarbs &&
-                      fFat == existingFat &&
-                      fTime.millisecondsSinceEpoch ==
-                          existingTime.millisecondsSinceEpoch;
-                });
-
-                if (index != -1) {
-                  // Get the updated values
-                  final updatedCalories = updatedMealData['calories'] ?? 0;
-                  final updatedProtein = updatedMealData['protein'] ?? 0;
-                  final updatedCarbs = updatedMealData['carbs'] ?? 0;
-                  final updatedFat = updatedMealData['fat'] ?? 0;
-
-                  // Get the original values
-                  final originalCalories = existingFood['calories'] ?? 0;
-                  final originalProtein = existingFood['protein'] ?? 0;
-                  final originalCarbs = existingFood['carbs'] ?? 0;
-                  final originalFat = existingFood['fat'] ?? 0;
-
-                  // Calculate the difference
-                  final caloriesDiff = updatedCalories - originalCalories;
-                  final proteinDiff = updatedProtein - originalProtein;
-                  final carbsDiff = updatedCarbs - originalCarbs;
-                  final fatDiff = updatedFat - originalFat;
-
-                  // Update totals by adding the difference
-                  foodLogData['totalCalories'] =
-                      (foodLogData['totalCalories'] ?? 0) + caloriesDiff;
-                  foodLogData['totalProtein'] =
-                      (foodLogData['totalProtein'] ?? 0) + proteinDiff;
-                  foodLogData['totalCarbs'] =
-                      (foodLogData['totalCarbs'] ?? 0) + carbsDiff;
-                  foodLogData['totalFat'] =
-                      (foodLogData['totalFat'] ?? 0) + fatDiff;
-
-                  // Update the food item
-                  foods[index] = {
-                    ...foods[index],
-                    'mealName':
-                        updatedMealData['mealName'] ?? existingFood['mealName'],
-                    'calories': updatedMealData['calories'] ?? 0,
-                    'protein': updatedMealData['protein'] ?? 0,
-                    'carbs': updatedMealData['carbs'] ?? 0,
-                    'fat': updatedMealData['fat'] ?? 0,
-                    'servingSize': updatedMealData['servingSize'] ??
-                        existingFood['servingSize'],
-                    'adjustmentType': updatedMealData['adjustmentType'] ??
-                        existingFood['adjustmentType'],
-                    'adjustmentValue': updatedMealData['adjustmentValue'] ??
-                        existingFood['adjustmentValue'],
-                  };
-
-                  foodLogData['foods'] = foods;
-
-                  await FirebaseFirestore.instance
-                      .collection('food_logs')
-                      .doc(foodLogId)
-                      .set(foodLogData);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Meal updated successfully')),
-                  );
-
-                  Navigator.pop(context);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Meal not found in food log')),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Food log not found for this date')),
-                );
-              }
-            } catch (e) {
-              debugPrint('Error updating food: $e');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error updating meal: $e')),
-              );
-            }
-          }
-        },
-      );
     }
 
     return Scaffold(

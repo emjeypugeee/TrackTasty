@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/model/food_item.dart';
 import 'package:fitness/services/gemini_api_service.dart';
 import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/utils/achievement_utils.dart';
 import 'package:fitness/widgets/main_screen_widgets/camera_screen/food_analysis_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +21,8 @@ class CameraScreen extends StatefulWidget {
   _CameraScreenState createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen>
+    with WidgetsBindingObserver {
   CameraController? _controller;
   Future<void>? _initializeControllerFuture;
   List<CameraDescription>? _cameras;
@@ -34,12 +36,17 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
   }
 
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
+      if (_cameras!.isEmpty) {
+        debugPrint('No cameras found.');
+        return;
+      }
       _controller = CameraController(
         _cameras![0],
         ResolutionPreset.medium,
@@ -123,6 +130,8 @@ class _CameraScreenState extends State<CameraScreen> {
             if (part.containsKey('text')) {
               final String textResponse = part['text'];
               debugPrint('Gemini Analysis: $textResponse');
+
+              debugPrint('Gemini Chatbot Output: $textResponse');
 
               // Check if it's a non-food response
               if (_handleNonFoodResponse(textResponse)) {
@@ -366,6 +375,13 @@ class _CameraScreenState extends State<CameraScreen> {
             .doc(foodLogId)
             .set(foodLogData);
 
+        await AchievementUtils.updateAchievementsOnFoodLog(
+            userId: user.uid,
+            foodLogData: foodLogData,
+            newMealName: food.mealName ?? '',
+            isImageLog: true,
+            context: _key.currentContext!);
+
         debugPrint('Saving food to log: ${food.mealName}');
 
         // Show success message
@@ -431,7 +447,21 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      _controller!.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _initializeCamera();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
   }
@@ -462,25 +492,22 @@ class _CameraScreenState extends State<CameraScreen> {
               CameraPreview(_controller!),
             if (_isProcessing)
               Center(
-                child: Container(
-                  color: Colors.black54,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primaryColor),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Analyzing food image...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
                       ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Analyzing food image...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             Positioned(
@@ -570,8 +597,14 @@ class _CameraScreenState extends State<CameraScreen> {
                                                     part['text'];
                                                 _parseFoodSuggestions(
                                                     textResponse);
-                                                _showAnalysisResult(
-                                                    textResponse);
+                                                if (_suggestedFoods
+                                                    .isNotEmpty) {
+                                                  _showAnalysisResult(
+                                                      textResponse);
+                                                } else {
+                                                  _showError(
+                                                      'No food found in the image! For best results, try taking a picture with a better view and lighting.');
+                                                }
                                                 break;
                                               }
                                             }

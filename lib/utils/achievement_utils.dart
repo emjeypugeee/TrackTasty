@@ -47,7 +47,7 @@ class AchievementUtils {
         debugPrint('Image log recorded');
       }
 
-      // Update daily streak
+      // Update daily streak and highest streak
       final streakUpdate =
           await _updateDailyStreak(achievementDoc, achievementData);
       if (streakUpdate.isNotEmpty) {
@@ -152,42 +152,98 @@ class AchievementUtils {
     Map<String, dynamic> achievementData,
   ) async {
     final lastLoggedDate = achievementData['last_logged_date'];
+    final currentStreak = achievementData['daily_streak'] ?? 0;
+    final highestStreak = achievementData['highest_streak'] ?? 0;
     final today = DateTime.now();
     final yesterday = today.subtract(const Duration(days: 1));
 
     if (lastLoggedDate == null) {
-      // First time logging
-      await achievementDoc.set(
-          {'daily_streak': 1, 'last_logged_date': Timestamp.fromDate(today)},
-          SetOptions(merge: true));
-      debugPrint('First food log - streak started');
+      // First time logging - start streak at 1
+      final newStreak = 1;
+      final newHighestStreak =
+          newStreak > highestStreak ? newStreak : highestStreak;
+
+      await achievementDoc.set({
+        'daily_streak': newStreak,
+        'highest_streak': newHighestStreak,
+        'last_logged_date': Timestamp.fromDate(today)
+      }, SetOptions(merge: true));
+
+      debugPrint(
+          'First food log - streak started: $newStreak, highest: $newHighestStreak');
       return 'Daily streak started!';
     } else {
       final lastDate = (lastLoggedDate as Timestamp).toDate();
+
+      // Check if already logged today
       if (lastDate.year == today.year &&
           lastDate.month == today.month &&
           lastDate.day == today.day) {
         // Already logged today, no change to streak
-        debugPrint('Already logged today - streak unchanged');
+        debugPrint('Already logged today - streak unchanged: $currentStreak');
         return '';
-      } else if (lastDate.year == yesterday.year &&
+      }
+      // Check if logged yesterday (continuing streak)
+      else if (lastDate.year == yesterday.year &&
           lastDate.month == yesterday.month &&
           lastDate.day == yesterday.day) {
         // Logged yesterday, continue streak
-        final currentStreak = achievementData['daily_streak'] ?? 0;
+        final newStreak = currentStreak + 1;
+        final newHighestStreak =
+            newStreak > highestStreak ? newStreak : highestStreak;
+
         await achievementDoc.set({
-          'daily_streak': currentStreak + 1,
+          'daily_streak': newStreak,
+          'highest_streak': newHighestStreak,
           'last_logged_date': Timestamp.fromDate(today)
         }, SetOptions(merge: true));
-        debugPrint('Streak continued: ${currentStreak + 1} days');
-        return 'Daily streak: ${currentStreak + 1} days!';
-      } else {
-        // Broken streak, reset to 1
-        await achievementDoc.set(
-            {'daily_streak': 1, 'last_logged_date': Timestamp.fromDate(today)},
-            SetOptions(merge: true));
-        debugPrint('Streak broken - reset to 1 day');
-        return 'New streak started!';
+
+        debugPrint(
+            'Streak continued: $newStreak days, highest: $newHighestStreak');
+
+        // Check if this equals or exceeds highest streak
+        if (newStreak >= highestStreak) {
+          return 'Daily streak: $newStreak days! 🏆 New record!';
+        } else {
+          return 'Daily streak: $newStreak days!';
+        }
+      }
+      // Streak broken (missed one or more days)
+      else {
+        // Calculate days since last log
+        final daysSinceLastLog = today.difference(lastDate).inDays;
+
+        // If it's been more than 1 day, streak is broken
+        if (daysSinceLastLog > 1) {
+          final newStreak = 1;
+          // Highest streak remains unchanged (it only increases, never decreases)
+          final newHighestStreak = highestStreak;
+
+          await achievementDoc.set({
+            'daily_streak': newStreak,
+            'highest_streak': newHighestStreak,
+            'last_logged_date': Timestamp.fromDate(today)
+          }, SetOptions(merge: true));
+
+          debugPrint(
+              'Streak broken after $daysSinceLastLog days - reset to 1, highest remains: $newHighestStreak');
+          return 'New streak started!';
+        } else {
+          // This case should not happen due to previous checks, but included for safety
+          final newStreak = 1;
+          final newHighestStreak =
+              newStreak > highestStreak ? newStreak : highestStreak;
+
+          await achievementDoc.set({
+            'daily_streak': newStreak,
+            'highest_streak': newHighestStreak,
+            'last_logged_date': Timestamp.fromDate(today)
+          }, SetOptions(merge: true));
+
+          debugPrint(
+              'Unexpected date scenario - reset to 1, highest: $newHighestStreak');
+          return 'New streak started!';
+        }
       }
     }
   }

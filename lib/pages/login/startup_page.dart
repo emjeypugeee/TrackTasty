@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/square_tile.dart';
@@ -16,11 +17,6 @@ class _StartupPageState extends State<StartupPage> {
   @override
   void initState() {
     super.initState();
-    // Example: check auth and redirect
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      Future.microtask(() => context.go('/home'));
-    }
   }
 
   var duration = const Duration(seconds: 5);

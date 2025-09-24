@@ -1,6 +1,7 @@
 import 'dart:ffi';
 
 import 'package:fitness/services/fat_secret_api_service.dart';
+import 'package:fitness/utils/achievement_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
@@ -99,99 +100,90 @@ class _FoodPageState extends State<FoodPage> {
   }
 
   // Function to show food confirmation sheet
-  void _showFoodConfirmationSheet(
-      Map<String, dynamic> food, Map<String, dynamic> nutrients) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        side: BorderSide(color: Colors.white, width: 2),
-      ),
-      builder: (context) {
-        return FoodInputSheet(
-          initialMealName: food['food_name'],
-          initialCalories: nutrients['calories'],
-          initialProtein: nutrients['protein'],
-          initialCarbs: nutrients['carbs'],
-          initialFat: nutrients['fat'],
-          onSubmit: (mealData) async {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user != null) {
-              final today = DateTime.now();
-              final foodLogId =
-                  '${user.uid}_${today.year}-${today.month}-${today.day}';
+  Future<void> _saveFoodToFirebase(
+      Map<String, dynamic> food, Map<String, dynamic> nutrients) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final today = DateTime.now();
+    final foodLogId = '${user?.uid}_${today.year}-${today.month}-${today.day}';
 
-              try {
-                // Fetch existing food log for today or create a new one
-                final foodLogDoc = await FirebaseFirestore.instance
-                    .collection('food_logs')
-                    .doc(foodLogId)
-                    .get();
+    if (user != null) {
+      final foodLogDoc = await FirebaseFirestore.instance
+          .collection('food_logs')
+          .doc(foodLogId)
+          .get();
 
-                Map<String, dynamic> foodLogData = {
-                  'userId': user.uid,
-                  'date': Timestamp.fromDate(today),
-                  'totalCalories': 0,
-                  'totalCarbs': 0,
-                  'totalProtein': 0,
-                  'totalFat': 0,
-                  'foods': [],
-                };
+      Map<String, dynamic> foodLogData = {
+        'userId': user.uid,
+        'date': Timestamp.fromDate(today),
+        'totalCalories': 0.0,
+        'totalCarbs': 0.0,
+        'totalProtein': 0.0,
+        'totalFat': 0.0,
+        'foods': [],
+      };
 
-                // If the document exists, update the data
-                if (foodLogDoc.exists && foodLogDoc.data() != null) {
-                  foodLogData = foodLogDoc.data() as Map<String, dynamic>;
-                }
+      // If the document exists, update the data
+      if (foodLogDoc.exists && foodLogDoc.data() != null) {
+        foodLogData = foodLogDoc.data() as Map<String, dynamic>;
 
-                // Update total macros
-                final calories = mealData['calories'] ?? 0;
-                final carbs = mealData['carbs'] ?? 0;
-                final protein = mealData['protein'] ?? 0;
-                final fat = mealData['fat'] ?? 0;
+        // Ensure all fields have default values if they're null
+        foodLogData['totalCalories'] ??= 0.0;
+        foodLogData['totalCarbs'] ??= 0.0;
+        foodLogData['totalProtein'] ??= 0.0;
+        foodLogData['totalFat'] ??= 0.0;
+        foodLogData['foods'] ??= [];
+      }
 
-                foodLogData['totalCalories'] += calories;
-                foodLogData['totalCarbs'] += carbs;
-                foodLogData['totalProtein'] += protein;
-                foodLogData['totalFat'] += fat;
+      // Update total macros
+      final calories = nutrients['calories'] ?? 0.0;
+      final carbs = nutrients['carbs'] ?? 0.0;
+      final protein = nutrients['protein'] ?? 0.0;
+      final fat = nutrients['fat'] ?? 0.0;
 
-                // Add the new food item
-                foodLogData['foods'].add({
-                  'mealName': mealData['mealName'] ?? food['food_name'],
-                  'calories': calories,
-                  'carbs': carbs,
-                  'protein': protein,
-                  'fat': fat,
-                  'loggedTime': Timestamp.fromDate(DateTime.now()),
-                  'servingSize': nutrients['serving'],
-                });
+      foodLogData['totalCalories'] =
+          (foodLogData['totalCalories'] as double) + calories;
+      foodLogData['totalCarbs'] = (foodLogData['totalCarbs'] as double) + carbs;
+      foodLogData['totalProtein'] =
+          (foodLogData['totalProtein'] as double) + protein;
+      foodLogData['totalFat'] = (foodLogData['totalFat'] as double) + fat;
 
-                // Save updated food log data
-                await FirebaseFirestore.instance
-                    .collection('food_logs')
-                    .doc(foodLogId)
-                    .set(foodLogData);
+      foodLogData['foods'].add({
+        'mealName': food['food_name'],
+        'calories': calories,
+        'carbs': carbs,
+        'protein': protein,
+        'fat': fat,
+        'loggedTime': Timestamp.fromDate(DateTime.now()),
+        'servingSize': nutrients['serving'],
+      });
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content:
-                          Text('${food['food_name']} added successfully!')),
-                );
+      try {
+        await FirebaseFirestore.instance
+            .collection('food_logs')
+            .doc(foodLogId)
+            .set(foodLogData);
 
-                Navigator.pop(context); // Close confirmation sheet
-                Navigator.pop(context); // Close food page and return to home
-              } catch (e) {
-                debugPrint('Error saving food: $e');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error saving food: $e')),
-                );
-              }
-            }
-          },
+        await AchievementUtils.updateAchievementsOnFoodLog(
+            userId: user.uid,
+            foodLogData: foodLogData,
+            newMealName: food['food_name'] ?? '',
+            isImageLog: false,
+            context: context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${food['food_name']} saved successfully!'),
+          ),
         );
-      },
-    );
+        Navigator.pop(context); // Close food page and return to home
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving food: $e'),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -255,7 +247,7 @@ class _FoodPageState extends State<FoodPage> {
                       fat: nutrients['fat'],
                       serving: nutrients['serving'],
                       onPressed: () {
-                        _showFoodConfirmationSheet(food, nutrients);
+                        _saveFoodToFirebase(food, nutrients);
                       },
                     );
                   },

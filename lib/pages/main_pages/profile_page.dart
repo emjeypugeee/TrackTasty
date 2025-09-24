@@ -129,6 +129,7 @@ class ProfilePage extends StatelessWidget {
               joinedDate = DateTime.now(); // Fallback to current date
             }
             int dayStreak;
+            int highestDayStreak;
 
             return FutureBuilder<Map<String, dynamic>>(
                 future: getUserAchievements(),
@@ -140,6 +141,7 @@ class ProfilePage extends StatelessWidget {
 
                   final achievements = achievementSnapshot.data ?? {};
                   dayStreak = achievements['daily_streak'] ?? 0;
+                  highestDayStreak = achievements['highest_streak'] ?? 0;
 
                   return FutureBuilder<Map<String, dynamic>>(
                     future: getUserWeightData(),
@@ -168,7 +170,7 @@ class ProfilePage extends StatelessWidget {
                           'id': 'daily_tracker',
                           'title': 'Daily Tracker',
                           'description':
-                              'Reached a ${_getAchievementLevel(achievements['daily_streak'] ?? 0, [
+                              'Reached a ${_getAchievementLevel(achievements['highest_streak'] ?? 0, [
                                 7,
                                 14,
                                 60,
@@ -176,13 +178,13 @@ class ProfilePage extends StatelessWidget {
                                 365
                               ])} days streak!',
                           'nextStarDescription': _getNextStarDescription(
-                              achievements['daily_streak'] ?? 0,
+                              achievements['highest_streak'] ?? 0,
                               [7, 14, 60, 180, 365],
                               'days streak'),
                           'progress':
-                              '${achievements['daily_streak'] ?? 0} days',
+                              '${achievements['highest_streak'] ?? 0} days',
                           'stars': _getStarCount(
-                              achievements['daily_streak'] ?? 0,
+                              achievements['highest_streak'] ?? 0,
                               [7, 14, 60, 180, 365]),
                         },
                         {
@@ -262,7 +264,7 @@ class ProfilePage extends StatelessWidget {
                                   name: username,
                                   joinedDate: joinedDate,
                                   dayStreak: dayStreak,
-                                  highestDayStreak: dayStreak,
+                                  highestDayStreak: highestDayStreak,
                                   initialWeight: initialWeight,
                                   currentWeight: currentWeight,
                                   measurementSystem: measurementSystem,

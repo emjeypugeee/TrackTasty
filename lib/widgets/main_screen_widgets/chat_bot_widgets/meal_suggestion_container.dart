@@ -1,4 +1,5 @@
 import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/utils/achievement_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -92,6 +93,13 @@ class _MealSuggestionContainerState extends State<MealSuggestionContainer> {
           .collection('food_logs')
           .doc(foodLogId)
           .set(foodLogData);
+
+      await AchievementUtils.updateAchievementsOnFoodLog(
+          userId: user.uid,
+          foodLogData: foodLogData,
+          newMealName: widget.mealData['meal_name'] ?? '',
+          isImageLog: false,
+          context: context);
 
       setState(() {
         _isAdding = false;
