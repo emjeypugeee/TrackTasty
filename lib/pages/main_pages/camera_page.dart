@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/model/food_item.dart';
 import 'package:fitness/services/gemini_api_service.dart';
 import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/theme/scan_line_painter.dart';
 import 'package:fitness/utils/achievement_utils.dart';
 import 'package:fitness/widgets/main_screen_widgets/camera_screen/food_analysis_widget.dart';
 import 'package:flutter/material.dart';
@@ -22,12 +23,15 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin {
   CameraController? _controller;
   Future<void>? _initializeControllerFuture;
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   bool _isProcessing = false;
+  bool _isScanning = false;
+  late AnimationController _animationController;
+  late Animation<double> _scanAnimation;
   List<FoodItem> _suggestedFoods = [];
 
   // Create GlobalKey for showing dialogs without context issues
@@ -36,8 +40,29 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
+    _initializeAnimation();
+  }
+
+  void _initializeAnimation() {
+    _animationController = AnimationController(
+      duration: Duration(seconds: 2),
+      vsync: this,
+    );
+
+    _scanAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    // Start scanning animation when camera is initialized
+    _animationController.repeat(reverse: true);
+    setState(() {
+      _isScanning = true;
+    });
   }
 
   Future<void> _initializeCamera() async {
@@ -461,7 +486,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _animationController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -490,6 +515,40 @@ class _CameraScreenState extends State<CameraScreen>
                 _controller != null &&
                 _controller!.value.isInitialized)
               CameraPreview(_controller!),
+
+            if (_isCameraInitialized)
+              Center(
+                child: Container(
+                  width: 280,
+                  height: 480,
+                  padding: EdgeInsets.fromLTRB(0, 0, 0, 200),
+                  child: _isScanning
+                      ? AnimatedBuilder(
+                          animation: _scanAnimation,
+                          builder: (context, child) {
+                            return CustomPaint(
+                              painter: ScanLinePainter(_scanAnimation.value),
+                            );
+                          },
+                        )
+                      : null,
+                ),
+              ),
+
+            // Semi-transparent overlay around the frame
+            if (_isCameraInitialized)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    radius: 1.5,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.5),
+                    ],
+                    stops: [0.3, 0.8],
+                  ),
+                ),
+              ),
             if (_isProcessing)
               Center(
                 child: Column(
@@ -548,7 +607,20 @@ class _CameraScreenState extends State<CameraScreen>
                                   final imagePath = await takePicture();
                                   if (imagePath != null && mounted) {
                                     debugPrint("Image path: $imagePath");
+                                    // Stop scanning animation when taking picture
+                                    _animationController.stop();
+                                    setState(() {
+                                      _isScanning = false;
+                                    });
                                     await _analyzeFoodImage(imagePath);
+                                    // Restart animation after analysis
+                                    if (mounted) {
+                                      _animationController.repeat(
+                                          reverse: true);
+                                      setState(() {
+                                        _isScanning = true;
+                                      });
+                                    }
                                   }
                                 },
                           backgroundColor: _isProcessing
