@@ -414,6 +414,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
           children: [
             // Master toggle
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Enable Notifications',
                 style: TextStyle(
@@ -463,6 +464,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
             ),
             const SizedBox(height: 8),
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Enable Meal Reminders',
                 style: TextStyle(color: AppColors.primaryText),
@@ -498,6 +500,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
 
             // Goal Reminders
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Goal Progress Reminders',
                 style: TextStyle(color: AppColors.primaryText),
@@ -519,6 +522,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
 
             // Streak Reminders
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Streak Reminders',
                 style: TextStyle(color: AppColors.primaryText),
@@ -540,6 +544,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
 
             // Weekly Summary
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Weekly Progress Report',
                 style: TextStyle(color: AppColors.primaryText),
@@ -589,6 +594,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
 
             // Educational Tips
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Educational Tips',
                 style: TextStyle(color: AppColors.primaryText),
@@ -608,29 +614,9 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                   : null,
             ),
 
-            // Chatbot Check-ins
-            SwitchListTile(
-              title: Text(
-                'Chatbot Check-ins',
-                style: TextStyle(color: AppColors.primaryText),
-              ),
-              subtitle: Text(
-                'Personalized messages from TrackTasty assistant',
-                style: TextStyle(color: AppColors.secondaryText),
-              ),
-              value: _chatbotCheckinsEnabled,
-              onChanged: _notificationsEnabled
-                  ? (value) {
-                      setState(() {
-                        _chatbotCheckinsEnabled = value;
-                      });
-                      _saveNotificationSettings();
-                    }
-                  : null,
-            ),
-
             // Progress Notifications
             SwitchListTile(
+              activeColor: AppColors.primaryColor,
               title: Text(
                 'Progress Notifications',
                 style: TextStyle(color: AppColors.primaryText),

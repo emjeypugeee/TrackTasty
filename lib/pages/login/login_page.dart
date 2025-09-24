@@ -1,8 +1,5 @@
-// ignore_for_file: use_build_context_synchronously
-
-import 'dart:io';
-
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/helper/helper_function.dart';
@@ -49,7 +46,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // log in method
-  // log in method
   void login() async {
     // Validate form first
     if (!_formKey.currentState!.validate()) {
@@ -72,10 +68,51 @@ class _LoginPageState extends State<LoginPage> {
         password: passwordController.text.trim(),
       );
 
-      // Pop loading circle
-      if (context.mounted) {
-        Navigator.pop(context);
-        context.push('/home');
+      // Get the current user
+      User? user = FirebaseAuth.instance.currentUser;
+
+      // --- DEBUGGING PRINTS ADDED HERE ---
+      debugPrint(
+          "(LOGIN PAGE) Successfully signed in with email: ${user?.email}");
+      debugPrint(
+          "(LOGIN PAGE) Attempting to fetch user document for UID: ${user?.uid}");
+
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(FirebaseAuth.instance.currentUser?.email)
+          .get();
+
+      // --- MORE DEBUGGING PRINTS ---
+      debugPrint("(LOGIN PAGE) userDoc.exists: ${userDoc.exists}");
+
+      if (userDoc.exists && userDoc.data() != null) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+
+        debugPrint("(LOGIN PAGE) User data found: $userData");
+
+        final isAdmin = userData['isAdmin'] ?? false;
+        debugPrint("(LOGIN PAGE) ADMIN: $isAdmin");
+
+        if (isAdmin == true) {
+          // Pop loading circle and navigate to admin page
+          if (context.mounted) {
+            Navigator.pop(context);
+            context.push('/adminonly');
+          }
+        } else {
+          // Pop loading circle and navigate to home page for non-admin users
+          if (context.mounted) {
+            Navigator.pop(context);
+            context.push('/home');
+          }
+        }
+      } else {
+        // Handle case where user data is not found, default to home page
+        if (context.mounted) {
+          debugPrint("(LOGIN PAGE) NO DATA FOUND for UID: ${user?.uid}");
+          Navigator.pop(context);
+          context.push('/home');
+        }
       }
     } on FirebaseAuthException catch (e) {
       // Pop loading screen

@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/services/fat_secret_api_service.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -40,7 +43,12 @@ class _AdminPageState extends State<AdminPage> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            debugPrint("(ADMIN PAGE): ADMIN LOGGED OUT");
+            context.read<UserProvider>().logout();
+            Navigator.pop(context);
+            context.go('/startup');
+          },
         ),
         centerTitle: true,
         elevation: 0,
@@ -579,26 +587,6 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
     }
   }
 
-  Future<void> _toggleAdminStatus(String email, bool currentStatus) async {
-    try {
-      await FirebaseFirestore.instance.collection('Users').doc(email).update({
-        'isAdmin': !currentStatus,
-        'adminGrantedAt': currentStatus ? null : FieldValue.serverTimestamp(),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Admin status ${!currentStatus ? 'granted' : 'revoked'} for $email')),
-      );
-      _loadUsers(); // Reload the user list
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
-
   void _viewUserDetails(QueryDocumentSnapshot user) {
     final userData = user.data() as Map<String, dynamic>;
     String dateCreatedString;
@@ -833,18 +821,10 @@ class _AccountManagementSectionState extends State<AccountManagementSection> {
                                           value: 'details',
                                           child: Text('View Details'),
                                         ),
-                                        PopupMenuItem(
-                                          value: 'toggle_admin',
-                                          child: Text(isAdmin
-                                              ? 'Revoke Admin'
-                                              : 'Make Admin'),
-                                        ),
                                       ],
                                       onSelected: (value) {
                                         if (value == 'details') {
                                           _viewUserDetails(user);
-                                        } else if (value == 'toggle_admin') {
-                                          _toggleAdminStatus(user.id, isAdmin);
                                         }
                                       },
                                     ),

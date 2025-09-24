@@ -78,7 +78,7 @@ class ProfileContainer extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            'Joined: $formattedJoinedDate • ${measurementSystem == 'US' ? 'Imperial' : 'Metric'} System',
+            'Joined: $formattedJoinedDate',
             style: const TextStyle(color: Colors.white70),
           ),
           const SizedBox(height: 10),

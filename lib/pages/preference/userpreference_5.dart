@@ -94,7 +94,7 @@ class _Userpreference5 extends State<Userpreference5> {
                     SizedBox(height: 5),
 
                     Text(
-                      'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                      'Thanks! Now, tell us about your dietary preferences. This helps us recommend meals and recipes you’ll love.',
                       style: TextStyle(color: Colors.grey),
                     ),
 
@@ -106,7 +106,7 @@ class _Userpreference5 extends State<Userpreference5> {
                     // Dietary Preference Input
                     // ---------------------
                     Text(
-                      'Thanks! Now, tell us about your dietary preferences. This helps our chatbot recommend meals you’ll love.',
+                      'What is your dietary preference?',
                       style: TextStyle(
                         color: Colors.white,
                       ),

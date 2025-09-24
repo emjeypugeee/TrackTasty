@@ -102,7 +102,7 @@ class _Userpreference6 extends State<Userpreference6> {
             SizedBox(height: 5),
 
             Text(
-              'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+              'Lastly, please let us know about any allergies you have. We\'ll use this information to ensure that all of our meal recommendations are safe and free from those ingredients.',
               style: TextStyle(color: Colors.grey),
             ),
 
@@ -111,7 +111,7 @@ class _Userpreference6 extends State<Userpreference6> {
             ),
 
             Text(
-              'Lastly, please let us know about any allergies you have. We\'ll use this information to ensure that all of our meal recommendations are safe and free from those ingredients.',
+              'What are your known allergies?',
               style: TextStyle(
                 color: Colors.white,
               ),

@@ -105,12 +105,12 @@ class _Userpreference2 extends State<Userpreference2> {
                     ),
                     SizedBox(height: 5),
                     Text(
-                      'Welcome to TrackTasty! We\'re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                      'Next, we need to know how much you move in your everyday life. Your activity level is essential for us to calculate your Daily Macro Intake, which will help us tailor a personalized nutrition plan just for you.',
                       style: TextStyle(color: Colors.grey),
                     ),
                     SizedBox(height: 20),
                     Text(
-                      'Next, how would you describe your activity level usually? Your activity level is essential for us to calculate your Daily Macro Intake, which will help us tailor a personalized nutrition plan just for you.',
+                      'How would you describe your activity level usually?',
                       style: TextStyle(color: Colors.white),
                     ),
                     SizedBox(height: 30),

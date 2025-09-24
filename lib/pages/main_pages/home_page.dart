@@ -67,64 +67,10 @@ class _HomePageState extends State<HomePage> {
     selectedIndex = 6;
     selectedDay = days[selectedIndex];
     _loadNutritionData();
-
-    /* backfill current weight if no history exists
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) return;
-
-        final userDoc = await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(user.email)
-            .get();
-
-        if (userDoc.exists && userDoc.data()?['weight'] != null) {
-          final today = DateTime.now();
-          final weightValue = userDoc.data()!['weight'];
-          double? weight;
-
-          // Handle different data types for weight
-          if (weightValue is String) {
-            weight = double.tryParse(weightValue);
-          } else if (weightValue is int) {
-            weight = weightValue.toDouble();
-          } else if (weightValue is double) {
-            weight = weightValue;
-          }
-
-          if (weight != null) {
-            // Create document ID with format: ${userId}_${date}
-            final docId =
-                '${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}';
-
-            await FirebaseFirestore.instance
-                .collection('weight_history')
-                .doc(docId)
-                .set({
-              'userId': user.uid, // Still include userId for querying
-              'weight': weight,
-              'date': Timestamp.fromDate(today),
-            }, SetOptions(merge: true));
-
-            debugPrint('Successfully saved weight history for $docId');
-          }
-        }
-      } catch (e) {
-        debugPrint('Error in weight history initialization: $e');
-      }
-    }
-    );*/
   }
 
   Future<void> _loadNutritionData() async {
-    //setState(() => _isLoading = true);
-
     final user = FirebaseAuth.instance.currentUser;
-    /*if (user == null) {
-      setState(() => _isLoading = false);
-      return;
-    }*/
 
     // Cancel previous subscription
     _foodLogSubscription?.cancel();
@@ -148,8 +94,8 @@ class _HomePageState extends State<HomePage> {
             'totalProtein': foodLog['totalProtein'] ?? 0,
             'totalCarbs': foodLog['totalCarbs'] ?? 0,
             'totalFat': foodLog['totalFat'] ?? 0,
+            'hasFoodLogged': true,
           };
-          //_isLoading = false;
         });
       } else {
         setState(() {
@@ -158,8 +104,8 @@ class _HomePageState extends State<HomePage> {
             'totalProtein': 0,
             'totalCarbs': 0,
             'totalFat': 0,
+            'hasFoodLogged': false,
           };
-          //_isLoading = false;
         });
       }
     });
@@ -169,6 +115,314 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _foodLogSubscription?.cancel();
     super.dispose();
+  }
+
+  // Progress review messages
+  String _getProgressReview(
+      Map<String, dynamic> userData, Map<String, dynamic> nutritionData) {
+    final now = DateTime.now();
+    final selectedDate =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Don't show review for today or future dates
+    if (selectedDate.isAfter(today) || selectedDate.isAtSameMomentAs(today)) {
+      return '';
+    }
+
+    final hasFoodLogged = nutritionData['hasFoodLogged'] ?? false;
+    final userAllergies = List<String>.from(userData['allergies'] ?? []);
+
+    // Check if no food was logged for this day
+    if (!hasFoodLogged) {
+      final noFoodMessages = [
+        "No meals were logged for this day. Consistent tracking helps you understand your eating patterns and make better nutritional choices.",
+        "You didn't log any food on this day. Remember that tracking your meals is the first step toward achieving your health goals!",
+        "It looks like you took a break from tracking on this day. Even on rest days, logging helps maintain awareness of your nutrition habits."
+      ];
+      return noFoodMessages[
+          DateTime.now().millisecondsSinceEpoch % noFoodMessages.length];
+    }
+
+    final calorieGoal = (userData['dailyCalories'] ?? 2000).toDouble();
+    final proteinGoal = (userData['proteinGram'] ?? 100).toDouble();
+    final carbsGoal = (userData['carbsGram'] ?? 250).toDouble();
+    final fatGoal = (userData['fatsGram'] ?? 70).toDouble();
+
+    final totalCalories = (nutritionData['totalCalories'] ?? 0).toDouble();
+    final totalProtein = (nutritionData['totalProtein'] ?? 0).toDouble();
+    final totalCarbs = (nutritionData['totalCarbs'] ?? 0).toDouble();
+    final totalFat = (nutritionData['totalFat'] ?? 0).toDouble();
+
+    // Define thresholds (20% deviation from goal)
+    final lowThreshold = 0.8;
+    final highThreshold = 1.2;
+
+    // Check each macro and generate appropriate messages
+    final List<String> issues = [];
+
+    // Calories check
+    if (totalCalories < calorieGoal * lowThreshold) {
+      issues.add('low_calories');
+    } else if (totalCalories > calorieGoal * highThreshold) {
+      issues.add('high_calories');
+    }
+
+    // Protein check
+    if (totalProtein < proteinGoal * lowThreshold) {
+      issues.add('low_protein');
+    } else if (totalProtein > proteinGoal * highThreshold) {
+      issues.add('high_protein');
+    }
+
+    // Carbs check
+    if (totalCarbs < carbsGoal * lowThreshold) {
+      issues.add('low_carbs');
+    } else if (totalCarbs > carbsGoal * highThreshold) {
+      issues.add('high_carbs');
+    }
+
+    // Fat check
+    if (totalFat < fatGoal * lowThreshold) {
+      issues.add('low_fat');
+    } else if (totalFat > fatGoal * highThreshold) {
+      issues.add('high_fat');
+    }
+
+    // If no significant issues, provide positive feedback
+    if (issues.isEmpty) {
+      final balancedMessages = [
+        "Great job! Your nutrition was well-balanced on this day. Keep up the good work!",
+        "Excellent balance! Your macros were perfectly aligned with your goals.",
+        "Perfect nutrition day! You hit all your targets just right.",
+        "Well done! Your meal planning was spot on for this day."
+      ];
+      return balancedMessages[
+          DateTime.now().millisecondsSinceEpoch % balancedMessages.length];
+    }
+
+    // Select one random issue to focus on
+    final randomIssue =
+        issues[DateTime.now().millisecondsSinceEpoch % issues.length];
+
+    return _getMessageForIssue(
+        randomIssue,
+        calorieGoal,
+        proteinGoal,
+        carbsGoal,
+        fatGoal,
+        totalCalories,
+        totalProtein,
+        totalCarbs,
+        totalFat,
+        userAllergies);
+  }
+
+  String _getMessageForIssue(
+      String issue,
+      double calorieGoal,
+      double proteinGoal,
+      double carbsGoal,
+      double fatGoal,
+      double totalCalories,
+      double totalProtein,
+      double totalCarbs,
+      double totalFat,
+      List<String> userAllergies) {
+    // Helper function to filter meal suggestions based on allergies
+    List<String> getAllergySafeSuggestions(
+        List<String> suggestions, List<String> allergies) {
+      final allergyKeywords = {
+        'Crustacean Shellfish': [
+          'shrimp',
+          'crab',
+          'lobster',
+          'crawfish',
+          'shellfish'
+        ],
+        'Dairy (Milk)': [
+          'milk',
+          'cheese',
+          'butter',
+          'yogurt',
+          'dairy',
+          'greek yogurt',
+          'cottage cheese'
+        ],
+        'Egg': ['egg', 'eggs', 'mayonnaise', 'custard'],
+        'Fish': ['fish', 'tuna', 'salmon', 'cod', 'trout', 'seafood'],
+        'Peanut': ['peanut', 'peanuts', 'peanut butter'],
+        'Sesame': ['sesame', 'tahini', 'sesame seed'],
+        'Soy': ['soy', 'tofu', 'edamame', 'soy sauce', 'soybean'],
+        'Tree Nuts': [
+          'almond',
+          'walnut',
+          'cashew',
+          'pecan',
+          'nut',
+          'nuts',
+          'nut butter'
+        ],
+        'Wheat': [
+          'wheat',
+          'bread',
+          'pasta',
+          'flour',
+          'cereal',
+          'whole grain',
+          'oatmeal'
+        ]
+      };
+
+      return suggestions.where((suggestion) {
+        final lowerSuggestion = suggestion.toLowerCase();
+        for (final allergy in allergies) {
+          final keywords = allergyKeywords[allergy] ?? [];
+          for (final keyword in keywords) {
+            if (lowerSuggestion.contains(keyword)) {
+              return false; // Exclude if contains allergen
+            }
+          }
+        }
+        return true; // Include if no allergens found
+      }).toList();
+    }
+
+    // Get safe suggestions or fallback messages
+    List<String> getSafeSuggestions(List<String> suggestions) {
+      final safeSuggestions =
+          getAllergySafeSuggestions(suggestions, userAllergies);
+      if (safeSuggestions.isEmpty) {
+        return [
+          'Try incorporating foods that align with your dietary restrictions and preferences.'
+        ];
+      }
+      return safeSuggestions;
+    }
+
+    switch (issue) {
+      case 'low_calories':
+        final calorieSuggestions = [
+          "Greek yogurt with berries",
+          "handful of nuts",
+          "avocado toast",
+          "smoothie with banana and peanut butter",
+          "oatmeal with fruits",
+          "sweet potatoes",
+          "rice cakes with almond butter",
+          "protein shake"
+        ];
+        final safeSuggestions = getSafeSuggestions(calorieSuggestions);
+        final lowCalorieMessages = [
+          "You consumed ${(calorieGoal - totalCalories).toInt()} fewer calories than your goal. Consider adding a nutrient-dense snack like ${safeSuggestions[0]} to meet your energy needs.",
+          "Your calorie intake was a bit low. Try incorporating energy-boosting foods like ${safeSuggestions[0]} to reach your daily target.",
+          "You're under your calorie goal. Adding complex carbs like ${safeSuggestions[0]} can help you meet your energy requirements sustainably."
+        ];
+        return lowCalorieMessages[
+            DateTime.now().millisecondsSinceEpoch % lowCalorieMessages.length];
+
+      case 'high_calories':
+        final highCalorieMessages = [
+          "You exceeded your calorie goal by ${(totalCalories - calorieGoal).toInt()} calories. For better weight management, try smaller portions or choose lower-calorie alternatives like vegetables and lean proteins.",
+          "Calorie intake was higher than planned. Focus on portion control and include more fiber-rich foods to feel full with fewer calories.",
+          "You consumed more calories than needed. Consider balancing with lighter meals the next day and increasing physical activity."
+        ];
+        return highCalorieMessages[
+            DateTime.now().millisecondsSinceEpoch % highCalorieMessages.length];
+
+      case 'low_protein':
+        final proteinSuggestions = [
+          "chicken breast",
+          "eggs",
+          "lentils",
+          "Greek yogurt",
+          "tofu",
+          "fish",
+          "cottage cheese",
+          "protein shakes",
+          "lean beef"
+        ];
+        final safeSuggestions = getSafeSuggestions(proteinSuggestions);
+        final lowProteinMessages = [
+          "Protein intake was ${(proteinGoal - totalProtein).toInt()}g below target. Protein is essential for muscle repair. Try adding ${safeSuggestions[0]} to your meals.",
+          "You need more protein for optimal health. Consider ${safeSuggestions[0]} to support muscle maintenance and satiety.",
+          "Low protein detected. Incorporate protein-rich snacks like ${safeSuggestions[0]} to meet your daily requirements."
+        ];
+        return lowProteinMessages[
+            DateTime.now().millisecondsSinceEpoch % lowProteinMessages.length];
+
+      case 'high_protein':
+        final highProteinMessages = [
+          "Protein consumption was ${(totalProtein - proteinGoal).toInt()}g above goal. While protein is important, excess can strain kidneys. Balance with more vegetables and carbs.",
+          "You exceeded your protein target. Consider diversifying with more complex carbohydrates and healthy fats for balanced nutrition.",
+          "High protein intake noted. Ensure you're drinking plenty of water and include fiber-rich foods to support digestion."
+        ];
+        return highProteinMessages[
+            DateTime.now().millisecondsSinceEpoch % highProteinMessages.length];
+
+      case 'low_carbs':
+        final carbSuggestions = [
+          "brown rice",
+          "quinoa",
+          "bananas",
+          "whole grains",
+          "fruits",
+          "starchy vegetables",
+          "oatmeal",
+          "whole wheat bread",
+          "sweet potatoes"
+        ];
+        final safeSuggestions = getSafeSuggestions(carbSuggestions);
+        final lowCarbMessages = [
+          "Carbohydrates were ${(carbsGoal - totalCarbs).toInt()}g below your goal. Carbs provide energy for daily activities. Try adding ${safeSuggestions[0]} to your meals.",
+          "Low carb intake can lead to fatigue. Include energy sources like ${safeSuggestions[0]} to maintain optimal energy levels.",
+          "You need more carbohydrates for fuel. Consider ${safeSuggestions[0]} to support your activity needs."
+        ];
+        return lowCarbMessages[
+            DateTime.now().millisecondsSinceEpoch % lowCarbMessages.length];
+
+      case 'high_carbs':
+        final highCarbMessages = [
+          "Carb intake exceeded by ${(totalCarbs - carbsGoal).toInt()}g. Focus on complex carbs like whole grains instead of refined carbs, and balance with protein and fats.",
+          "High carbohydrate consumption detected. Choose fiber-rich options and pair with protein to stabilize blood sugar levels.",
+          "You consumed more carbs than needed. Consider reducing portion sizes and focusing on quality sources like vegetables and legumes."
+        ];
+        return highCarbMessages[
+            DateTime.now().millisecondsSinceEpoch % highCarbMessages.length];
+
+      case 'low_fat':
+        final fatSuggestions = [
+          "avocado",
+          "nuts",
+          "olive oil",
+          "salmon",
+          "chia seeds",
+          "nut butter",
+          "eggs",
+          "dark chocolate",
+          "coconut oil"
+        ];
+        final safeSuggestions = getSafeSuggestions(fatSuggestions);
+        final lowFatMessages = [
+          "Fat intake was ${(fatGoal - totalFat).toInt()}g below target. Healthy fats support hormone production. Add ${safeSuggestions[0]} to your meals.",
+          "You need more healthy fats for brain health and vitamin absorption. Try incorporating ${safeSuggestions[0]} into your diet.",
+          "Low fat detected. Include sources like ${safeSuggestions[0]} to support overall health and satiety."
+        ];
+        return lowFatMessages[
+            DateTime.now().millisecondsSinceEpoch % lowFatMessages.length];
+
+      case 'high_fat':
+        final highFatMessages = [
+          "Fat consumption exceeded by ${(totalFat - fatGoal).toInt()}g. While fats are essential, excess can lead to weight gain. Choose lean proteins and increase vegetable intake.",
+          "High fat intake noted. Focus on unsaturated fats like those in fish and nuts, and reduce saturated fats for heart health.",
+          "You consumed more fat than planned. Balance with high-fiber foods and consider grilling or baking instead of frying."
+        ];
+        return highFatMessages[
+            DateTime.now().millisecondsSinceEpoch % highFatMessages.length];
+
+      default:
+        return "Keep tracking your nutrition! Consistency is key to reaching your health goals.";
+    }
   }
 
   @override
@@ -184,13 +438,13 @@ class _HomePageState extends State<HomePage> {
               _buildCalendarSection(),
 
               // nutrition progress bar section
-              /*
-               *  +++++++++++++++++++++++++++++++
-               *  NUTRITION PROGRESS BARS SECTION
-               *  +++++++++++++++++++++++++++++++
-               */
               const SizedBox(height: 20),
               _buildNutritionProgressSection(),
+
+              // Progress Review Section
+              const SizedBox(height: 20),
+              _buildProgressReviewSection(),
+
               /*
                *  +++++++++++++++++
                *  MEALS LOG SECTION
@@ -211,6 +465,101 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProgressReviewSection() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('Users')
+          .doc(FirebaseAuth.instance.currentUser?.email)
+          .snapshots(),
+      builder: (context, userSnapshot) {
+        if (userSnapshot.hasError ||
+            !userSnapshot.hasData ||
+            !userSnapshot.data!.exists) {
+          return const SizedBox(); // Hide if no user data
+        }
+
+        if (userSnapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(); // Hide while loading
+        }
+
+        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+        final reviewMessage =
+            _getProgressReview(userData, _nutritionData ?? {});
+
+        // Don't show anything if no message or for today's date
+        if (reviewMessage.isEmpty) {
+          return const SizedBox();
+        }
+
+        // Determine bubble color based on message type
+        Color bubbleColor;
+        Color borderColor;
+        Color iconColor;
+
+        if (reviewMessage.contains("No meals were logged") ||
+            reviewMessage.contains("didn't log any food") ||
+            reviewMessage.contains("took a break from tracking")) {
+          // Yellow/orange for reminder messages
+          bubbleColor = Colors.orange[800]!.withOpacity(0.3);
+          borderColor = Colors.orange[300]!.withOpacity(0.5);
+          iconColor = Colors.orange[200]!;
+        } else if (reviewMessage.contains("Great job") ||
+            reviewMessage.contains("Excellent balance") ||
+            reviewMessage.contains("Perfect nutrition") ||
+            reviewMessage.contains("Well done")) {
+          // Green for positive messages
+          bubbleColor = Colors.green[800]!.withOpacity(0.3);
+          borderColor = Colors.green[300]!.withOpacity(0.5);
+          iconColor = Colors.green[200]!;
+        } else {
+          // Blue for regular feedback messages
+          bubbleColor = Colors.blue[800]!.withOpacity(0.3);
+          borderColor = Colors.blue[300]!.withOpacity(0.5);
+          iconColor = Colors.blue[200]!;
+        }
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: iconColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Daily Nutrition Review',
+                    style: TextStyle(
+                      color: iconColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                reviewMessage,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

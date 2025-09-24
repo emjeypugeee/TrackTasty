@@ -90,7 +90,7 @@ class _Userpreference3 extends State<Userpreference3> {
                     SizedBox(height: 5),
 
                     Text(
-                      'Welcome to TrackTasty! To determine your assigned daily macro intake, we need to know your goal. This information, combined with your age, gender, and activity level, will help us create a personalized nutrition plan just for you.',
+                      'Now, we need to know your goal. This information, combined with your age, gender, and activity level, will help us create a personalized nutrition plan just for you.',
                       style: TextStyle(color: Colors.grey),
                     ),
 
@@ -99,7 +99,7 @@ class _Userpreference3 extends State<Userpreference3> {
                     ),
 
                     Text(
-                      'Select your goal on this application: \n',
+                      'Select your goal on using this application: \n',
                       style: TextStyle(color: Colors.white),
                     ),
 

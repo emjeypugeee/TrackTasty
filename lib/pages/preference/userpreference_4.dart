@@ -197,7 +197,7 @@ class _Userpreference4 extends State<Userpreference4> {
                       SizedBox(height: 5),
 
                       Text(
-                        'Welcome to TrackTasty! We’re excited to help you on your nutrition journey. To get started, we need a little information about you.',
+                        'We need a few more details to get started on your fitness journey. Your height and weight will be used to calculate your personalized daily macro intake. Your goal weight will be used to help you visualize your progress.',
                         style: TextStyle(color: Colors.grey),
                       ),
 
@@ -206,7 +206,7 @@ class _Userpreference4 extends State<Userpreference4> {
                       ),
 
                       Text(
-                        'Next, what is your height, weight, and your weight goal in using this application? Your height and weight will be used to calculate your personalized daily macro intake. Your goal weight will be used to help you visualize your progress.',
+                        'What is your height, weight, and your weight goal in using this application?',
                         style: TextStyle(
                           color: Colors.white,
                         ),

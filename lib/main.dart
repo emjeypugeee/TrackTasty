@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:fitness/pages/login/startup_logo_page.dart';
 import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/pages/main_pages/camera_page.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -180,10 +181,15 @@ Future<bool> _isAndroid13OrHigher() async {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/startup',
+  initialLocation: '/splash',
 
   // routes of the pages
+
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const StartupLogoPage(),
+    ),
     GoRoute(
       path: '/startup',
       pageBuilder: (context, state) => FadeOutPageTransition(
