@@ -9,7 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 class ChatBot extends StatefulWidget {
@@ -380,8 +379,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       // Get package info with error handling
       String appVersion = '1.0.0';
       try {
-        final packageInfo = await PackageInfo.fromPlatform();
-        appVersion = packageInfo.version;
+        appVersion = '1.0.0';
       } catch (e) {
         debugPrint('ERROR GETTING PACKAGE INFO: $e');
         appVersion = 'Unknown';
