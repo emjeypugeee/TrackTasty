@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/meal_suggestion_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/recipe_container.dart';
-
 import 'package:flutter/material.dart';
 import 'package:fitness/services/deepseek_api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class ChatBot extends StatefulWidget {
   const ChatBot({super.key});
@@ -29,6 +30,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   bool _showResetButton = false;
   bool isMetric = false;
 
+  // For temporary profile update message
+  bool _showProfileUpdate = false;
+  Timer? _profileUpdateTimer;
+
   // Text field height management
   final double _minTextFieldHeight = 56.0;
   final double _maxTextFieldHeight = 120.0;
@@ -39,7 +44,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   Map<String, dynamic>? _userGoals;
 
   @override
-  bool get wantKeepAlive => true; // Changed to true to preserve state
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -52,15 +57,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     _messageController.addListener(_adjustTextFieldHeight);
 
     _scrollController.addListener(() {
-      // Check if the user is at the very bottom of the screen
       final atBottom = _scrollController.offset >=
           _scrollController.position.maxScrollExtent;
-
-      // Check if the user has scrolled up from the bottom
       final hasScrolledUp =
           _scrollController.offset < _scrollController.position.maxScrollExtent;
-
-      // The buttons should be visible when the user has scrolled up from the bottom, and hidden when they are at the bottom.
       final shouldShowButtons = hasScrolledUp;
 
       if (shouldShowButtons != _showResetButton) {
@@ -76,7 +76,27 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     _messageNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _profileUpdateTimer?.cancel();
     super.dispose();
+  }
+
+  // Method to show temporary profile update message
+  void _showTemporaryProfileUpdate() {
+    setState(() {
+      _showProfileUpdate = true;
+    });
+
+    // Cancel existing timer if any
+    _profileUpdateTimer?.cancel();
+
+    // Set timer to hide the message after 3 seconds
+    _profileUpdateTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showProfileUpdate = false;
+        });
+      }
+    });
   }
 
   // Adjust text field height based on content
@@ -93,7 +113,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
     textPainter.layout(maxWidth: MediaQuery.of(context).size.width - 120);
 
-    final desiredHeight = textPainter.size.height + 24; // Add padding
+    final desiredHeight = textPainter.size.height + 24;
 
     setState(() {
       _currentTextFieldHeight =
@@ -107,18 +127,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
     try {
       final userProvider = context.read<UserProvider>();
-
-      // Fetch the latest user data from Firestore
       await userProvider.fetchUserData();
-
-      // Get the updated user data
       _currentUserData = userProvider.userData;
-
-      // Load user goals after fetching user data
       await _loadUserGoals();
-
       debugPrint("USER DATA INITIALIZED: $_currentUserData");
-      debugPrint("USER GOALS INITIALIZED: $_userGoals");
     } catch (e) {
       debugPrint('ERROR INITIALIZING USER DATA: $e');
     } finally {
@@ -139,12 +151,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
               decodedMessages.map((msg) => Map<String, dynamic>.from(msg)));
         });
 
-        // Scroll to bottom after loading messages
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
         });
       } else {
-        // If no saved conversation, add welcome message
         _addWelcomeMessage();
       }
     } catch (e) {
@@ -165,12 +175,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
   // Reset conversation but keep the MacroExpert introduction
   Future<void> _resetConversation() async {
-    // Find the MacroExpert introduction message
     final introMessageIndex = _messages.indexWhere((msg) =>
         msg["role"] == "assistant" &&
         (msg["content"] as String).contains("Macro Tracking Assistant"));
 
-    // Keep only the introduction message if found
     if (introMessageIndex != -1) {
       final introMessage = _messages[introMessageIndex];
       setState(() {
@@ -178,18 +186,14 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         _messages.add(introMessage);
       });
     } else {
-      // If no intro found, clear all and add welcome message
       setState(() {
         _messages.clear();
       });
       _addWelcomeMessage();
     }
 
-    // Clear from storage and save the new state
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_chatStorageKey, jsonEncode(_messages));
-
-    // Scroll to top to show the intro message
     _scrollToTop();
   }
 
@@ -210,7 +214,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         });
         debugPrint("USER GOALS LOADED: $_userGoals");
       } else {
-        // Fallback to default values if user data is null
         setState(() {
           _userGoals = {
             'calorieGoal': 2000,
@@ -223,7 +226,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       }
     } catch (e) {
       debugPrint('ERROR LOADING USER GOALS: $e');
-      // Fallback to default values on error
       setState(() {
         _userGoals = {
           'calorieGoal': 2000,
@@ -235,7 +237,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Load today's nutrition data (unchanged - this is working properly)
+  // Load today's nutrition data
   Future<void> _loadNutritionData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -307,9 +309,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
           "• \"Plan a high-protein meal for the whole day.\""
     });
 
-    // Save the conversation after adding welcome message
     _saveConversation();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
@@ -319,19 +319,13 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     setState(() => _isLoading = true);
     debugPrint("REFRESHING USER DATA...");
 
-    // Simulate a small delay for better UX
     await Future.delayed(const Duration(milliseconds: 500));
 
     try {
       final userProvider = context.read<UserProvider>();
-
-      // Fetch the latest user data from Firestore
       await userProvider.fetchUserData();
-
-      // Get the updated user data
       final newUserData = userProvider.userData;
 
-      // Reload nutrition data and goals
       await _loadNutritionData();
       await _loadUserGoals();
 
@@ -343,13 +337,12 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       debugPrint("USER DATA REFRESHED: $_currentUserData");
       debugPrint("USER GOALS REFRESHED: $_userGoals");
 
-      // Show confirmation message
+      // Show temporary profile update instead of adding to messages
       _showRefreshConfirmation();
     } catch (e) {
       debugPrint('ERROR REFRESHING USER DATA: $e');
       setState(() => _isLoading = false);
 
-      // Show error message
       setState(() {
         _messages.add({
           "role": "error",
@@ -359,6 +352,304 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       _saveConversation();
       _scrollToBottom();
     }
+  }
+
+  // Method to get last 10 conversations for reporting
+  List<Map<String, dynamic>> _getLast10Conversations() {
+    // Filter out system messages and get last 10 user-assistant exchanges
+    final conversationMessages = _messages
+        .where((msg) =>
+            msg["role"] == "user" ||
+            msg["role"] == "nutritional_info" ||
+            msg["role"] == "recipe" ||
+            msg["role"] == "meal_suggestion")
+        .toList();
+
+    // Return the last 10 messages or all if less than 10
+    return conversationMessages.length > 10
+        ? conversationMessages.sublist(conversationMessages.length - 10)
+        : conversationMessages;
+  }
+
+  // Method to submit chatbot feedback
+  Future<void> _submitChatbotFeedback(String message, String category) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Get package info with error handling
+      String appVersion = '1.0.0';
+      try {
+        final packageInfo = await PackageInfo.fromPlatform();
+        appVersion = packageInfo.version;
+      } catch (e) {
+        debugPrint('ERROR GETTING PACKAGE INFO: $e');
+        appVersion = 'Unknown';
+      }
+
+      // Get device info with error handling
+      String deviceInfoString = 'Unknown';
+      try {
+        final deviceInfo = DeviceInfoPlugin();
+
+        if (Theme.of(context).platform == TargetPlatform.android) {
+          final androidInfo = await deviceInfo.androidInfo;
+          deviceInfoString = '${androidInfo.manufacturer} ${androidInfo.model}';
+        } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          deviceInfoString = '${iosInfo.utsname.machine}';
+        } else {
+          deviceInfoString = '${Theme.of(context).platform}';
+        }
+      } catch (e) {
+        debugPrint('ERROR GETTING DEVICE INFO: $e');
+        deviceInfoString = 'Unknown';
+      }
+
+      // Get last 10 conversations
+      final history = _getLast10Conversations();
+
+      await FirebaseFirestore.instance.collection('feedback').add({
+        'userId': user.uid,
+        'userEmail': user.email,
+        'category': category,
+        'history': history,
+        'message': message,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'new',
+        'appVersion': appVersion,
+        'deviceInfo': deviceInfoString,
+        'type': 'chatbot_feedback',
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thank you for your feedback!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('ERROR SUBMITTING FEEDBACK: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit feedback. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Method to show feedback bottom sheet
+  void _showFeedbackDialog() {
+    final TextEditingController feedbackController = TextEditingController();
+    String selectedCategory = 'bug';
+    int charCount = 0;
+    final int maxChars = 1000;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Report Chatbot Issue',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.close, color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Category', style: TextStyle(color: Colors.white)),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: Colors.grey[800],
+                      value: selectedCategory,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                      ),
+                      style: TextStyle(color: Colors.white),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'bug',
+                          child: Text('Bug',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'incorrect_response',
+                          child: Text('Incorrect Response',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'feature_request',
+                          child: Text('Feature Request',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'other',
+                          child: Text('Other',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setSheetState(() {
+                          selectedCategory = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Describe the issue',
+                        style: TextStyle(color: Colors.white)),
+                    TextField(
+                      controller: feedbackController,
+                      maxLines: 4,
+                      maxLength: maxChars,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Please describe the issue you encountered...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                        counterText: '$charCount/$maxChars',
+                        counterStyle: TextStyle(
+                          color: charCount > maxChars
+                              ? Colors.red
+                              : Colors.grey[400],
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setSheetState(() {
+                          charCount = value.length;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Note: Last 10 conversations will be included for debugging.',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        Expanded(
+                          flex: 1,
+                          child: ElevatedButton(
+                            onPressed: charCount > 0 && charCount <= maxChars
+                                ? () {
+                                    Navigator.pop(context);
+                                    _submitChatbotFeedback(
+                                        feedbackController.text.trim(),
+                                        selectedCategory);
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text('Submit'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Settings menu with report option
+  void _showSettingsMenu(BuildContext context) {
+    // Unfocus to close keyboard when opening settings
+    _messageNode.unfocus();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.refresh, color: Colors.blue[300]),
+                title: Text('Reload User Data',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _refreshUserData();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.bug_report, color: Colors.orange[300]),
+                title: Text('Report Chatbot Issue',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFeedbackDialog();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.restart_alt, color: Colors.red[300]),
+                title:
+                    Text('Reset Chat', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _resetConversation();
+                },
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close', style: TextStyle(color: Colors.grey[400])),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showRefreshConfirmation() {
@@ -380,6 +671,11 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       final weightUnit = isMetric ? 'kg' : 'lbs';
       final heightUnit = isMetric ? 'cm' : 'inches';
 
+      // Create a temporary message ID to identify it later
+      final String tempMessageId =
+          DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Add the temporary system message
       _messages.add({
         "role": "system",
         "content": "🔄 Profile updated! I now know:\n"
@@ -397,17 +693,31 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
             "• Carbs: ${_nutritionData?['totalCarbs'] ?? 0}/${_userGoals?['carbsGoal'] ?? 250}g "
             "(${remainingCarbs > 0 ? '$remainingCarbs g remaining' : '${-remainingCarbs}g over'})\n"
             "• Fat: ${_nutritionData?['totalFat'] ?? 0}/${_userGoals?['fatGoal'] ?? 70}g "
-            "(${remainingFat > 0 ? '$remainingFat g remaining' : '${-remainingFat}g over'})"
+            "(${remainingFat > 0 ? '$remainingFat g remaining' : '${-remainingFat}g over'})",
+        "id": tempMessageId, // Add unique ID for identification
+        "isTemporary": true, // Mark as temporary
       });
 
       // Save the conversation after adding system message
       _saveConversation();
 
       _scrollToBottom();
+
+      // Remove the message after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            // Find and remove the temporary message by its ID
+            _messages.removeWhere((msg) => msg["id"] == tempMessageId);
+          });
+          // Save the conversation after removing the temporary message
+          _saveConversation();
+        }
+      });
     }
   }
 
-  // Parsing JSON response (unchanged)
+  // Parsing JSON response
   Map<String, dynamic> _parseMixedResponse(String content) {
     try {
       // First, try to parse the entire content as JSON
@@ -510,8 +820,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       _messages.add({"role": "user", "content": userMessage});
       _messageController.clear();
       _isLoading = true;
-      _currentTextFieldHeight =
-          _minTextFieldHeight; // Reset height after sending
+      _currentTextFieldHeight = _minTextFieldHeight;
     });
 
     // Save the conversation after adding user message
@@ -703,50 +1012,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Show settings popup menu
-  void _showSettingsMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(Icons.refresh, color: Colors.blue[300]),
-                title: Text('Reload User Data',
-                    style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _refreshUserData();
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.restart_alt, color: Colors.red[300]),
-                title:
-                    Text('Reset Chat', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _resetConversation();
-                },
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close', style: TextStyle(color: Colors.grey[400])),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
@@ -757,7 +1022,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         children: [
           Column(
             children: [
-              // Removed the App Bar section
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
@@ -979,8 +1243,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Settings button
-
                     // Expandable text field
                     Expanded(
                       child: Container(

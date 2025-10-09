@@ -47,8 +47,14 @@ class _HomePageState extends State<HomePage> {
   // bool _isLoading = true;
   StreamSubscription<QuerySnapshot>? _foodLogSubscription;
 
+  // Streak data
+  int _currentStreak = 0;
+  int _highestStreak = 0;
+  bool _isLoadingStreak = true;
+
   void refreshData() {
     _loadNutritionData();
+    _loadStreakData();
     setState(() {});
   }
 
@@ -57,6 +63,7 @@ class _HomePageState extends State<HomePage> {
     super.didChangeDependencies();
     Provider.of<UserProvider>(context, listen: true);
     _loadNutritionData();
+    _loadStreakData();
   }
 
   @override
@@ -67,6 +74,37 @@ class _HomePageState extends State<HomePage> {
     selectedIndex = 6;
     selectedDay = days[selectedIndex];
     _loadNutritionData();
+    _loadStreakData();
+  }
+
+  Future<void> _loadStreakData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        setState(() {
+          _currentStreak = (userData['daily_streak'] ?? 0).toInt();
+          _highestStreak = (userData['highest_streak'] ?? 0).toInt();
+          _isLoadingStreak = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingStreak = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading streak data: $e');
+      setState(() {
+        _isLoadingStreak = false;
+      });
+    }
   }
 
   Future<void> _loadNutritionData() async {
@@ -294,7 +332,7 @@ class _HomePageState extends State<HomePage> {
           getAllergySafeSuggestions(suggestions, userAllergies);
       if (safeSuggestions.isEmpty) {
         return [
-          'Try incorporating foods that align with your dietary restrictions and preferences.'
+          'Lets explore some foods that work with your dietary preferences. Well find great options together.'
         ];
       }
       return safeSuggestions;
@@ -314,18 +352,18 @@ class _HomePageState extends State<HomePage> {
         ];
         final safeSuggestions = getSafeSuggestions(calorieSuggestions);
         final lowCalorieMessages = [
-          "You consumed ${(calorieGoal - totalCalories).toInt()} fewer calories than your goal. Consider adding a nutrient-dense snack like ${safeSuggestions[0]} to meet your energy needs.",
-          "Your calorie intake was a bit low. Try incorporating energy-boosting foods like ${safeSuggestions[0]} to reach your daily target.",
-          "You're under your calorie goal. Adding complex carbs like ${safeSuggestions[0]} can help you meet your energy requirements sustainably."
+          "You're almost there. Just ${(calorieGoal - totalCalories).toInt()} calories shy of your goal. If this continues, you might feel tired and sluggish. Your body needs that energy, so maybe try adding ${safeSuggestions[0]} to power through your day!",
+          "I notice your energy intake was a bit light today. Without enough calories, your metabolism could slow down. Think of food as fuel. Adding something like ${safeSuggestions[0]} can help you feel more energized and ready to tackle tomorrow.",
+          "Your body's asking for a bit more fuel today. Consistent low intake can lead to nutrient deficiencies. No worries though. We all have lighter days! Consider ${safeSuggestions[0]} to help you finish strong and feel your best."
         ];
         return lowCalorieMessages[
             DateTime.now().millisecondsSinceEpoch % lowCalorieMessages.length];
 
       case 'high_calories':
         final highCalorieMessages = [
-          "You exceeded your calorie goal by ${(totalCalories - calorieGoal).toInt()} calories. For better weight management, try smaller portions or choose lower-calorie alternatives like vegetables and lean proteins.",
-          "Calorie intake was higher than planned. Focus on portion control and include more fiber-rich foods to feel full with fewer calories.",
-          "You consumed more calories than needed. Consider balancing with lighter meals the next day and increasing physical activity."
+          "You went over by ${(totalCalories - calorieGoal).toInt()} calories today. Regular overconsumption can make it harder to reach your health goals. No big deal. Tomorrow's a fresh start! Maybe try adding an extra vegetable portion to your meals, or take a walk to balance things out.",
+          "We all have days when we eat a bit more than planned. If this becomes a pattern, it might slow your progress. Your body is resilient! For tomorrow, focus on listening to your hunger cues. You've got this.",
+          "Your calorie intake was a bit higher than target today. Consistent excess can lead to unwanted weight gain. Remember, progress isnt perfect every day. Maybe try starting tomorrow with a protein-rich breakfast to set the tone."
         ];
         return highCalorieMessages[
             DateTime.now().millisecondsSinceEpoch % highCalorieMessages.length];
@@ -344,18 +382,18 @@ class _HomePageState extends State<HomePage> {
         ];
         final safeSuggestions = getSafeSuggestions(proteinSuggestions);
         final lowProteinMessages = [
-          "Protein intake was ${(proteinGoal - totalProtein).toInt()}g below target. Protein is essential for muscle repair. Try adding ${safeSuggestions[0]} to your meals.",
-          "You need more protein for optimal health. Consider ${safeSuggestions[0]} to support muscle maintenance and satiety.",
-          "Low protein detected. Incorporate protein-rich snacks like ${safeSuggestions[0]} to meet your daily requirements."
+          "Your muscles need protein to recover and stay strong. You're just ${(proteinGoal - totalProtein).toInt()}g short. Without enough protein, you might experience muscle loss and slower recovery. Adding ${safeSuggestions[0]} to your next meal can make all the difference!",
+          "Protein helps keep you full and supports your body throughout the day. Insufficient protein can lead to weakness and fatigue. Let's aim to include ${safeSuggestions[0]} tomorrow. Your body will thank you!",
+          "I notice your protein was a bit low today. Consistent low protein intake can affect your muscle mass and immune function. No worries. Tomorrow's another opportunity! Try starting your day with ${safeSuggestions[0]} to build that strong foundation."
         ];
         return lowProteinMessages[
             DateTime.now().millisecondsSinceEpoch % lowProteinMessages.length];
 
       case 'high_protein':
         final highProteinMessages = [
-          "Protein consumption was ${(totalProtein - proteinGoal).toInt()}g above goal. While protein is important, excess can strain kidneys. Balance with more vegetables and carbs.",
-          "You exceeded your protein target. Consider diversifying with more complex carbohydrates and healthy fats for balanced nutrition.",
-          "High protein intake noted. Ensure you're drinking plenty of water and include fiber-rich foods to support digestion."
+          "You're really focused on protein. Thats great! You went ${(totalProtein - proteinGoal).toInt()}g over today. While protein is important, too much can strain your kidneys over time. For optimal balance, lets make sure to include plenty of colorful vegetables and healthy carbs with your meals.",
+          "Your dedication to protein is awesome! To help your body process it efficiently, remember that excess protein may lead to digestive issues. Drink plenty of water and include some fiber-rich foods with your meals.",
+          "You're nailing the protein intake! For even better results, keep in mind that very high protein diets can sometimes cause dehydration. Lets balance it out tomorrow with some extra veggies and whole grains. Your energy levels will love it."
         ];
         return highProteinMessages[
             DateTime.now().millisecondsSinceEpoch % highProteinMessages.length];
@@ -374,18 +412,18 @@ class _HomePageState extends State<HomePage> {
         ];
         final safeSuggestions = getSafeSuggestions(carbSuggestions);
         final lowCarbMessages = [
-          "Carbohydrates were ${(carbsGoal - totalCarbs).toInt()}g below your goal. Carbs provide energy for daily activities. Try adding ${safeSuggestions[0]} to your meals.",
-          "Low carb intake can lead to fatigue. Include energy sources like ${safeSuggestions[0]} to maintain optimal energy levels.",
-          "You need more carbohydrates for fuel. Consider ${safeSuggestions[0]} to support your activity needs."
+          "Carbs are your body's preferred energy source. You're just ${(carbsGoal - totalCarbs).toInt()}g short. Without enough carbs, you might experience brain fog and low energy. Adding ${safeSuggestions[0]} can help you feel more energized and focused!",
+          "I notice your energy fuel was a bit low today. Chronic low carb intake can affect your workout performance and mental clarity. Think of carbs as premium gasoline for your body. ${safeSuggestions[0]} can help you power through your activities with ease.",
+          "Your body could use a bit more fuel for optimal performance. Insufficient carbs may lead to fatigue and irritability. Lets try adding ${safeSuggestions[0]} tomorrow. You'll notice the difference in your energy levels!"
         ];
         return lowCarbMessages[
             DateTime.now().millisecondsSinceEpoch % lowCarbMessages.length];
 
       case 'high_carbs':
         final highCarbMessages = [
-          "Carb intake exceeded by ${(totalCarbs - carbsGoal).toInt()}g. Focus on complex carbs like whole grains instead of refined carbs, and balance with protein and fats.",
-          "High carbohydrate consumption detected. Choose fiber-rich options and pair with protein to stabilize blood sugar levels.",
-          "You consumed more carbs than needed. Consider reducing portion sizes and focusing on quality sources like vegetables and legumes."
+          "You had a carb-heavy day. Thats okay! We all crave them sometimes. Regular excess carb intake can lead to blood sugar spikes and weight gain. Tomorrow, lets focus on pairing carbs with protein and healthy fats to keep your energy stable all day.",
+          "Carbs are delicious, and I get it! If high carb days become frequent, it might be harder to maintain your target weight. For tomorrow, try choosing fiber-rich options like whole grains and veggies. They'll keep you satisfied longer and support your goals.",
+          "Your carb intake was higher than planned today. Consistent overconsumption can affect your metabolic health. No stress! Tomorrow, lets focus on balanced meals. You have the awareness to make great choices."
         ];
         return highCarbMessages[
             DateTime.now().millisecondsSinceEpoch % highCarbMessages.length];
@@ -404,24 +442,24 @@ class _HomePageState extends State<HomePage> {
         ];
         final safeSuggestions = getSafeSuggestions(fatSuggestions);
         final lowFatMessages = [
-          "Fat intake was ${(fatGoal - totalFat).toInt()}g below target. Healthy fats support hormone production. Add ${safeSuggestions[0]} to your meals.",
-          "You need more healthy fats for brain health and vitamin absorption. Try incorporating ${safeSuggestions[0]} into your diet.",
-          "Low fat detected. Include sources like ${safeSuggestions[0]} to support overall health and satiety."
+          "Healthy fats are essential for hormone health and vitamin absorption. You're just ${(fatGoal - totalFat).toInt()}g short. Without enough fat, you might experience dry skin and vitamin deficiencies. Adding ${safeSuggestions[0]} can help your body function at its best!",
+          "Your body needs healthy fats to thrive. Insufficient fat intake can lead to hormone imbalances and poor nutrient absorption. Lets try incorporating ${safeSuggestions[0]} tomorrow. Its amazing how much better you'll feel with that balance.",
+          "I notice your fat intake was a bit light today. Consistently low fat can affect your skin health and energy levels. No problem! Healthy fats from sources like ${safeSuggestions[0]} can actually help you feel more satisfied and energized."
         ];
         return lowFatMessages[
             DateTime.now().millisecondsSinceEpoch % lowFatMessages.length];
 
       case 'high_fat':
         final highFatMessages = [
-          "Fat consumption exceeded by ${(totalFat - fatGoal).toInt()}g. While fats are essential, excess can lead to weight gain. Choose lean proteins and increase vegetable intake.",
-          "High fat intake noted. Focus on unsaturated fats like those in fish and nuts, and reduce saturated fats for heart health.",
-          "You consumed more fat than planned. Balance with high-fiber foods and consider grilling or baking instead of frying."
+          "You had a higher fat day today. It happens! Regular high fat intake can contribute to heart health concerns over time. Your body is amazing at adapting. Tomorrow, lets focus on lean proteins and colorful vegetables to find that perfect balance.",
+          "Fats are important, and you're clearly not afraid of them! Too much saturated fat can impact your cholesterol levels. For optimal health, lets aim for more unsaturated fats from fish and nuts tomorrow. Your heart will thank you.",
+          "Your fat intake was a bit over today. Consistent excess fat consumption may lead to weight gain and digestive discomfort. No worries. You're building awareness! Tomorrow, try grilling or baking instead of frying, and notice how your body responds."
         ];
         return highFatMessages[
             DateTime.now().millisecondsSinceEpoch % highFatMessages.length];
 
       default:
-        return "Keep tracking your nutrition! Consistency is key to reaching your health goals.";
+        return "Excellent work tracking your nutrition today! Consistency like this is what creates lasting results. Keep up this amazing commitment to your health!";
     }
   }
 
@@ -444,6 +482,9 @@ class _HomePageState extends State<HomePage> {
               // Progress Review Section
               const SizedBox(height: 20),
               _buildProgressReviewSection(),
+
+              const SizedBox(height: 20),
+              if (_isTodaySelected()) _buildStreakDisplay(),
 
               /*
                *  +++++++++++++++++
@@ -503,21 +544,21 @@ class _HomePageState extends State<HomePage> {
             reviewMessage.contains("didn't log any food") ||
             reviewMessage.contains("took a break from tracking")) {
           // Yellow/orange for reminder messages
-          bubbleColor = Colors.orange[800]!.withOpacity(0.3);
-          borderColor = Colors.orange[300]!.withOpacity(0.5);
+          bubbleColor = Colors.orange[800]!.withValues(alpha: 0.3);
+          borderColor = Colors.orange[300]!.withValues(alpha: 0.5);
           iconColor = Colors.orange[200]!;
         } else if (reviewMessage.contains("Great job") ||
             reviewMessage.contains("Excellent balance") ||
             reviewMessage.contains("Perfect nutrition") ||
             reviewMessage.contains("Well done")) {
           // Green for positive messages
-          bubbleColor = Colors.green[800]!.withOpacity(0.3);
-          borderColor = Colors.green[300]!.withOpacity(0.5);
+          bubbleColor = Colors.green[800]!.withValues(alpha: 0.3);
+          borderColor = Colors.green[300]!.withValues(alpha: 0.5);
           iconColor = Colors.green[200]!;
         } else {
           // Blue for regular feedback messages
-          bubbleColor = Colors.blue[800]!.withOpacity(0.3);
-          borderColor = Colors.blue[300]!.withOpacity(0.5);
+          bubbleColor = Colors.blue[800]!.withValues(alpha: 0.3);
+          borderColor = Colors.blue[300]!.withValues(alpha: 0.5);
           iconColor = Colors.blue[200]!;
         }
 
@@ -759,6 +800,120 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       },
+    );
+  }
+
+  // Helper method to check if today is selected
+  bool _isTodaySelected() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    return today == selected;
+  }
+
+  Widget _buildStreakDisplay() {
+    if (_isLoadingStreak) {
+      return const SizedBox(); // Don't show anything while loading
+    }
+
+    if (_currentStreak == 0) {
+      return const SizedBox(); // Don't show if no streak
+    }
+
+    // Determine colors and message based on streak length
+    Color backgroundColor;
+    Color textColor;
+    String encouragement;
+    String fireEmojis;
+
+    if (_currentStreak >= 30) {
+      backgroundColor = Colors.deepPurple.withValues(alpha: 0.3);
+      textColor = Colors.purpleAccent;
+      encouragement = "Legendary consistency! You're unstoppable! 🔥";
+      fireEmojis = "🔥🔥🔥🔥🔥";
+    } else if (_currentStreak >= 14) {
+      backgroundColor = Colors.red.withValues(alpha: 0.3);
+      textColor = Colors.orangeAccent;
+      encouragement = "Amazing dedication! You're building powerful habits!";
+      fireEmojis = "🔥🔥🔥🔥";
+    } else if (_currentStreak >= 7) {
+      backgroundColor = Colors.orange.withValues(alpha: 0.3);
+      textColor = Colors.yellowAccent;
+      encouragement = "Great work! Your consistency is paying off!";
+      fireEmojis = "🔥🔥🔥";
+    } else if (_currentStreak >= 3) {
+      backgroundColor = Colors.blue.withValues(alpha: 0.3);
+      textColor = Colors.cyanAccent;
+      encouragement = "Nice streak! Keep going, you're doing great!";
+      fireEmojis = "🔥🔥";
+    } else {
+      backgroundColor = Colors.green.withValues(alpha: 0.3);
+      textColor = Colors.lightGreenAccent;
+      encouragement = "Good start! Every day counts!";
+      fireEmojis = "🔥";
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: textColor.withValues(alpha: 0.5), width: 1),
+      ),
+      child: Column(
+        children: [
+          // Fire emojis on top
+          Text(
+            fireEmojis,
+            style: const TextStyle(fontSize: 20),
+          ),
+
+          // Streak count
+          Text(
+            '$_currentStreak day${_currentStreak == 1 ? '' : 's'} streak!',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          // Encouragement message
+          Text(
+            encouragement,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 14,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          // Highest streak (if applicable and different from current)
+          if (_highestStreak > _currentStreak)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Highest streak: $_highestStreak days',
+                style: TextStyle(
+                  color: textColor.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+
+          // Fire emojis on bottom
+          Text(
+            fireEmojis,
+            style: const TextStyle(fontSize: 20),
+          ),
+        ],
+      ),
     );
   }
 

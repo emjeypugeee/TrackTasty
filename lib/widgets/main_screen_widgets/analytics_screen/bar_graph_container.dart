@@ -22,10 +22,9 @@ class BarGraphContainer extends StatefulWidget {
 }
 
 class _BarGraphContainerState extends State<BarGraphContainer> {
-  DateTime _startDate =
-      DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
-  DateTime _endDate =
-      DateTime.now().add(Duration(days: 7 - DateTime.now().weekday));
+  DateTime _currentWeek = DateTime.now();
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now();
   List<double> _calorieData = [];
   List<String> _dayLabels = [];
   bool _isLoading = true;
@@ -37,6 +36,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
     debugPrint("🔥 BarGraphContainer initialized");
     debugPrint("🎯 Calorie goal: ${widget.calorieGoal}");
     debugPrint("🔮 Forecasting enabled: ${widget.isForecasting}");
+    _updateWeekRange();
     _loadCalorieData();
   }
 
@@ -53,8 +53,39 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
     }
   }
 
+  void _updateWeekRange() {
+    // Get Monday of the current week (weekday 1)
+    _startDate =
+        _currentWeek.subtract(Duration(days: _currentWeek.weekday - 1));
+    // Get Sunday of the current week
+    _endDate = _startDate.add(Duration(days: 6));
+
+    // Normalize to start of day for proper comparison
+    _startDate = DateTime(_startDate.year, _startDate.month, _startDate.day);
+    _endDate =
+        DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59, 999);
+
+    debugPrint(
+        "📅 Week range: ${DateFormat('EEE yyyy-MM-dd').format(_startDate)} to ${DateFormat('EEE yyyy-MM-dd').format(_endDate)}");
+  }
+
+  void _navigateTimeRange(bool forward) {
+    setState(() {
+      // Move the current week reference by 7 days
+      _currentWeek = forward
+          ? _currentWeek.add(Duration(days: 7))
+          : _currentWeek.subtract(Duration(days: 7));
+
+      // Recalculate the week boundaries
+      _updateWeekRange();
+
+      debugPrint(
+          "🔄 Navigated to week: ${DateFormat('EEE yyyy-MM-dd').format(_startDate)} to ${DateFormat('EEE yyyy-MM-dd').format(_endDate)}");
+      _loadCalorieData();
+    });
+  }
+
   Future<void> _loadCalorieData() async {
-    // If forecasting is enabled, use forecast data instead of loading from Firestore
     if (widget.isForecasting) {
       debugPrint("🔮 Forecasting enabled, using forecast data");
       _prepareForecastData();
@@ -70,7 +101,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
     setState(() => _isLoading = true);
 
     debugPrint(
-        "📥 Loading calorie data for week: ${DateFormat('yyyy-MM-dd').format(_startDate)} to ${DateFormat('yyyy-MM-dd').format(_endDate)}");
+        "📥 Loading calorie data for week: ${DateFormat('EEE yyyy-MM-dd').format(_startDate)} to ${DateFormat('EEE yyyy-MM-dd').format(_endDate)}");
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -82,25 +113,38 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
 
       debugPrint("✅ Retrieved ${snapshot.docs.length} food logs");
 
-      // Initialize data lists
+      // Initialize data for all 7 days of the week
       Map<DateTime, double> dailyCalories = {};
-      for (int i = 0; i <= _endDate.difference(_startDate).inDays; i++) {
+      List<DateTime> weekDays = [];
+
+      // Create all 7 days of the week
+      for (int i = 0; i < 7; i++) {
         final date = _startDate.add(Duration(days: i));
-        dailyCalories[DateTime(date.year, date.month, date.day)] = 0;
+        final normalizedDate = DateTime(date.year, date.month, date.day);
+        weekDays.add(normalizedDate);
+        dailyCalories[normalizedDate] = 0.0;
         debugPrint(
-            "   📅 Initialized date: ${DateFormat('yyyy-MM-dd').format(date)}");
+            "   📅 Initialized date: ${DateFormat('EEE yyyy-MM-dd').format(normalizedDate)}");
       }
 
-      // Process the data
+      // Process the data from Firestore
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final date = (data['date'] as Timestamp).toDate();
-        final keyDate = DateTime(date.year, date.month, date.day);
+        final timestamp = data['date'] as Timestamp;
+        final date = timestamp.toDate();
+        final normalizedDate = DateTime(date.year, date.month, date.day);
         final calories = (data['totalCalories'] as num).toDouble();
-        if (dailyCalories.containsKey(keyDate)) {
-          dailyCalories[keyDate] = (data['totalCalories'] as num).toDouble();
+
+        debugPrint(
+            "   🔍 Processing document for: ${DateFormat('EEE yyyy-MM-dd').format(normalizedDate)}");
+
+        if (dailyCalories.containsKey(normalizedDate)) {
+          dailyCalories[normalizedDate] = calories;
           debugPrint(
-              "   🔥 ${DateFormat('yyyy-MM-dd').format(keyDate)}: $calories calories");
+              "   ✅ SET ${DateFormat('EEE yyyy-MM-dd').format(normalizedDate)}: $calories calories");
+        } else {
+          debugPrint(
+              "   ⚠️ Date ${DateFormat('EEE yyyy-MM-dd').format(normalizedDate)} not in current week range");
         }
       }
 
@@ -110,47 +154,31 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
       dailyCalories.forEach((key, value) {
         total += value;
         count++;
+        debugPrint("   📊 ${DateFormat('EEE').format(key)}: $value calories");
       });
-      final average = count > 0 ? total / count : (widget.calorieGoal ?? 0);
 
+      final average = count > 0 ? total / count : (widget.calorieGoal ?? 0);
       debugPrint("📊 Weekly average calories: $average");
 
-      // Prepare data for the chart
-      final sortedDates = dailyCalories.keys.toList()
-        ..sort((a, b) => a.compareTo(b));
+      // Prepare data for the chart - ensure all 7 days are included in correct order
+      _calorieData = weekDays.map((date) => dailyCalories[date]!).toList();
+      _dayLabels =
+          weekDays.map((date) => DateFormat('E').format(date)).toList();
 
       setState(() {
-        _calorieData = sortedDates.map((date) => dailyCalories[date]!).toList();
-        _dayLabels = sortedDates.map((date) {
-          return DateFormat('E').format(date);
-        }).toList();
         _averageCalories = average.toDouble();
         _isLoading = false;
       });
 
       debugPrint("✅ Calorie data loaded: ${_calorieData.length} days");
+      debugPrint("   Days: $_dayLabels");
+      debugPrint("   Data: $_calorieData");
     } catch (e) {
       debugPrint("❌ Error loading calorie data: $e");
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _navigateTimeRange(bool forward) {
-    final duration = Duration(days: 7);
-    setState(() {
-      if (forward) {
-        _startDate = _startDate.add(duration);
-        _endDate = _endDate.add(duration);
-      } else {
-        _startDate = _startDate.subtract(duration);
-        _endDate = _endDate.subtract(duration);
-      }
-      debugPrint(
-          "📅 Navigating to: ${DateFormat('yyyy-MM-dd').format(_startDate)} to ${DateFormat('yyyy-MM-dd').format(_endDate)}");
-      _loadCalorieData();
-    });
   }
 
   double _getMaxYValue(List<double> calorieData) {

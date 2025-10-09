@@ -85,15 +85,7 @@ class AchievementUtils {
           );
         });*/
       } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Food logged successfully!'),
-              duration: Duration(seconds: 2),
-              backgroundColor: Colors.blue[700],
-            ),
-          );
-        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {});
       }
     } catch (e) {
       debugPrint('Error updating achievements: $e');

@@ -190,34 +190,35 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       if (goal == "lose") {
         if (weightChange < 0) {
           progressAnalysis =
-              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement.";
+              " Amazing progress! You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. This shows your consistency is paying off!";
         } else if (weightChange > 0) {
           progressAnalysis =
-              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Focus on your deficit.";
+              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Remember that weight fluctuations are normal, but consistent gains might slow your progress toward your goal.";
         } else {
           progressAnalysis =
-              " Your weight has remained stable since your last measurement.";
+              " Your weight has remained stable since your last measurement. Sometimes maintaining is a win too!";
         }
       } else if (goal == "gain") {
         if (weightChange > 0) {
           progressAnalysis =
-              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement.";
+              " Fantastic work! You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Your dedication to building mass is showing results!";
         } else if (weightChange < 0) {
           progressAnalysis =
-              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Focus on your surplus.";
+              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Don't get discouraged - muscle building takes time and consistent effort.";
         } else {
           progressAnalysis =
-              " Your weight has remained stable since your last measurement.";
+              " Your weight has remained stable since your last measurement. Stay patient and trust the process!";
         }
       } else if (goal == "maintain") {
         if (absoluteWeightChange < 0.5) {
-          progressAnalysis = " Your weight is stable, excellent maintenance!";
+          progressAnalysis =
+              " Excellent maintenance! Your weight is staying right where you want it.";
         } else if (weightChange > 0) {
           progressAnalysis =
-              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg. Adjust intake for maintenance.";
+              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg. Small adjustments now can help you get back to your maintenance range easily.";
         } else {
           progressAnalysis =
-              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg. Adjust intake for maintenance.";
+              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg. A slight course correction will help you maintain your target weight.";
         }
       }
     }
@@ -227,30 +228,30 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     if (goal == "lose" && currentDifference > 0) {
       if (absoluteCurrentDifference < 2) {
         goalAnalysis =
-            "You're very close to your weight loss goal - just ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go!";
+            "You're doing incredible work! Just ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go until you reach your weight loss goal.";
       } else {
         goalAnalysis =
-            "You have ${absoluteCurrentDifference.toStringAsFixed(1)}kg to lose to reach your goal.";
+            "You're making progress toward your weight loss goal with ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go. Every small step counts!";
       }
     } else if (goal == "gain" && currentDifference < 0) {
       if (absoluteCurrentDifference < 2) {
         goalAnalysis =
-            "You're almost at your weight gain goal - only ${absoluteCurrentDifference.toStringAsFixed(1)}kg left!";
+            "You're so close to your weight gain goal - only ${absoluteCurrentDifference.toStringAsFixed(1)}kg left! Your consistency is really showing.";
       } else {
         goalAnalysis =
-            "You need to gain ${absoluteCurrentDifference.toStringAsFixed(1)}kg to reach your goal.";
+            "You're on your way to gaining ${absoluteCurrentDifference.toStringAsFixed(1)}kg to reach your goal. Keep fueling your body properly!";
       }
     } else if (goal == "maintain") {
       if (absoluteCurrentDifference < 1) {
         goalAnalysis =
-            "Perfect! You're maintaining your weight within your goal range.";
+            "Perfect maintenance! You're right where you want to be. This level of consistency is what long-term success looks like.";
       } else {
         goalAnalysis =
-            "You're ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your maintenance goal.";
+            "You're ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your maintenance goal. Small, consistent adjustments will get you right back on track.";
       }
     } else {
       goalAnalysis =
-          "You've reached your weight goal! Focus on maintaining your progress.";
+          "Congratulations! You've reached your weight goal. Now the real work begins - maintaining this amazing achievement!";
     }
 
     return goalAnalysis + progressAnalysis;
@@ -259,7 +260,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   String _analyzeCalorieConsistency(
       double averageCalories, double calorieGoal, int dataPoints) {
     if (dataPoints == 0) {
-      return "Log your food intake for the past 7 days to analyze calorie patterns. ";
+      return "Start logging your food intake for the next 7 days so we can analyze your patterns and help you optimize your nutrition. ";
     }
 
     final percentageDifference =
@@ -270,18 +271,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     debugPrint("(ANALYTICS PAGE) ABSOLUTE DIFFERENCE: $absoluteDifference");
 
     if (absoluteDifference < 10) {
-      return "Your 7-day average (${averageCalories.toInt()} kcal) is perfectly aligned with your goal. ";
+      return "Outstanding consistency! Your 7-day average (${averageCalories.toInt()} kcal) is perfectly aligned with your goal. This kind of precision is what creates real results. ";
     } else if (absoluteDifference < 25) {
       if (percentageDifference > 0) {
-        return "Your 7-day average (${averageCalories.toInt()} kcal) is ${absoluteDifference.toInt()}% above your goal. ";
+        return "Good effort this week! Your 7-day average (${averageCalories.toInt()} kcal) is ${absoluteDifference.toInt()}% above your goal. If this continues, it might slow your progress, but you're still building great tracking habits. ";
       } else {
-        return "Your 7-day average (${averageCalories.toInt()} kcal) is ${absoluteDifference.toInt()}% below your goal. ";
+        return "You're putting in the work! Your 7-day average (${averageCalories.toInt()} kcal) is ${absoluteDifference.toInt()}% below your goal. While consistency is key, make sure you're not underfueling your body too much. ";
       }
     } else {
       if (percentageDifference > 0) {
-        return "Your 7-day average (${averageCalories.toInt()} kcal) is significantly above your goal. ";
+        return "Your 7-day average (${averageCalories.toInt()} kcal) is significantly above your goal. Consistent overconsumption can make it challenging to reach your targets, but every week is a new opportunity to refine your approach. ";
       } else {
-        return "Your 7-day average (${averageCalories.toInt()} kcal) is well below your goal. ";
+        return "Your 7-day average (${averageCalories.toInt()} kcal) is well below your goal. While creating a deficit is important, consistently eating too little can slow your metabolism and leave you feeling drained. ";
       }
     }
   }
