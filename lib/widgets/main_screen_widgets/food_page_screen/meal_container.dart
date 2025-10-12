@@ -10,6 +10,7 @@ class MealContainer extends StatelessWidget {
   final double fat;
   final String serving;
   final void Function()? onPressed;
+  final bool isLoading;
 
   const MealContainer({
     super.key,
@@ -21,6 +22,7 @@ class MealContainer extends StatelessWidget {
     required this.carbs,
     required this.fat,
     required this.serving,
+    this.isLoading = false,
   });
 
   @override
@@ -72,13 +74,24 @@ class MealContainer extends StatelessWidget {
             ),
           ),
           Center(
-              child: IconButton(
-            onPressed: onPressed,
-            icon: Icon(
-              Icons.add,
-            ),
-            color: Colors.white,
-          ))
+            child: isLoading
+                ? Container(
+                    width: 24,
+                    height: 24,
+                    padding: EdgeInsets.all(2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : IconButton(
+                    onPressed: onPressed,
+                    icon: Icon(
+                      Icons.add,
+                    ),
+                    color: Colors.white,
+                  ),
+          )
         ],
       ),
     );

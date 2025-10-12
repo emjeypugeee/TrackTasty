@@ -68,7 +68,6 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
 
     // Set up food log subscription for current date
     _setupFoodLogSubscription(user);
-    //  _initialDataLoaded = true;
   }
 
   void _setupFoodLogSubscription(User user) {
@@ -162,14 +161,6 @@ class _CircularNutritionProgresState extends State<CircularNutritionProgres>
 
   @override
   Widget build(BuildContext context) {
-    /*if (!_initialDataLoaded) {
-      return const SizedBox(
-        width: 120,
-        height: 120,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }*/
-
     final screenWidth = MediaQuery.of(context).size.width;
 
     return SizedBox(

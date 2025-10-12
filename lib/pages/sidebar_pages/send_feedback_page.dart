@@ -30,6 +30,8 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
   ];
 
   Future<void> _submitFeedback() async {
+    if (_isSubmitting) return; // Prevent double-click
+
     if (_formKey.currentState!.validate()) {
       setState(() => _isSubmitting = true);
 
@@ -39,6 +41,7 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Please log in to submit feedback')),
           );
+          setState(() => _isSubmitting = false);
           return;
         }
 
@@ -49,8 +52,8 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
           'message': _feedbackController.text,
           'timestamp': FieldValue.serverTimestamp(),
           'status': 'new', // new, reviewed, in-progress, resolved
-          'appVersion': '1.0.0', // You can get this from package_info plugin
-          'deviceInfo': 'Unknown', // You can get this from device_info plugin
+          'appVersion': '1.0.0',
+          'deviceInfo': 'Unknown',
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,6 +76,7 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
   @override
   void dispose() {
     _feedbackController.dispose();
+    _feedbackNode.dispose();
     super.dispose();
   }
 
@@ -92,7 +96,7 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
         ),
         centerTitle: true,
         elevation: 0,
@@ -136,9 +140,11 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
                       child: Text(category),
                     );
                   }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() => _selectedCategory = newValue!);
-                  },
+                  onChanged: _isSubmitting
+                      ? null
+                      : (String? newValue) {
+                          setState(() => _selectedCategory = newValue!);
+                        },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select a category';
@@ -180,6 +186,7 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
                     borderSide: BorderSide.none,
                   ),
                 ),
+                enabled: !_isSubmitting, // Disable during submission
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your feedback';
@@ -194,10 +201,30 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
 
               // Submit Button
               Center(
-                child: MyButtons(
-                  text: 'Submit Feedback',
-                  onTap: _isSubmitting ? null : _submitFeedback,
-                ),
+                child: _isSubmitting
+                    ? Container(
+                        width: double.infinity,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[700],
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                        ),
+                      )
+                    : MyButtons(
+                        text: 'Submit Feedback',
+                        onTap: _submitFeedback,
+                      ),
               ),
             ],
           ),

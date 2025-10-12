@@ -21,6 +21,7 @@ class _FoodPageState extends State<FoodPage> {
   List<dynamic> _searchResults = [];
   bool _isLoading = false;
   final FatSecretApiService _apiService = FatSecretApiService();
+  DateTime? _lastPressed;
 
   Future<void> _searchFood(String query) async {
     if (query.isEmpty) {
@@ -102,6 +103,14 @@ class _FoodPageState extends State<FoodPage> {
   // Function to show food confirmation sheet
   Future<void> _saveFoodToFirebase(
       Map<String, dynamic> food, Map<String, dynamic> nutrients) async {
+    // Prevent double tapping within 2 seconds
+    final now = DateTime.now();
+    if (_lastPressed != null &&
+        now.difference(_lastPressed!) < Duration(seconds: 2)) {
+      return;
+    }
+    _lastPressed = now;
+
     final user = FirebaseAuth.instance.currentUser;
     final today = DateTime.now();
     final foodLogId = '${user?.uid}_${today.year}-${today.month}-${today.day}';
@@ -122,30 +131,29 @@ class _FoodPageState extends State<FoodPage> {
         'foods': [],
       };
 
-      // If the document exists, update the data
       if (foodLogDoc.exists && foodLogDoc.data() != null) {
         foodLogData = foodLogDoc.data() as Map<String, dynamic>;
 
-        // Ensure all fields have default values if they're null
-        foodLogData['totalCalories'] ??= 0.0;
-        foodLogData['totalCarbs'] ??= 0.0;
-        foodLogData['totalProtein'] ??= 0.0;
-        foodLogData['totalFat'] ??= 0.0;
+        // Safely convert all values to double
+        foodLogData['totalCalories'] =
+            _safeToDouble(foodLogData['totalCalories']);
+        foodLogData['totalCarbs'] = _safeToDouble(foodLogData['totalCarbs']);
+        foodLogData['totalProtein'] =
+            _safeToDouble(foodLogData['totalProtein']);
+        foodLogData['totalFat'] = _safeToDouble(foodLogData['totalFat']);
         foodLogData['foods'] ??= [];
       }
 
       // Update total macros
-      final calories = nutrients['calories'] ?? 0.0;
-      final carbs = nutrients['carbs'] ?? 0.0;
-      final protein = nutrients['protein'] ?? 0.0;
-      final fat = nutrients['fat'] ?? 0.0;
+      final calories = _safeToDouble(nutrients['calories'] ?? 0.0);
+      final carbs = _safeToDouble(nutrients['carbs'] ?? 0.0);
+      final protein = _safeToDouble(nutrients['protein'] ?? 0.0);
+      final fat = _safeToDouble(nutrients['fat'] ?? 0.0);
 
-      foodLogData['totalCalories'] =
-          (foodLogData['totalCalories'] as double) + calories;
-      foodLogData['totalCarbs'] = (foodLogData['totalCarbs'] as double) + carbs;
-      foodLogData['totalProtein'] =
-          (foodLogData['totalProtein'] as double) + protein;
-      foodLogData['totalFat'] = (foodLogData['totalFat'] as double) + fat;
+      foodLogData['totalCalories'] = foodLogData['totalCalories'] + calories;
+      foodLogData['totalCarbs'] = foodLogData['totalCarbs'] + carbs;
+      foodLogData['totalProtein'] = foodLogData['totalProtein'] + protein;
+      foodLogData['totalFat'] = foodLogData['totalFat'] + fat;
 
       foodLogData['foods'].add({
         'mealName': food['food_name'],
@@ -184,6 +192,15 @@ class _FoodPageState extends State<FoodPage> {
         );
       }
     }
+  }
+
+  // Safely convert any numeric type to double
+  double _safeToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   @override

@@ -62,7 +62,7 @@ class AppColors {
   static const Color fiveStarColor = Color(0xFFB9F2FF);
   static const Color fourStarColor = Color(0xFF50C878);
   static const Color threeStarColor = Color(0xFFFFD700);
-  static const Color twoStarColor = Color.fromARGB(255, 212, 206, 206);
+  static const Color twoStarColor = Color.fromARGB(255, 240, 227, 227);
   static const Color oneStarColor = Color(0xFFCD7F32);
 
   // Light theme colors

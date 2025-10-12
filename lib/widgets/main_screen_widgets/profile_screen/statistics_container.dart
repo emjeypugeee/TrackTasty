@@ -28,7 +28,9 @@ class StatisticsContainer extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isWeight ? Icons.monitor_weight : Icons.calendar_month,
+            isWeight
+                ? Icons.scale_outlined
+                : Icons.local_fire_department_rounded,
             size: 50,
             color: Colors.white,
           ),
@@ -38,7 +40,7 @@ class StatisticsContainer extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isWeight ? '${value.toStringAsFixed(1)}' : '$value',
+                isWeight ? value.toStringAsFixed(1) : '$value',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 15,

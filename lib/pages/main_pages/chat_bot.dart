@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:fitness/provider/user_provider.dart';
+import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/meal_suggestion_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/recipe_container.dart';
-
 import 'package:flutter/material.dart';
 import 'package:fitness/services/deepseek_api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class ChatBot extends StatefulWidget {
   const ChatBot({super.key});
@@ -29,12 +30,18 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   bool _showResetButton = false;
   bool isMetric = false;
 
-  // Nutrition data state
+  bool _showProfileUpdate = false;
+  Timer? _profileUpdateTimer;
+
+  final double _minTextFieldHeight = 56.0;
+  final double _maxTextFieldHeight = 120.0;
+  double _currentTextFieldHeight = 56.0;
+
   Map<String, dynamic>? _nutritionData;
   Map<String, dynamic>? _userGoals;
 
   @override
-  bool get wantKeepAlive => true; // Changed to true to preserve state
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -43,16 +50,14 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     _loadNutritionData();
     _loadConversationHistory();
 
+    // Listen to text changes to adjust height
+    _messageController.addListener(_adjustTextFieldHeight);
+
     _scrollController.addListener(() {
-      // Check if the user is at the very bottom of the screen
       final atBottom = _scrollController.offset >=
           _scrollController.position.maxScrollExtent;
-
-      // Check if the user has scrolled up from the bottom
       final hasScrolledUp =
           _scrollController.offset < _scrollController.position.maxScrollExtent;
-
-      // The buttons should be visible when the user has scrolled up from the bottom, and hidden when they are at the bottom.
       final shouldShowButtons = hasScrolledUp;
 
       if (shouldShowButtons != _showResetButton) {
@@ -68,7 +73,47 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     _messageNode.dispose();
     _messageController.dispose();
     _scrollController.dispose();
+    _profileUpdateTimer?.cancel();
     super.dispose();
+  }
+
+  // Method to show temporary profile update message
+  void _showTemporaryProfileUpdate() {
+    setState(() {
+      _showProfileUpdate = true;
+    });
+
+    _profileUpdateTimer?.cancel();
+
+    _profileUpdateTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showProfileUpdate = false;
+        });
+      }
+    });
+  }
+
+  // Adjust text field height based on content
+  void _adjustTextFieldHeight() {
+    final text = _messageController.text;
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
+      maxLines: 4,
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout(maxWidth: MediaQuery.of(context).size.width - 120);
+
+    final desiredHeight = textPainter.size.height + 24;
+
+    setState(() {
+      _currentTextFieldHeight =
+          desiredHeight.clamp(_minTextFieldHeight, _maxTextFieldHeight);
+    });
   }
 
   // Initialize user data using UserProvider
@@ -77,18 +122,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
     try {
       final userProvider = context.read<UserProvider>();
-
-      // Fetch the latest user data from Firestore
       await userProvider.fetchUserData();
-
-      // Get the updated user data
       _currentUserData = userProvider.userData;
-
-      // Load user goals after fetching user data
       await _loadUserGoals();
-
       debugPrint("USER DATA INITIALIZED: $_currentUserData");
-      debugPrint("USER GOALS INITIALIZED: $_userGoals");
     } catch (e) {
       debugPrint('ERROR INITIALIZING USER DATA: $e');
     } finally {
@@ -109,12 +146,10 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
               decodedMessages.map((msg) => Map<String, dynamic>.from(msg)));
         });
 
-        // Scroll to bottom after loading messages
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _scrollToBottom();
         });
       } else {
-        // If no saved conversation, add welcome message
         _addWelcomeMessage();
       }
     } catch (e) {
@@ -133,14 +168,12 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Reset conversation but keep the MacroExpert introduction
+  // Reset conversation
   Future<void> _resetConversation() async {
-    // Find the MacroExpert introduction message
     final introMessageIndex = _messages.indexWhere((msg) =>
         msg["role"] == "assistant" &&
         (msg["content"] as String).contains("Macro Tracking Assistant"));
 
-    // Keep only the introduction message if found
     if (introMessageIndex != -1) {
       final introMessage = _messages[introMessageIndex];
       setState(() {
@@ -148,18 +181,14 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         _messages.add(introMessage);
       });
     } else {
-      // If no intro found, clear all and add welcome message
       setState(() {
         _messages.clear();
       });
       _addWelcomeMessage();
     }
 
-    // Clear from storage and save the new state
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_chatStorageKey, jsonEncode(_messages));
-
-    // Scroll to top to show the intro message
     _scrollToTop();
   }
 
@@ -180,7 +209,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         });
         debugPrint("USER GOALS LOADED: $_userGoals");
       } else {
-        // Fallback to default values if user data is null
         setState(() {
           _userGoals = {
             'calorieGoal': 2000,
@@ -193,7 +221,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       }
     } catch (e) {
       debugPrint('ERROR LOADING USER GOALS: $e');
-      // Fallback to default values on error
       setState(() {
         _userGoals = {
           'calorieGoal': 2000,
@@ -205,7 +232,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Load today's nutrition data (unchanged - this is working properly)
+  // Load today's nutrition data
   Future<void> _loadNutritionData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -265,21 +292,19 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   void _addWelcomeMessage() {
     _messages.add({
       "role": "assistant",
-      "content": "👋 Hi! I'm your Macro Tracking Assistant!\n\n"
+      "content": "Hi! I'm your Macro Tracking Assistant!\n\n"
           "I can help you with:\n"
-          "• Calculating your ideal macros\n"
+          "• Provide nutritional information of a food\n"
           "• Tracking meals and nutrients\n"
           "• Planning meals for your goals\n"
-          "• Understanding food nutrition\n\n"
+          "• Share recipes that you are interested in\n\n"
           "Try asking:\n"
-          "• \"Calculate my macros for weight loss\"\n"
-          "• \"What's the protein in 200g chicken?\"\n"
-          "• \"Plan a high-protein breakfast\""
+          "• \"What is the recipe of Chicken Adobo?\"\n"
+          "• \"What's the macro of chicken breast?\"\n"
+          "• \"Plan a high-protein meal for the whole day.\""
     });
 
-    // Save the conversation after adding welcome message
     _saveConversation();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
@@ -289,19 +314,13 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     setState(() => _isLoading = true);
     debugPrint("REFRESHING USER DATA...");
 
-    // Simulate a small delay for better UX
     await Future.delayed(const Duration(milliseconds: 500));
 
     try {
       final userProvider = context.read<UserProvider>();
-
-      // Fetch the latest user data from Firestore
       await userProvider.fetchUserData();
-
-      // Get the updated user data
       final newUserData = userProvider.userData;
 
-      // Reload nutrition data and goals
       await _loadNutritionData();
       await _loadUserGoals();
 
@@ -313,13 +332,11 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       debugPrint("USER DATA REFRESHED: $_currentUserData");
       debugPrint("USER GOALS REFRESHED: $_userGoals");
 
-      // Show confirmation message
       _showRefreshConfirmation();
     } catch (e) {
       debugPrint('ERROR REFRESHING USER DATA: $e');
       setState(() => _isLoading = false);
 
-      // Show error message
       setState(() {
         _messages.add({
           "role": "error",
@@ -329,6 +346,292 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       _saveConversation();
       _scrollToBottom();
     }
+  }
+
+  // Method to get last 20 conversations for reporting
+  List<Map<String, dynamic>> _getLast20Conversations() {
+    final conversationMessages = _messages
+        .where((msg) =>
+            msg["role"] == "user" ||
+            msg["role"] == "nutritional_info" ||
+            msg["role"] == "recipe" ||
+            msg["role"] == "meal_suggestion" ||
+            msg["role"] == "error")
+        .toList();
+
+    // Return the last 20 messages or all if less than 20
+    return conversationMessages.length > 20
+        ? conversationMessages.sublist(conversationMessages.length - 20)
+        : conversationMessages;
+  }
+
+  // Method to submit chatbot feedback
+  Future<void> _submitChatbotFeedback(String message, String category) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      String appVersion = '1.0.0';
+      try {
+        appVersion = '1.0.0';
+      } catch (e) {
+        debugPrint('ERROR GETTING PACKAGE INFO: $e');
+        appVersion = 'Unknown';
+      }
+
+      // Get device info with error handling
+      String deviceInfoString = 'Unknown';
+      try {
+        final deviceInfo = DeviceInfoPlugin();
+
+        if (Theme.of(context).platform == TargetPlatform.android) {
+          final androidInfo = await deviceInfo.androidInfo;
+          deviceInfoString = '${androidInfo.manufacturer} ${androidInfo.model}';
+        } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+          final iosInfo = await deviceInfo.iosInfo;
+          deviceInfoString = '${iosInfo.utsname.machine}';
+        } else {
+          deviceInfoString = '${Theme.of(context).platform}';
+        }
+      } catch (e) {
+        debugPrint('ERROR GETTING DEVICE INFO: $e');
+        deviceInfoString = 'Unknown';
+      }
+
+      // Get last 20 conversations
+      final history = _getLast20Conversations();
+
+      await FirebaseFirestore.instance.collection('feedback').add({
+        'userId': user.uid,
+        'userEmail': user.email,
+        'category': category,
+        'history': history,
+        'message': message,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'new',
+        'appVersion': appVersion,
+        'deviceInfo': deviceInfoString,
+        'type': 'chatbot_feedback',
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thank you for your feedback!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('ERROR SUBMITTING FEEDBACK: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit feedback. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Method to show feedback bottom sheet
+  void _showFeedbackDialog() {
+    final TextEditingController feedbackController = TextEditingController();
+    String selectedCategory = 'bug';
+    int charCount = 0;
+    final int maxChars = 1000;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Report Chatbot Issue',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.close, color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Category', style: TextStyle(color: Colors.white)),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: Colors.grey[800],
+                      value: selectedCategory,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                      ),
+                      style: TextStyle(color: Colors.white),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'bug',
+                          child: Text('Bug',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'incorrect_response',
+                          child: Text('Incorrect Response',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'other',
+                          child: Text('Other',
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setSheetState(() {
+                          selectedCategory = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Describe the issue',
+                        style: TextStyle(color: Colors.white)),
+                    TextField(
+                      controller: feedbackController,
+                      maxLines: 4,
+                      maxLength: maxChars,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Please describe the issue you encountered...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.grey[800],
+                        counterText: '$charCount/$maxChars',
+                        counterStyle: TextStyle(
+                          color: charCount > maxChars
+                              ? Colors.red
+                              : Colors.grey[400],
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setSheetState(() {
+                          charCount = value.length;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        Expanded(
+                          flex: 1,
+                          child: ElevatedButton(
+                            onPressed: charCount > 0 && charCount <= maxChars
+                                ? () {
+                                    Navigator.pop(context);
+                                    _submitChatbotFeedback(
+                                        feedbackController.text.trim(),
+                                        selectedCategory);
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text('Submit'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Settings menu with report option
+  void _showSettingsMenu(BuildContext context) {
+    // Unfocus to close keyboard when opening settings
+    _messageNode.unfocus();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.refresh, color: Colors.blue[300]),
+                title: Text('Reload User Data',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _refreshUserData();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.bug_report, color: Colors.orange[300]),
+                title: Text('Report Chatbot Issue',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFeedbackDialog();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.restart_alt, color: Colors.red[300]),
+                title:
+                    Text('Reset Chat', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _resetConversation();
+                },
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close', style: TextStyle(color: Colors.grey[400])),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showRefreshConfirmation() {
@@ -350,6 +653,11 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       final weightUnit = isMetric ? 'kg' : 'lbs';
       final heightUnit = isMetric ? 'cm' : 'inches';
 
+      // Create a temporary message ID to identify it later
+      final String tempMessageId =
+          DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Add the temporary system message
       _messages.add({
         "role": "system",
         "content": "🔄 Profile updated! I now know:\n"
@@ -367,20 +675,31 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
             "• Carbs: ${_nutritionData?['totalCarbs'] ?? 0}/${_userGoals?['carbsGoal'] ?? 250}g "
             "(${remainingCarbs > 0 ? '$remainingCarbs g remaining' : '${-remainingCarbs}g over'})\n"
             "• Fat: ${_nutritionData?['totalFat'] ?? 0}/${_userGoals?['fatGoal'] ?? 70}g "
-            "(${remainingFat > 0 ? '$remainingFat g remaining' : '${-remainingFat}g over'})"
+            "(${remainingFat > 0 ? '$remainingFat g remaining' : '${-remainingFat}g over'})",
+        "id": tempMessageId, // Add unique ID for identification
+        "isTemporary": true,
       });
 
       // Save the conversation after adding system message
       _saveConversation();
 
       _scrollToBottom();
+
+      // Remove the message after 5 seconds
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _messages.removeWhere((msg) => msg["id"] == tempMessageId);
+          });
+          _saveConversation();
+        }
+      });
     }
   }
 
-  // Parsing JSON response (unchanged)
+  // Parsing JSON response
   Map<String, dynamic> _parseMixedResponse(String content) {
     try {
-      // First, try to parse the entire content as JSON
       final jsonData = jsonDecode(content);
       if (jsonData is List) {
         return {
@@ -418,7 +737,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         }
       }
     } catch (e) {
-      // If not pure JSON, look for JSON objects within text
       final jsonPattern = r'\{.*?\}';
       final matches = RegExp(jsonPattern, multiLine: true).allMatches(content);
 
@@ -480,6 +798,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       _messages.add({"role": "user", "content": userMessage});
       _messageController.clear();
       _isLoading = true;
+      _currentTextFieldHeight = _minTextFieldHeight;
     });
 
     // Save the conversation after adding user message
@@ -514,7 +833,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       --------------------------------------------------
       ''');
 
-      // Convert history to the correct type (Map<String, String>)
       final List<Map<String, String>> history = _messages
           .sublist(1, _messages.length - 1)
           .where((msg) =>
@@ -551,7 +869,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         fatGoal: _userGoals?['fatGoal'] ?? 70,
       ).timeout(const Duration(seconds: 30));
 
-      // Parse for JSON meals + normal text
       final parsedResponse = _parseMixedResponse(aiMessage);
 
       // Debug print for chatbot output
@@ -562,7 +879,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
       debugPrint(aiMessage);
 
-      // Add meal suggestions if any
+      // Add meal suggestions
       if (parsedResponse['meals'].isNotEmpty) {
         for (final meal in parsedResponse['meals']) {
           setState(() {
@@ -574,7 +891,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         }
       }
 
-      // Add recipes if any
+      // Add recipes
       if (parsedResponse['recipes'].isNotEmpty) {
         for (final recipe in parsedResponse['recipes']) {
           setState(() {
@@ -597,7 +914,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         }
       }
 
-      // Add text response if exists
+      // Add text response
       if (parsedResponse['text'].isNotEmpty) {
         setState(() {
           _messages
@@ -641,7 +958,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         });
       });
 
-      // Save the conversation after adding error message
+      // Save the conversation
       _saveConversation();
     } finally {
       setState(() => _isLoading = false);
@@ -673,6 +990,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
     super.build(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -680,7 +998,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         children: [
           Column(
             children: [
-              // Removed the App Bar section
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
@@ -786,7 +1103,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                       }
                     }
 
-                    // Add handling for nutritional info
+                    // Handling for nutritional info
                     if (isNutritionalInfo) {
                       try {
                         final infoData =
@@ -896,35 +1213,48 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                   },
                 ),
               ),
-              // Removed the Reload User Data button from the bottom
+              // Updated input area with settings button and expandable text field
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // Expandable text field
                     Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        focusNode: _messageNode,
-                        autofocus: false,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: "Type a message...",
-                          hintStyle: TextStyle(color: Colors.grey[400]),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            borderSide: BorderSide.none,
+                      child: Container(
+                        height: _currentTextFieldHeight,
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _messageNode,
+                          autofocus: false,
+                          style: const TextStyle(color: Colors.white),
+                          maxLines: null, // Allow unlimited lines
+                          decoration: InputDecoration(
+                            hintText: "Type a message...",
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[800],
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
-                          filled: true,
-                          fillColor: Colors.grey[800],
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
+                          onSubmitted: (_) => _sendMessage(),
                         ),
-                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                     const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => _showSettingsMenu(context),
+                      icon: Icon(Icons.settings, color: Colors.grey[400]),
+                      tooltip: 'Settings',
+                    ),
+                    const SizedBox(width: 4),
+                    // Send button
                     IconButton(
                       onPressed: _isLoading ? null : _sendMessage,
                       icon: _isLoading
@@ -935,109 +1265,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                 ),
               ),
             ],
-          ),
-
-          // Floating buttons that appear when scrolling up (not at bottom)
-          AnimatedOpacity(
-            opacity: _showResetButton
-                ? 1.0
-                : 0.0, // Animate opacity based on visibility
-            duration: const Duration(milliseconds: 300), // Animation duration
-            curve: Curves.easeInOut, // Smooth easing curve
-            child: Visibility(
-              visible:
-                  _showResetButton, // Ensure the buttons are only visible when needed
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Reload User Data Button
-                        GestureDetector(
-                          onTap: _isLoading ? null : _refreshUserData,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800]!.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.blue[700]!,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_isLoading)
-                                  const SizedBox(
-                                    width: 12,
-                                    height: 12,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.blue,
-                                    ),
-                                  )
-                                else
-                                  Icon(Icons.refresh,
-                                      size: 14, color: Colors.blue[300]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _isLoading ? 'Reloading...' : 'Reload Data',
-                                  style: TextStyle(
-                                    color: _isLoading
-                                        ? Colors.grey[400]
-                                        : Colors.blue[300],
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Reset Chat Button
-                        GestureDetector(
-                          onTap: _resetConversation,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800]!.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.red[700]!,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.restart_alt,
-                                    size: 14, color: Colors.red[300]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Reset Chat',
-                                  style: TextStyle(
-                                    color: Colors.red[300],
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),

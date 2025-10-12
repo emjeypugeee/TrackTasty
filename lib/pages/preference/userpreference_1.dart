@@ -110,7 +110,7 @@ class _Userpreference1 extends State<Userpreference1> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Form(
           key: _formKey,
           child: Column(
@@ -260,7 +260,6 @@ class _Userpreference1 extends State<Userpreference1> {
                             context,
                             listen: false);
 
-                        // Save data before navigating back
                         if (usernameController.text.isNotEmpty) {
                           provider.updateBasicInfo(
                               username: usernameController.text);

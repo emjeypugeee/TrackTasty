@@ -5,6 +5,9 @@ import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/about_us_widget.dart';
+import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/faq_widget.dart';
+import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/terms_conditions_widget.dart';
 import 'package:fitness/widgets/text_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,6 +45,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   Future<void> _loadCurrentMeasurement() async {
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) return;
 
     final doc = await FirebaseFirestore.instance
@@ -59,38 +63,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
     }
   }
 
-  // Editting username
+  // Editing username
   void _showEditUsernameDialog(BuildContext context) {
     TextEditingController usernameController = TextEditingController();
-
-    Future<bool> saveNickname() async {
-      try {
-        User? user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No user logged in!')),
-          );
-          return false;
-        }
-
-        await FirebaseFirestore.instance
-            .collection("Users")
-            .doc(user.email)
-            .set(
-          {
-            'username': usernameController.text,
-          },
-          SetOptions(merge: true),
-        );
-
-        return true;
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-        return false;
-      }
-    }
+    final userProvider = context.read<UserProvider>();
 
     showDialog(
       context: context,
@@ -122,7 +98,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: MyButtons(
                   text: 'Save',
                   onTap: () async {
-                    bool success = await saveNickname();
+                    bool success = await userProvider
+                        .updateUsername(usernameController.text);
                     if (success && context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,6 +199,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         },
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                          _MacroInputFormatter(),
                         ],
                         keyboardType:
                             TextInputType.numberWithOptions(decimal: true),
@@ -237,6 +216,17 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           } else if (!isMetric &&
                               (weight < 40 || weight > 660)) {
                             return 'Weight should be around 40-660 lbs';
+                          }
+
+                          // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
+                          final regex = RegExp(r'^\d{1,3}(\.\d{0,2})?$');
+                          if (!regex.hasMatch(value)) {
+                            return 'Invalid format';
+                          }
+
+                          // Validate total length
+                          if (value.length > 6) {
+                            return 'Max 6 chars';
                           }
                           return null;
                         },
@@ -321,6 +311,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
             userData['selectedActivityLevel'] ?? 'Sedentary';
         selectedGoal = userData['goal'] ?? 'Maintain Weight';
 
+        // Create form key for validation
+        final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -371,192 +364,355 @@ class _CustomDrawerState extends State<CustomDrawer> {
                         padding: EdgeInsets.only(
                           bottom: MediaQuery.of(context).viewInsets.bottom,
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Age Field
-                            Text(
-                              'Age',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            TextFormField(
-                              controller: ageController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: 'Enter your age',
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Age Field
+                              Text(
+                                'Age',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
                               ),
-                              style: TextStyle(color: AppColors.primaryText),
-                            ),
-                            const SizedBox(height: 15),
-
-                            // Weight Field
-                            Text(
-                              'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            TextFormField(
-                              controller: weightController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: 'Enter your weight',
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
-                              ),
-                              style: TextStyle(color: AppColors.primaryText),
-                            ),
-                            const SizedBox(height: 15),
-
-// Goal Weight Field
-                            Text(
-                              'Goal Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            TextFormField(
-                              controller: goalWeightController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: 'Enter your goal weight',
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
-                              ),
-                              style: TextStyle(color: AppColors.primaryText),
-                            ),
-                            const SizedBox(height: 15),
-
-                            // Height Field
-                            Text(
-                              'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            TextFormField(
-                              controller: heightController,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: 'Enter your height',
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
-                              ),
-                              style: TextStyle(color: AppColors.primaryText),
-                            ),
-                            const SizedBox(height: 15),
-
-                            // Gender Dropdown
-                            Text(
-                              'Gender',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            DropdownButtonFormField<String>(
-                              value: selectedGender,
-                              dropdownColor:
-                                  const Color.fromARGB(255, 15, 15, 15),
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                              TextFormField(
+                                controller: ageController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your age',
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
                                 ),
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
-                              ),
-                              style: TextStyle(color: AppColors.primaryText),
-                              items: ['male', 'female']
-                                  .map((gender) => DropdownMenuItem(
-                                        value: gender,
-                                        child: Text(gender == 'male'
-                                            ? 'Male'
-                                            : 'Female'),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedGender = value;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 15),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r"[0-9\']")),
+                                  LengthLimitingTextInputFormatter(3),
+                                  _MacroInputFormatter(),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your age';
+                                  }
+                                  final age = double.tryParse(value) ?? 0;
+                                  if (age < 14 || age > 80) {
+                                    return 'Age can only range from 14-80';
+                                  }
 
-                            // Activity Level Dropdown
-                            Text(
-                              'Activity Level',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            DropdownButtonFormField<String>(
-                              value: selectedActivityLevel,
-                              dropdownColor:
-                                  const Color.fromARGB(255, 15, 15, 15),
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
+                                  // Validate total length
+                                  if (value.length > 3) {
+                                    return 'Max 3 chars';
+                                  }
+                                  return null;
+                                },
+                                style: TextStyle(color: AppColors.primaryText),
                               ),
-                              style: TextStyle(color: AppColors.primaryText),
-                              items: [
-                                'Sedentary',
-                                'Lightly active',
-                                'Moderately active',
-                                'Very active',
-                                'Extra active'
-                              ]
-                                  .map((level) => DropdownMenuItem(
-                                        value: level,
-                                        child: Text(level),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedActivityLevel = value;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 15),
+                              const SizedBox(height: 15),
 
-                            // Goal Dropdown
-                            Text(
-                              'Goal',
-                              style: TextStyle(
-                                  color: AppColors.primaryText, fontSize: 16),
-                            ),
-                            DropdownButtonFormField<String>(
-                              value: selectedGoal,
-                              dropdownColor:
-                                  const Color.fromARGB(255, 15, 15, 15),
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: AppColors.textFieldBg,
+                              // Weight Field
+                              Text(
+                                'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
                               ),
-                              style: TextStyle(color: AppColors.primaryText),
-                              items: [
-                                'Mild Lose Weight',
-                                'Lose Weight',
-                                'Maintain Weight',
-                                'Mild Gain Weight',
-                                'Gain Weight'
-                              ]
-                                  .map((goal) => DropdownMenuItem(
-                                        value: goal,
-                                        child: Text(goal),
-                                      ))
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedGoal = value;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 30),
-                          ],
+                              TextFormField(
+                                controller: weightController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your weight',
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
+                                ),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                  _MacroInputFormatter(),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your weight';
+                                  }
+                                  final weight = double.tryParse(value) ?? 0;
+                                  if (isMetric &&
+                                      (weight < 20 || weight > 300)) {
+                                    return 'Weight should be around 20-300 kg';
+                                  } else if (!isMetric &&
+                                      (weight < 40 || weight > 660)) {
+                                    return 'Weight should be around 40-660 lbs';
+                                  }
+                                  // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
+                                  final regex =
+                                      RegExp(r'^\d{1,3}(\.\d{0,2})?$');
+                                  if (!regex.hasMatch(value)) {
+                                    return 'Invalid format';
+                                  }
+
+                                  // Validate total length
+                                  if (value.length > 6) {
+                                    return 'Max 6 chars';
+                                  }
+                                  return null;
+                                },
+                                style: TextStyle(color: AppColors.primaryText),
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Goal Weight Field
+                              Text(
+                                'Goal Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
+                              ),
+                              TextFormField(
+                                controller: goalWeightController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your goal weight',
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
+                                ),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                  _MacroInputFormatter(),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your goal weight';
+                                  }
+                                  final goalWeight =
+                                      double.tryParse(value) ?? 0;
+                                  if (isMetric &&
+                                      (goalWeight < 20 || goalWeight > 300)) {
+                                    return 'Goal weight should be around 20-300 kg';
+                                  } else if (!isMetric &&
+                                      (goalWeight < 40 || goalWeight > 660)) {
+                                    return 'Goal weight should be around 40-660 lbs';
+                                  }
+                                  // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
+                                  final regex =
+                                      RegExp(r'^\d{1,3}(\.\d{0,2})?$');
+                                  if (!regex.hasMatch(value)) {
+                                    return 'Invalid format';
+                                  }
+
+                                  // Validate total length
+                                  if (value.length > 6) {
+                                    return 'Max 6 chars';
+                                  }
+                                  return null;
+                                },
+                                style: TextStyle(color: AppColors.primaryText),
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Height Field
+                              Text(
+                                'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
+                              ),
+                              TextFormField(
+                                controller: heightController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your height',
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
+                                ),
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r"[0-9\']")),
+                                  LengthLimitingTextInputFormatter(6),
+                                  _MacroInputFormatter(),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter your height';
+                                  }
+
+                                  if (isMetric) {
+                                    final height = double.tryParse(value) ?? 0;
+                                    if (height < 50 || height > 300) {
+                                      return 'Height should be between 50-300 cm';
+                                    }
+                                  } else {
+                                    double totalInches;
+
+                                    if (value.contains("'")) {
+                                      final parts = value.split("'");
+                                      if (parts.length != 2 ||
+                                          parts[1].isEmpty) {
+                                        return 'Use format: feet\'inches (e.g. 5\'3)';
+                                      }
+
+                                      final feet =
+                                          double.tryParse(parts[0]) ?? -1;
+                                      final inches =
+                                          double.tryParse(parts[1]) ?? -1;
+
+                                      if (feet < 1 || feet > 10) {
+                                        return 'Feet should be between 1-10';
+                                      }
+                                      if (inches < 0 || inches >= 12) {
+                                        return 'Inches should be between 0-11.99';
+                                      }
+                                      totalInches = feet * 12 + inches;
+                                    } else {
+                                      totalInches = double.tryParse(value) ?? 0;
+                                    }
+
+                                    // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
+                                    final regex =
+                                        RegExp(r'^\d{1,3}(\.\d{0,2})?$');
+                                    if (!regex.hasMatch(value)) {
+                                      return 'Invalid format';
+                                    }
+
+                                    // Validate total length
+                                    if (value.length > 6) {
+                                      return 'Max 6 chars';
+                                    }
+
+                                    if (totalInches < 20 || totalInches > 120) {
+                                      return 'Height should be between 20-120 inches';
+                                    }
+                                  }
+                                  return null;
+                                },
+                                style: TextStyle(color: AppColors.primaryText),
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Gender Dropdown
+                              Text(
+                                'Gender',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
+                              ),
+                              DropdownButtonFormField<String>(
+                                value: selectedGender,
+                                dropdownColor:
+                                    const Color.fromARGB(255, 15, 15, 15),
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
+                                ),
+                                style: TextStyle(color: AppColors.primaryText),
+                                items: ['male', 'female']
+                                    .map((gender) => DropdownMenuItem(
+                                          value: gender,
+                                          child: Text(gender == 'male'
+                                              ? 'Male'
+                                              : 'Female'),
+                                        ))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedGender = value;
+                                  });
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please select your gender';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Activity Level Dropdown
+                              Text(
+                                'Activity Level',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
+                              ),
+                              DropdownButtonFormField<String>(
+                                value: selectedActivityLevel,
+                                dropdownColor:
+                                    const Color.fromARGB(255, 15, 15, 15),
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
+                                ),
+                                style: TextStyle(color: AppColors.primaryText),
+                                items: [
+                                  'Sedentary',
+                                  'Lightly active',
+                                  'Moderately active',
+                                  'Very active',
+                                  'Extra active'
+                                ]
+                                    .map((level) => DropdownMenuItem(
+                                          value: level,
+                                          child: Text(level),
+                                        ))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedActivityLevel = value;
+                                  });
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please select your activity level';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 15),
+
+                              // Goal Dropdown
+                              Text(
+                                'Goal',
+                                style: TextStyle(
+                                    color: AppColors.primaryText, fontSize: 16),
+                              ),
+                              DropdownButtonFormField<String>(
+                                value: selectedGoal,
+                                dropdownColor:
+                                    const Color.fromARGB(255, 15, 15, 15),
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: AppColors.textFieldBg,
+                                ),
+                                style: TextStyle(color: AppColors.primaryText),
+                                items: [
+                                  'Mild Lose Weight',
+                                  'Lose Weight',
+                                  'Maintain Weight',
+                                  'Mild Gain Weight',
+                                  'Gain Weight'
+                                ]
+                                    .map((goal) => DropdownMenuItem(
+                                          value: goal,
+                                          child: Text(goal),
+                                        ))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedGoal = value;
+                                  });
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please select your goal';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 30),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -577,43 +733,55 @@ class _CustomDrawerState extends State<CustomDrawer> {
                           child: MyButtons(
                             text: 'Recalculate',
                             onTap: () {
-                              Navigator.pop(context); // Close the bottom sheet
+                              // Validate all form fields before proceeding
+                              if (_formKey.currentState!.validate()) {
+                                Navigator.pop(context);
 
-                              // Debug prints
-                              debugPrint(
-                                  "Age from controller: ${ageController.text}");
-                              debugPrint(
-                                  "Weight from controller: ${weightController.text}");
-                              debugPrint(
-                                  "Height from controller: ${heightController.text}");
-                              debugPrint(
-                                  "Goal Weight from controller: ${goalWeightController.text}");
+                                // Debug prints
+                                debugPrint(
+                                    "Age from controller: ${ageController.text}");
+                                debugPrint(
+                                    "Weight from controller: ${weightController.text}");
+                                debugPrint(
+                                    "Height from controller: ${heightController.text}");
+                                debugPrint(
+                                    "Goal Weight from controller: ${goalWeightController.text}");
 
-                              // Create updated user data with the new values
-                              Map<String, dynamic> updatedUserData =
-                                  Map.from(userData);
-                              updatedUserData['age'] =
-                                  int.tryParse(ageController.text) ??
-                                      userData['age'];
-                              updatedUserData['weight'] =
-                                  double.tryParse(weightController.text) ??
-                                      userData['weight'];
-                              updatedUserData['goalWeight'] =
-                                  double.tryParse(goalWeightController.text) ??
-                                      userData['goalWeight'];
-                              updatedUserData['height'] =
-                                  double.tryParse(heightController.text) ??
-                                      userData['height'];
-                              updatedUserData['gender'] = selectedGender;
-                              updatedUserData['selectedActivityLevel'] =
-                                  selectedActivityLevel;
-                              updatedUserData['goal'] = selectedGoal;
+                                // Create updated user data with the new values
+                                Map<String, dynamic> updatedUserData =
+                                    Map.from(userData);
+                                updatedUserData['age'] =
+                                    int.tryParse(ageController.text) ??
+                                        userData['age'];
+                                updatedUserData['weight'] =
+                                    double.tryParse(weightController.text) ??
+                                        userData['weight'];
+                                updatedUserData['goalWeight'] = double.tryParse(
+                                        goalWeightController.text) ??
+                                    userData['goalWeight'];
+                                updatedUserData['height'] =
+                                    double.tryParse(heightController.text) ??
+                                        userData['height'];
+                                updatedUserData['gender'] = selectedGender;
+                                updatedUserData['selectedActivityLevel'] =
+                                    selectedActivityLevel;
+                                updatedUserData['goal'] = selectedGoal;
 
-                              // Navigate to the recalculate macros page with all parameters
-                              context.push('/recalcmacros', extra: {
-                                'userData': updatedUserData,
-                                'selectedGoal': selectedGoal!,
-                              });
+                                // Navigate to the recalculate macros page with all parameters
+                                context.push('/recalcmacros', extra: {
+                                  'userData': updatedUserData,
+                                  'selectedGoal': selectedGoal!,
+                                });
+                              } else {
+                                // Show error message if validation fails
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Please fix all errors before recalculating'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             },
                           ),
                         ),
@@ -701,107 +869,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           top: Radius.circular(20),
         ),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Header
-            Center(
-              child: Text(
-                'About Us',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Divider
-            Divider(
-              color: AppColors.primaryText.withValues(alpha: 0.3),
-              thickness: 1,
-            ),
-            const SizedBox(height: 20),
-
-            // Mission Section
-            Text(
-              'OUR MISSION',
-              style: TextStyle(
-                color: AppColors.primaryText,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'To empower individuals to live healthier lives by making food tracking simple, smart, and supportive through innovative technology and a caring community.',
-              style: TextStyle(
-                color: AppColors.secondaryText,
-                fontSize: 16,
-                height: 1.5,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.left,
-            ),
-            const SizedBox(height: 24),
-
-            // Vision Section
-            Text(
-              'OUR VISION',
-              style: TextStyle(
-                color: AppColors.primaryText,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'To become the essential wellness companion that helps people build lasting healthy habits — one meal, one step, one goal at a time.',
-              style: TextStyle(
-                color: AppColors.secondaryText,
-                fontSize: 16,
-                height: 1.5,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.left,
-            ),
-            const SizedBox(height: 24),
-
-            // Closing statement
-            Center(
-              child: Text(
-                'Join us on this journey to better health!',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+      builder: (context) => const AboutUsWidget(),
     );
   }
 
@@ -821,250 +889,27 @@ class _CustomDrawerState extends State<CustomDrawer> {
           top: Radius.circular(20),
         ),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              // Drag handle
-              Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(height: 16),
+      builder: (context) => const TermsConditionsWidget(),
+    );
+  }
 
-              Center(
-                child: Text(
-                  'Terms & Conditions',
-                  style: TextStyle(
-                    color: AppColors.primaryText,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Divider(
-                color: AppColors.primaryText.withValues(alpha: 0.3),
-                thickness: 1,
-              ),
-              const SizedBox(height: 20),
-
-              // 1. Acceptance of Terms
-              Text(
-                '1. ACCEPTANCE OF TERMS',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'By accessing or using TrackTasty ("the App"), you agree to be bound by these Terms and Conditions. If you do not agree to all terms, please discontinue use immediately. Continued use constitutes acceptance of any modifications.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 2. Service Description
-              Text(
-                '2. SERVICE DESCRIPTION',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'TrackTasty is a macro-nutrient tracking application designed to help beginners monitor food intake, calculate nutritional requirements, and support weight management goals. The App provides personalized macro calculations based on user-provided information including age, gender assigned at birth, weight, height, activity level, weight goals, dietary preferences, and allergies.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 3. User GUIDELINES
-              Text(
-                '3. USER GUIDELINES',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '• You must provide accurate and complete information for macro calculations\n• You agree to use the App only for lawful purposes\n• You must be at least 14 years old to use the App\n• You acknowledge that results may vary based on individual adherence',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 4. Medical Disclaimer
-              Text(
-                '4. MEDICAL DISCLAIMER',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'TrackTasty provides nutritional information and tracking tools for informational purposes only. The App is not intended to diagnose, treat, cure, or prevent any disease or health condition. Always consult with a qualified healthcare professional before making significant changes to your diet or exercise routine. The macro calculations are estimates and should be used as guidelines rather than strict prescriptions.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 5. Data Collection and Privacy
-              Text(
-                '5. DATA COLLECTION AND PRIVACY',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We collect personal information (such as your preferences and app usage) to provide and improve our services. Your data is stored securely and handled according to our Privacy Policy. By using TrackTasty, you agree to the collection and processing of your data as described in our Privacy Policy. We comply with the Data Privacy Act of 2012 (Republic Act No. 10173) and ensure that your personal information is collected, used, and protected in accordance with Philippine data privacy laws.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 6. Intellectual Property
-              Text(
-                '6. INTELLECTUAL PROPERTY',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'All content, features, and functionality developed by us for the TrackTasty application are owned by us and are protected by international copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works of our proprietary content without our explicit permission.\n\nHowever, the application utilizes data and services provided by third-party APIs, including but not limited to Gemini API (Google), FatSecret Platform (FatSecret), and DeepSeek API (DeepSeek). The use of any content, data, or functionality provided by these third-party APIs is governed by their respective terms of service and intellectual property policies. You acknowledge and agree that we are not the owners of this third-party content and are not responsible for your use of it.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 7. Limitation of Liability
-              Text(
-                '7. LIMITATION OF LIABILITY',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'TrackTasty and its developers shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use or inability to use the App. This includes but is not limited to errors in macro calculations, nutritional information, or any health-related outcomes.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 8. Modifications to Terms
-              Text(
-                '8. MODIFICATIONS TO TERMS',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We reserve the right to modify these Terms and Conditions at any time. Continued use of the App after changes constitutes acceptance of the modified terms. Users will be notified of significant changes through the App or via email.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 9. Termination
-              Text(
-                '9. TERMINATION',
-                style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We may terminate or suspend your access to TrackTasty immediately, without prior notice, for conduct that we believe violates these Terms or is harmful to other users or the App\'s operation.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Acceptance Note
-              Center(
-                child: Text(
-                  'By using TrackTasty, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
-                  style: TextStyle(
-                    color: AppColors.primaryText,
-                    fontSize: 14,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
+  //
+  // FAQs Section
+  //
+  void _showFAQ(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.containerBg,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
         ),
       ),
+      builder: (context) => const FAQWidget(),
     );
   }
 
@@ -1122,7 +967,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                   onTap: () {
                     Navigator.pop(context);
                     context.push(
-                        '/editfoodpreference'); // Navigate to the new page
+                        '/editfoodpreference'); // Navigate to edit food pref page
                   },
                 ),
                 ListTile(
@@ -1178,18 +1023,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ),
               onTap: () => _showAboutUs(context),
             ),
-            isAdmin
-                ? ListTile(
-                    leading: Icon(Icons.admin_panel_settings,
-                        color: AppColors.drawerIcons),
-                    title: Text(
-                      'Admin Page',
-                      style:
-                          TextStyle(color: AppColors.primaryText, fontSize: 16),
-                    ),
-                    onTap: () => context.push('/adminonly'),
-                  )
-                : const SizedBox.shrink(),
+            ListTile(
+              leading: Icon(Icons.question_mark, color: AppColors.drawerIcons),
+              title: Text(
+                'FAQs',
+                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
+              ),
+              onTap: () => _showFAQ(context),
+            ),
             SizedBox(height: 20),
             Divider(),
             ListTile(
@@ -1204,5 +1045,25 @@ class _CustomDrawerState extends State<CustomDrawer> {
         ),
       ),
     );
+  }
+}
+
+class _MacroInputFormatter extends TextInputFormatter {
+  final RegExp _validFormat = RegExp(r'^\d{0,3}(\.\d{0,2})?$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    if (_validFormat.hasMatch(newValue.text)) {
+      return newValue;
+    }
+
+    return oldValue;
   }
 }

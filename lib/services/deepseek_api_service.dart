@@ -5,6 +5,125 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
+class UsageTracker {
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  static Future<void> recordApiUsage({
+    required int promptTokens,
+    required int completionTokens,
+    required int totalTokens,
+    required double cost,
+    required String endpoint,
+  }) async {
+    try {
+      final now = DateTime.now();
+      final monthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final dayKey =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      // Record usage in chatbot_config for admin access
+      await _firestore.collection('chatbot_config').doc('api_usage').set({
+        'last_updated': FieldValue.serverTimestamp(),
+        'total_requests': FieldValue.increment(1),
+        'total_tokens': FieldValue.increment(totalTokens),
+        'total_cost': FieldValue.increment(cost),
+      }, SetOptions(merge: true));
+
+      // Record monthly usage
+      await _firestore
+          .collection('chatbot_config')
+          .doc('api_usage_months')
+          .collection('months')
+          .doc(monthKey)
+          .set({
+        'prompt_tokens': FieldValue.increment(promptTokens),
+        'completion_tokens': FieldValue.increment(completionTokens),
+        'total_tokens': FieldValue.increment(totalTokens),
+        'cost': FieldValue.increment(cost),
+        'request_count': FieldValue.increment(1),
+        'last_updated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Record daily usage for more granular data
+      await _firestore
+          .collection('chatbot_config')
+          .doc('api_usage_days')
+          .collection('days')
+          .doc(dayKey)
+          .set({
+        'prompt_tokens': FieldValue.increment(promptTokens),
+        'completion_tokens': FieldValue.increment(completionTokens),
+        'total_tokens': FieldValue.increment(totalTokens),
+        'cost': FieldValue.increment(cost),
+        'request_count': FieldValue.increment(1),
+        'date': Timestamp.fromDate(now),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error recording API usage: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getCurrentMonthUsage() async {
+    try {
+      final now = DateTime.now();
+      final monthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+      final doc = await _firestore
+          .collection('chatbot_config')
+          .doc('api_usage_months')
+          .collection('months')
+          .doc(monthKey)
+          .get();
+
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting monthly usage: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getTotalUsage() async {
+    try {
+      final doc =
+          await _firestore.collection('chatbot_config').doc('api_usage').get();
+
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting total usage: $e');
+      return null;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getMonthlyHistory(int limit) async {
+    try {
+      final snapshot = await _firestore
+          .collection('chatbot_config')
+          .doc('api_usage_months')
+          .collection('months')
+          .orderBy('last_updated', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'month': doc.id,
+          ...data,
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting monthly history: $e');
+      return [];
+    }
+  }
+}
+
 class DeepSeekApi {
   static final apiKey = dotenv.env['DEEPSEEK_API_KEY'];
   static const String _apiUrl = 'https://api.deepseek.com/v1/chat/completions';
@@ -37,7 +156,6 @@ class DeepSeekApi {
     final remainingCarbs = carbsGoal - totalCarbs;
     final remainingFat = fatGoal - totalFat;
 
-    // This is the dynamic part with user data, using Dart's string interpolation
     final String getBasePrompt = """
     You are MacroExpert, an AI assistant specialized exclusively in nutrition and macro nutrient tracking for users in the Philippines. Your purpose is to help users calculate, analyze, and understand the macronutrients (proteins, fats, carbohydrates) and calories in their meals.
 
@@ -61,7 +179,7 @@ class DeepSeekApi {
     {{instructions}}
     """;
 
-    // This is the fallback for instructions in case Firebase is unavailable
+    // Fallback Instruction if Firebase is not available
     final String getFallbackInstructions = """
     ABSOLUTE RULES:
     1. NEVER RECOMMEND ANY FOOD THAT THE USER IS ALLERGIC TO. This is a critical safety rule and is non-negotiable.
@@ -139,7 +257,7 @@ class DeepSeekApi {
     - Mix JSON responses with text explanations
     """;
 
-    // Add a method to fetch the system prompt from Firebase
+    // Get the system prompt from Firebase
     Future<String> getSystemPrompt() async {
       String fetchedInstructions;
       try {
@@ -188,13 +306,38 @@ class DeepSeekApi {
         'messages': messages,
         'temperature': 0.7,
         'max_tokens': 1000,
+        'stream': false,
       }),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      final usage = data['usage'];
+
+      // Calculate cost (DeepSeek charges $0.14 per 1M tokens for input, $0.28 for output)
+      final promptTokens = usage?['prompt_tokens'] ?? 0;
+      final completionTokens = usage?['completion_tokens'] ?? 0;
+      final totalTokens = usage?['total_tokens'] ?? 0;
+
+      final cost =
+          (promptTokens * 0.14 / 1000000) + (completionTokens * 0.28 / 1000000);
+
+      // Record usage
+      await UsageTracker.recordApiUsage(
+        promptTokens: promptTokens,
+        completionTokens: completionTokens,
+        totalTokens: totalTokens,
+        cost: cost,
+        endpoint: 'chat/completions',
+      );
+
+      debugPrint(
+          'API Usage - Prompt: $promptTokens, Completion: $completionTokens, Total: $totalTokens, Cost: \$${cost.toStringAsFixed(6)}');
+
       return data['choices'][0]['message']['content'];
     } else {
+      debugPrint(
+          'DeepSeek API Error: ${response.statusCode} - ${response.body}');
       throw Exception('Failed to load response: ${response.statusCode}');
     }
   }
@@ -213,5 +356,29 @@ class DeepSeekApi {
       goal: 'maintenance',
       goalWeight: '70.0',
     );
+  }
+
+  // Get analytics for display
+  static Future<Map<String, dynamic>> getUsageAnalytics() async {
+    try {
+      final [currentMonth, total, history] = await Future.wait([
+        UsageTracker.getCurrentMonthUsage(),
+        UsageTracker.getTotalUsage(),
+        UsageTracker.getMonthlyHistory(6),
+      ]);
+
+      return {
+        'current_month': currentMonth,
+        'total_usage': total,
+        'monthly_history': history,
+      };
+    } catch (e) {
+      debugPrint('Error getting usage analytics: $e');
+      return {
+        'current_month': null,
+        'total_usage': null,
+        'monthly_history': [],
+      };
+    }
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:fitness/pages/login/admin_login_page.dart';
 import 'package:fitness/pages/login/startup_logo_page.dart';
 import 'package:fitness/provider/registration_data_provider.dart';
 import 'package:fitness/pages/main_pages/camera_page.dart';
@@ -53,7 +54,6 @@ import 'package:fitness/pages/preference/userpreference_7.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Top-level function for background notification handling
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
   // Handle background notification tap
@@ -147,14 +147,13 @@ Future<void> _requestNotificationPermissions() async {
   if (Platform.isIOS || Platform.isMacOS) {
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>() // Changed from DarwinFlutterLocalNotificationsPlugin
+            IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(
           alert: true,
           badge: true,
           sound: true,
         );
   } else if (Platform.isAndroid) {
-    // For Android 13+ (API level 33), we need to request the POST_NOTIFICATIONS permission
     if (await _isAndroid13OrHigher()) {
       final status = await Permission.notification.request();
       if (status.isGranted) {
@@ -163,7 +162,6 @@ Future<void> _requestNotificationPermissions() async {
         debugPrint('Notification permission denied');
       }
     }
-    // For Android 12 and below, notifications work without explicit permission
   }
 }
 
@@ -171,7 +169,7 @@ Future<bool> _isAndroid13OrHigher() async {
   if (Platform.isAndroid) {
     try {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
-      return androidInfo.version.sdkInt >= 33; // Android 13 = SDK version 33
+      return androidInfo.version.sdkInt >= 33;
     } catch (e) {
       debugPrint("Failed to get Android version: $e");
       return false;
@@ -201,6 +199,13 @@ final GoRouter _router = GoRouter(
       path: '/login',
       pageBuilder: (context, state) => FadeOutPageTransition(
         child: LoginPage(),
+        key: state.pageKey,
+      ),
+    ),
+    GoRoute(
+      path: '/adminlogin',
+      pageBuilder: (context, state) => FadeOutPageTransition(
+        child: AdminLoginPage(),
         key: state.pageKey,
       ),
     ),

@@ -155,22 +155,17 @@ class _CameraScreenState extends State<CameraScreen> {
   void _parseFoodSuggestions(String textResponse) {
     try {
       // Try to parse the JSON response
-      // First, extract the JSON array from the text
       String jsonString = textResponse;
 
-      // If the response contains markdown code blocks, extract the JSON
       if (textResponse.contains('```json')) {
         jsonString = textResponse.split('```json')[1].split('```')[0].trim();
       } else if (textResponse.contains('```')) {
         jsonString = textResponse.split('```')[1].split('```')[0].trim();
       }
 
-      // Clean up the JSON string - remove trailing commas if present
       jsonString = jsonString.replaceAll(',\n}', '\n}');
 
-      // Check if it's a single object or an array
       if (jsonString.trim().startsWith('{')) {
-        // It's a single object, wrap it in an array
         jsonString = '[$jsonString]';
       }
 
@@ -193,7 +188,7 @@ class _CameraScreenState extends State<CameraScreen> {
               item['serving'] ??
               '1 serving';
 
-          // Handle different numeric formats - convert to int
+          // Handle different numeric formats
           int calories = 0;
           if (item['calories'] != null) {
             calories = (item['calories'] is int)

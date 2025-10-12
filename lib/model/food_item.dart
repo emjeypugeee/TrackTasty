@@ -30,7 +30,6 @@ class FoodItem {
     };
   }
 
-  // Optional: Add fromMap factory constructor for easier deserialization
   factory FoodItem.fromMap(Map<String, dynamic> map) {
     return FoodItem(
       mealType: map['mealType'] ?? '',

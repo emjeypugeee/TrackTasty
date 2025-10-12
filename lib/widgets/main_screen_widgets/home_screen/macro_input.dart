@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class MacroInput extends StatefulWidget {
   final IconData icon;
@@ -42,6 +43,11 @@ class _MacroInputState extends State<MacroInput> {
               style: const TextStyle(color: Colors.white),
               keyboardType: TextInputType.numberWithOptions(
                   decimal: widget.allowDecimals),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9\.]')),
+                LengthLimitingTextInputFormatter(7),
+                _MacroInputFormatter(),
+              ],
               decoration: InputDecoration(
                 hintText: '0',
                 hintStyle: const TextStyle(color: Colors.white38),
@@ -52,12 +58,54 @@ class _MacroInputState extends State<MacroInput> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
                 ),
+                errorStyle: const TextStyle(fontSize: 10, height: 0.8),
               ),
               onChanged: widget.onChanged,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return null; // Allow empty field
+                }
+
+                // Validate format: 1-4 digits, optional decimal, 0-2 decimal digits
+                final regex = RegExp(r'^\d{1,4}(\.\d{0,2})?$');
+                if (!regex.hasMatch(value)) {
+                  return 'Invalid format';
+                }
+
+                // Validate total length
+                if (value.length > 7) {
+                  return 'Max 7 chars';
+                }
+
+                return null;
+              },
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _MacroInputFormatter extends TextInputFormatter {
+  final RegExp _validFormat = RegExp(r'^\d{0,4}(\.\d{0,2})?$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Allow empty value
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Check if the new value matches our valid format
+    if (_validFormat.hasMatch(newValue.text)) {
+      return newValue;
+    }
+
+    // If not valid, return the old value
+    return oldValue;
   }
 }

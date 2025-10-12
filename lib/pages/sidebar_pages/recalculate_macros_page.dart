@@ -128,7 +128,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     final isMetric = measurementSystem == 'Metric';
     final weightKg = isMetric ? weight : weight * 0.453592;
 
-    // FIX: Height conversion logic - if metric, use as-is (cm), if imperial, convert inches to cm
+    // Height conversion logic - if metric, use as-is (cm), if imperial, convert inches to cm
     final heightCm = isMetric ? height : height * 2.54;
 
     debugPrint("Converted weight (kg): $weightKg");

@@ -160,7 +160,6 @@ class _CameraScreenState extends State<CameraScreen>
 
               // Check if it's a non-food response
               if (_handleNonFoodResponse(textResponse)) {
-                // Non-food detected, show error and return
                 if (mounted) {
                   _showError(
                       'No food detected in the image. Please try with a food image.');
@@ -222,7 +221,6 @@ class _CameraScreenState extends State<CameraScreen>
       }
     } catch (e) {
       debugPrint('Error checking for non-food response: $e');
-      // If we can't parse it, assume it's a food response
     }
 
     return false;
@@ -231,33 +229,27 @@ class _CameraScreenState extends State<CameraScreen>
   void _parseFoodSuggestions(String textResponse) {
     try {
       // Try to parse the JSON response
-      // First, extract the JSON array from the text
       String jsonString = textResponse;
 
-      // If the response contains markdown code blocks, extract the JSON
       if (textResponse.contains('```json')) {
         jsonString = textResponse.split('```json')[1].split('```')[0].trim();
       } else if (textResponse.contains('```')) {
         jsonString = textResponse.split('```')[1].split('```')[0].trim();
       }
 
-      // Clean up the JSON string - remove trailing commas if present
+      // Clean up the JSON string
       jsonString = jsonString.replaceAll(',\n}', '\n}');
 
       // Check if it's a single object or an array
       if (jsonString.trim().startsWith('{')) {
-        // It might be a non-food response, check for is_food flag
         final Map<String, dynamic> singleResponse = jsonDecode(jsonString);
         if (singleResponse.containsKey('is_food') &&
             singleResponse['is_food'] == false) {
-          // Non-food detected, clear suggestions
           setState(() {
             _suggestedFoods = [];
           });
           return;
         }
-
-        // It's a single food object, wrap it in an array
         jsonString = '[$jsonString]';
       }
 
@@ -334,7 +326,7 @@ class _CameraScreenState extends State<CameraScreen>
       });
     } catch (e) {
       debugPrint('Error parsing food suggestions: $e');
-      // Don't show fallback suggestions - instead show an error
+      // Display Error if no food was detected
       setState(() {
         _suggestedFoods = [];
       });
@@ -349,7 +341,7 @@ class _CameraScreenState extends State<CameraScreen>
         final foodLogId =
             '${user.uid}_${today.year}-${today.month}-${today.day}';
 
-        // Fetch existing food log for today or create a new one
+        // Get existing food log for today or create a new one
         final foodLogDoc = await FirebaseFirestore.instance
             .collection('food_logs')
             .doc(foodLogId)
@@ -494,7 +486,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _key, // Assign the key to the Scaffold
+      key: _key,
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
@@ -577,19 +569,27 @@ class _CameraScreenState extends State<CameraScreen>
                 children: [
                   Container(
                     height: 50,
-                    width: 300,
+                    width: MediaQuery.of(context).size.width *
+                        0.8, // 80% of screen width
                     decoration: BoxDecoration(
                       color: AppColors.containerBg,
                       borderRadius: BorderRadius.all(Radius.circular(20)),
                     ),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16), // Inner padding
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.photo_camera, color: Colors.white),
                         SizedBox(width: 8),
-                        Text(
-                          'Center food in frame',
-                          style: TextStyle(color: Colors.white),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Take photo of food or nutrition label',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
                         ),
                       ],
                     ),

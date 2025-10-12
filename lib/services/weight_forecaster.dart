@@ -55,7 +55,7 @@ class WeightForecaster {
     }
   }
 
-  // New method to fetch and calculate average calorie intake for a given number of days
+  // Fetch and calculate average calorie intake for a given number of days
   Future<double> _fetchAverageCalorieIntake(int days) async {
     try {
       debugPrint("🥗 Fetching average calorie intake for last $days days...");

@@ -37,14 +37,17 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
   late TextEditingController servingSizeController;
 
   bool _showAdvancedInput = false;
+  bool _isSubmitting = false;
 
   // Adjustment controls
-  String adjustmentType = 'percent'; // 'percent' or 'pieces'
-  double adjustmentValue = 100.0; // percentage or quantity
+  String adjustmentType = 'percent';
+  double adjustmentValue = 100.0;
   double originalCalories = 0;
   double originalProtein = 0;
   double originalCarbs = 0;
   double originalFat = 0;
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -62,7 +65,6 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
     servingSizeController =
         TextEditingController(text: widget.initialServingSize ?? '1 serving');
 
-    // Store original values
     originalCalories = widget.initialCalories?.toDouble() ?? 0;
     originalProtein = widget.initialProtein?.toDouble() ?? 0;
     originalCarbs = widget.initialCarbs?.toDouble() ?? 0;
@@ -92,15 +94,45 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
   }
 
   void _onMacroChanged(String value) {
-    // Update original values when user manually edits macros
     originalCalories = double.tryParse(caloriesController.text) ?? 0;
     originalProtein = double.tryParse(proteinController.text) ?? 0;
     originalCarbs = double.tryParse(carbsController.text) ?? 0;
     originalFat = double.tryParse(fatController.text) ?? 0;
-
-    // Reset adjustment to 100% when user manually edits
     adjustmentValue = 100.0;
     setState(() {});
+  }
+
+  void _submitForm() {
+    if (_isSubmitting) return;
+
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      final mealData = {
+        'mealName': mealNameController.text,
+        'calories': double.tryParse(caloriesController.text) ?? 0,
+        'protein': double.tryParse(proteinController.text) ?? 0,
+        'carbs': double.tryParse(carbsController.text) ?? 0,
+        'fat': double.tryParse(fatController.text) ?? 0,
+        'servingSize': servingSizeController.text,
+      };
+
+      widget.onSubmit(mealData);
+
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+          });
+        }
+      });
+    }
+  }
+
+  void _closeSheet() {
+    Navigator.of(context).pop();
   }
 
   @override
@@ -116,185 +148,217 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Text(
-              widget.isEditing ? 'Edit Meal' : 'Add Meal',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Meal Name Input
-            TextFormField(
-              controller: mealNameController,
-              decoration: InputDecoration(
-                labelText: 'Meal Name',
-                filled: true,
-                fillColor: Colors.grey[850],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                labelStyle: const TextStyle(color: Colors.white),
-              ),
-              style: const TextStyle(color: Colors.white),
-            ),
-            const SizedBox(height: 10),
-
-            // First row of macros - Calories and Protein
-            Row(
+    return PopScope(
+      canPop: !_isSubmitting, // Prevent pop when submitting
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop && !_isSubmitting) {
+          _closeSheet();
+        }
+      },
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Calories Input
-                Expanded(
-                  child: MacroInput(
-                    icon: Icons.local_fire_department,
-                    label: 'Calories',
-                    controller: caloriesController,
-                    onChanged: _onMacroChanged,
-                    allowDecimals: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // Protein Input
-                Expanded(
-                  child: MacroInput(
-                    icon: Icons.set_meal,
-                    label: 'Protein',
-                    controller: proteinController,
-                    onChanged: _onMacroChanged,
-                    allowDecimals: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Second row of macros - Carbs and Fats
-            Row(
-              children: [
-                // Carbs Input
-                Expanded(
-                  child: MacroInput(
-                    icon: Icons.grass,
-                    label: 'Carbs',
-                    controller: carbsController,
-                    onChanged: _onMacroChanged,
-                    allowDecimals: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // Fats Input
-                Expanded(
-                  child: MacroInput(
-                    icon: Icons.icecream,
-                    label: 'Fats',
-                    controller: fatController,
-                    onChanged: _onMacroChanged,
-                    allowDecimals: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Advanced Input Toggle Button
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _showAdvancedInput = !_showAdvancedInput;
-                });
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _showAdvancedInput
-                        ? 'Hide Advanced Input'
-                        : 'Show Advanced Input',
-                    style: TextStyle(color: AppColors.primaryColor),
-                  ),
-                  Icon(
-                    _showAdvancedInput
-                        ? Icons.arrow_drop_up
-                        : Icons.arrow_drop_down,
-                    color: AppColors.primaryColor,
-                  ),
-                ],
-              ),
-            ),
-
-            // Advanced Input Section
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              child: Visibility(
-                visible: _showAdvancedInput,
-                child: Column(
+                // Header with close button
+                Row(
                   children: [
-                    const SizedBox(height: 10),
-                    // Serving Size Input
-                    TextFormField(
-                      controller: servingSizeController,
-                      decoration: InputDecoration(
-                        labelText: 'Serving Size (e.g., "1 cup", "2 pieces")',
-                        filled: true,
-                        fillColor: Colors.grey[850],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        labelStyle: const TextStyle(color: Colors.white),
-                      ),
-                      style: const TextStyle(color: Colors.white),
+                    // Close button
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: _closeSheet,
                     ),
-                    const SizedBox(height: 10),
-                    // Adjustment Section
-                    _buildAdjustmentSection(),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.isEditing ? 'Edit Meal' : 'Add Meal',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(width: 48), // Balance the layout
                   ],
                 ),
-              ),
-            ),
+                const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  foregroundColor: AppColors.primaryText,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+                // Meal Name Input
+                TextFormField(
+                  controller: mealNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Meal Name',
+                    filled: true,
+                    fillColor: Colors.grey[850],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    labelStyle: const TextStyle(color: Colors.white),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  style: const TextStyle(color: Colors.white),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a meal name';
+                    }
+                    return null;
+                  },
                 ),
-                onPressed: () {
-                  final mealData = {
-                    'mealName': mealNameController.text,
-                    'calories': double.tryParse(caloriesController.text) ?? 0,
-                    'protein': double.tryParse(proteinController.text) ?? 0,
-                    'carbs': double.tryParse(carbsController.text) ?? 0,
-                    'fat': double.tryParse(fatController.text) ?? 0,
-                    'servingSize': servingSizeController.text,
-                  };
-                  widget.onSubmit(mealData);
-                },
-                child: Text(widget.isEditing ? 'Update' : 'Add',
-                    style: const TextStyle(fontSize: 18)),
-              ),
+                const SizedBox(height: 10),
+
+                // First row of macros - Calories and Protein
+                Row(
+                  children: [
+                    Expanded(
+                      child: MacroInput(
+                        icon: Icons.local_fire_department,
+                        label: 'Calories',
+                        controller: caloriesController,
+                        onChanged: _onMacroChanged,
+                        allowDecimals: true,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: MacroInput(
+                        icon: Icons.set_meal,
+                        label: 'Protein',
+                        controller: proteinController,
+                        onChanged: _onMacroChanged,
+                        allowDecimals: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Second row of macros - Carbs and Fats
+                Row(
+                  children: [
+                    Expanded(
+                      child: MacroInput(
+                        icon: Icons.grass,
+                        label: 'Carbs',
+                        controller: carbsController,
+                        onChanged: _onMacroChanged,
+                        allowDecimals: true,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: MacroInput(
+                        icon: Icons.icecream,
+                        label: 'Fats',
+                        controller: fatController,
+                        onChanged: _onMacroChanged,
+                        allowDecimals: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Advanced Input Toggle Button
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _showAdvancedInput = !_showAdvancedInput;
+                    });
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _showAdvancedInput
+                            ? 'Hide Advanced Input'
+                            : 'Show Advanced Input',
+                        style: TextStyle(color: AppColors.primaryColor),
+                      ),
+                      Icon(
+                        _showAdvancedInput
+                            ? Icons.arrow_drop_up
+                            : Icons.arrow_drop_down,
+                        color: AppColors.primaryColor,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Advanced Input Section
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  child: Visibility(
+                    visible: _showAdvancedInput,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        // Serving Size Input
+                        TextFormField(
+                          controller: servingSizeController,
+                          decoration: InputDecoration(
+                            labelText:
+                                'Serving Size (e.g., "1 cup", "2 pieces")',
+                            filled: true,
+                            fillColor: Colors.grey[850],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            labelStyle: const TextStyle(color: Colors.white),
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(height: 10),
+                        // Adjustment Section
+                        _buildAdjustmentSection(),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          _isSubmitting ? Colors.grey : AppColors.primaryColor,
+                      foregroundColor: AppColors.primaryText,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: _isSubmitting ? null : _submitForm,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            widget.isEditing ? 'Update' : 'Add',
+                            style: const TextStyle(fontSize: 18),
+                          ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -313,8 +377,6 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
           ),
         ),
         const SizedBox(height: 10),
-
-        // Adjustment Type Selection (Tab-style buttons)
         Container(
           decoration: BoxDecoration(
             color: const Color(0xFF1E1E1E),
@@ -322,7 +384,6 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
           ),
           child: Row(
             children: [
-              // Use Expanded here to ensure buttons take equal space
               Expanded(
                 child: _buildAdjustmentTabButton('percent', 'Percentage'),
               ),
@@ -333,8 +394,6 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
           ),
         ),
         const SizedBox(height: 15),
-
-        // Adjustment Slider/Input
         Row(
           children: [
             Expanded(

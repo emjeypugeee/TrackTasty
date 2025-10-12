@@ -15,8 +15,6 @@ class _StartupLogoPageState extends State<StartupLogoPage> {
   @override
   void initState() {
     super.initState();
-    // Run the redirection logic after the widget is built.
-    // Future.microtask ensures this runs after the current frame is rendered.
     Future.delayed(const Duration(seconds: 1), () {
       _checkUserVerificationAndRedirectPage();
     });
@@ -36,11 +34,16 @@ class _StartupLogoPageState extends State<StartupLogoPage> {
           debugPrint("(STARTUP LOGO) User document exists.");
           final userData = userDoc.data() as Map<String, dynamic>?;
           final dailyCalories = userData?['dailyCalories'];
+          final isAdmin = userData?['isAdmin'] ?? false;
 
           if (dailyCalories != null) {
             debugPrint(
                 "(STARTUP LOGO) 'dailyCalories' field found. User is verified.");
             GoRouter.of(context).go('/home');
+          } else if (isAdmin) {
+            debugPrint(
+                "(STARTUP LOGO) 'isAdmin' field found. User is an admin.");
+            GoRouter.of(context).go('/adminonly');
           } else {
             debugPrint(
                 "(STARTUP LOGO) 'dailyCalories' field not found. Redirecting to startup.");

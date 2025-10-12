@@ -105,7 +105,7 @@ class _Userpreference7 extends State<Userpreference7> {
       case 'Extra active':
         return 1.9;
       default:
-        return 1.2; // Default to sedentary if unknown
+        return 1.2;
     }
   }
 
@@ -178,7 +178,7 @@ class _Userpreference7 extends State<Userpreference7> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Form(
           key: _formKey,
           child: Column(

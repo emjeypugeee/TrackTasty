@@ -7,16 +7,16 @@ import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({
+class AdminLoginPage extends StatefulWidget {
+  const AdminLoginPage({
     super.key,
   });
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _AdminLoginPageState extends State<AdminLoginPage> {
   // text controller
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -26,10 +26,6 @@ class _LoginPageState extends State<LoginPage> {
 
   //to track state
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  // Hidden gesture counter
-  int _logoPressCount = 0;
-  DateTime? _lastLogoPressTime;
 
   @override
   void dispose() {
@@ -43,37 +39,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    // Load saved email if available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).requestFocus(_emailFocusNode);
     });
   }
 
-  // Handle logo tap for hidden admin access
-  void _handleLogoPress() {
-    final now = DateTime.now();
-
-    // Reset counter if more than 2 seconds have passed
-    if (_lastLogoPressTime == null ||
-        now.difference(_lastLogoPressTime!) > const Duration(seconds: 2)) {
-      _logoPressCount = 0;
-    }
-
-    _logoPressCount++;
-    _lastLogoPressTime = now;
-
-    if (_logoPressCount >= 5) {
-      _logoPressCount = 0; // Reset counter
-      _navigateToAdminLogin();
-    }
-  }
-
-  void _navigateToAdminLogin() {
-    context.push('/adminlogin');
-  }
-
-  // Check if user is admin and prevent login if they are
-  Future<bool> _isAdminUser(String email) async {
+  // Check if user is valid admin
+  Future<bool> _isValidAdmin(String email) async {
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('Users')
@@ -83,10 +55,7 @@ class _LoginPageState extends State<LoginPage> {
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
         final isAdmin = userData['isAdmin'] ?? false;
-        final hasDailyCalories = userData['dailyCalories'] != null;
-
-        // Admin users should not have dailyCalories field
-        return isAdmin == true && !hasDailyCalories;
+        return isAdmin == true;
       }
       return false;
     } catch (e) {
@@ -95,25 +64,13 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // log in method
-  void login() async {
+  // admin login method
+  void adminLogin() async {
     // Validate form first
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Check if user is trying to login as admin
-    final email = emailController.text.trim();
-    if (await _isAdminUser(email)) {
-      if (context.mounted) {
-        displayMessageToUser(
-            "Invalid credentials. Try to login with an existing account.",
-            context);
-      }
-      return;
-    }
-
-    // Show loading circle
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -122,50 +79,54 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
 
-    // try sign in
     try {
+      final email = emailController.text.trim();
+      final password = passwordController.text.trim();
+
+      if (!await _isValidAdmin(email)) {
+        if (context.mounted) {
+          Navigator.pop(context);
+          displayMessageToUser("Invalid admin credentials", context);
+        }
+        return;
+      }
+
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
-        password: passwordController.text.trim(),
+        password: password,
       );
 
-      // Get the current user
       User? user = FirebaseAuth.instance.currentUser;
-
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('Users')
           .doc(user?.email)
           .get();
 
-      if (userDoc.exists && userDoc.data() != null) {
+      if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
-
-        // Additional check to ensure admin cannot login here
         final isAdmin = userData['isAdmin'] ?? false;
         final hasDailyCalories = userData['dailyCalories'] != null;
 
         if (isAdmin == true && !hasDailyCalories) {
-          // Admin trying to login through normal page - sign them out
+          // Successful admin login
+          if (context.mounted) {
+            Navigator.pop(context);
+            context.push('/adminonly');
+          }
+        } else {
+          // Not a valid admin - sign out
           await FirebaseAuth.instance.signOut();
           if (context.mounted) {
             Navigator.pop(context);
-            displayMessageToUser(
-                "Invalid credentials. Try to login with an existing account.",
-                context);
+            displayMessageToUser("Invalid admin credentials", context);
           }
-          return;
-        }
-
-        // Pop loading circle and navigate to home page for non-admin users
-        if (context.mounted) {
-          Navigator.pop(context);
-          context.push('/home');
         }
       } else {
-        // Handle case where user data is not found, default to home page
+        // User document not found
+        await FirebaseAuth.instance.signOut();
         if (context.mounted) {
           Navigator.pop(context);
-          context.push('/home');
+          displayMessageToUser("Admin account not found", context);
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -196,8 +157,12 @@ class _LoginPageState extends State<LoginPage> {
         leading: BackButton(
           color: AppColors.backButton,
           onPressed: () {
-            context.push('/startup');
+            context.push('/login');
           },
+        ),
+        title: const Text(
+          'Admin Login',
+          style: TextStyle(color: AppColors.primaryText),
         ),
       ),
       body: Center(
@@ -211,26 +176,46 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // logo with hidden gesture
-                  GestureDetector(
-                    onTap: _handleLogoPress,
-                    child: Image.asset('lib/images/TrackTastyLogo.png'),
+                  // logo
+                  Image.asset('lib/images/TrackTastyLogo.png'),
+
+                  const SizedBox(height: 20),
+
+                  // Admin label
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: const Text(
+                      'ADMIN ACCESS',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
+
+                  const SizedBox(height: 20),
 
                   //Email Address text
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Email Address',
+                      'Admin Email',
                       style: TextStyle(color: AppColors.primaryText),
                     ),
                   ),
 
                   const SizedBox(height: 5),
 
-                  // username tb
+                  // email textfield
                   MyTextfield(
-                    hintText: "Enter your email",
+                    hintText: "Enter admin email",
                     obscureText: false,
                     controller: emailController,
                     focusNode: _emailFocusNode,
@@ -241,7 +226,7 @@ class _LoginPageState extends State<LoginPage> {
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a valid email address';
+                        return 'Please enter admin email';
                       }
                       return null;
                     },
@@ -253,14 +238,14 @@ class _LoginPageState extends State<LoginPage> {
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Password',
+                      'Admin Password',
                       style: TextStyle(color: AppColors.primaryText),
                     ),
                   ),
 
-                  // password tb
+                  // password textfield
                   MyTextfield(
-                    hintText: "Enter your password",
+                    hintText: "Enter admin password",
                     obscureText: true,
                     showVisibilityIcon: true,
                     controller: passwordController,
@@ -268,13 +253,12 @@ class _LoginPageState extends State<LoginPage> {
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) {
                       if (_formKey.currentState!.validate()) {
-                        // Proceed with login if all fields are valid
-                        login();
+                        adminLogin();
                       }
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
+                        return 'Please enter admin password';
                       }
                       return null;
                     },
@@ -284,25 +268,12 @@ class _LoginPageState extends State<LoginPage> {
 
                   // login button
                   MyButtons(
-                      text: "Login",
-                      onTap: () {
-                        if (_formKey.currentState!.validate()) {
-                          // Proceed with login if all fields are valid
-                          login();
-                        }
-                      }),
-
-                  const SizedBox(height: 10),
-
-                  //forgot password text
-                  GestureDetector(
+                    text: "Admin Login",
                     onTap: () {
-                      context.push('/forgetpassword');
+                      if (_formKey.currentState!.validate()) {
+                        adminLogin();
+                      }
                     },
-                    child: const Text(
-                      'Forgot Password?',
-                      style: TextStyle(color: AppColors.titleText),
-                    ),
                   ),
                 ],
               ),

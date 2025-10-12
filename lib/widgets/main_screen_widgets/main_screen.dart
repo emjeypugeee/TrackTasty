@@ -1,4 +1,5 @@
 import 'package:fitness/pages/main_pages/food_page.dart';
+import 'package:fitness/provider/user_provider.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:fitness/pages/main_pages/analytics_page.dart';
 import 'package:fitness/pages/main_pages/chat_bot.dart';
 import 'package:fitness/pages/main_pages/profile_page.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget child;
@@ -23,6 +25,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  DateTime? _lastPressed;
   final List<String> _routes = [
     '/home',
     '/chatbot',
@@ -63,12 +66,12 @@ class _MainScreenState extends State<MainScreen> {
         key: homePageKey,
         onEditMeal: (context, existingFood) {
           debugPrint('editFoodManually callback triggered');
-          editFoodManually(context, existingFood); // Call your actual method
+          editFoodManually(context, existingFood);
         },
       ),
-      const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
-      AnalyticsPage(), // Replace with your actual analytics page
-      ProfilePage(), // Replace with your actual achievements page
+      const ChatBot(),
+      AnalyticsPage(),
+      ProfilePage(),
     ];
   }
 
@@ -114,13 +117,13 @@ class _MainScreenState extends State<MainScreen> {
     showFoodInputSheet(
       context: context,
       onSubmit: (mealData) async {
-        DateTime? lastPressed;
         final now = DateTime.now();
-        if (lastPressed != null &&
-            now.difference(lastPressed) < Duration(seconds: 2)) {
-          return; // Ignore if pressed within 2 seconds
+        // Prevent double tapping within 2 seconds
+        if (_lastPressed != null &&
+            now.difference(_lastPressed!) < Duration(seconds: 2)) {
+          return;
         }
-        lastPressed = now;
+        _lastPressed = now;
 
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
@@ -129,7 +132,7 @@ class _MainScreenState extends State<MainScreen> {
               '${user.uid}_${today.year}-${today.month}-${today.day}';
 
           try {
-            // Fetch existing food log for today or create a new one
+            // Get existing food log for today or create a new one
             final foodLogDoc = await FirebaseFirestore.instance
                 .collection('food_logs')
                 .doc(foodLogId)
@@ -202,7 +205,6 @@ class _MainScreenState extends State<MainScreen> {
   //
   void editFoodManually(
       BuildContext context, Map<String, dynamic> existingFood) {
-    // Use the safeToDouble function as it's good practice
     double? safeToDouble(dynamic value) {
       if (value == null) return null;
       if (value is double) return value;
@@ -222,7 +224,6 @@ class _MainScreenState extends State<MainScreen> {
       onSubmit: (updatedMealData) async {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          // Use the original food's logged time to find the correct day
           final originalLoggedTime = existingFood['loggedTime'] as Timestamp;
           final originalDate = originalLoggedTime.toDate();
           final foodLogId =
@@ -239,14 +240,12 @@ class _MainScreenState extends State<MainScreen> {
               final foods =
                   List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
 
-              // Find the exact food item to update using ONLY the loggedTime
               final index = foods.indexWhere((f) {
                 final fTime = f['loggedTime'] as Timestamp;
                 return fTime == originalLoggedTime;
               });
 
               if (index != -1) {
-                // Convert all values to double for consistent math
                 final updatedCalories =
                     (updatedMealData['calories'] as num).toDouble();
                 final updatedProtein =
@@ -325,171 +324,162 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  void refreshHomePage() {
+    if (homePageKey.currentState != null) {
+      homePageKey.currentState!.setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedIndex = _selectedIndexFromLocation(context);
     DateTime? lastPressed;
 
-    void refreshHomePage() {
-      if (homePageKey.currentState != null) {
-        homePageKey.currentState!.setState(() {});
-      }
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        iconTheme: IconThemeData(color: Colors.white),
-        title: Text(
-          'TrackTasty',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.titleText,
-            fontSize: 30,
+    return Consumer<UserProvider>(builder: (context, userProvider, child) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          iconTheme: IconThemeData(color: Colors.white),
+          title: Image.asset(
+            'lib/images/Tracktasty-logo-long.png',
+            height: 30,
+            fit: BoxFit.contain,
           ),
+          centerTitle: true,
         ),
-      ),
-      drawer: CustomDrawer(),
-      body: IndexedStack(
-        index: selectedIndex,
-        children: _screens, // This preserves the state of all screens
-      ),
-      /*body: _routes[selectedIndex] == '/home'
-          ? HomePage(
-              key: homePageKey,
-              onEditMeal:
-                  editFoodManually) // Render HomePage when on the home route
-          : widget.child,*/
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: (index) {
-          context.go(_routes[index]);
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.bottomNavBg,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white.withValues(alpha: 0.6),
-        enableFeedback: false,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message),
-            label: 'Chatbot',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics),
-            label: 'Analytics',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.star),
-            label: 'Achievements',
-          ),
-        ],
-      ),
+        drawer: CustomDrawer(),
+        body: IndexedStack(
+          index: selectedIndex,
+          children: _screens, // This preserves the state of all screens
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: selectedIndex,
+          onTap: (index) {
+            context.go(_routes[index]);
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: AppColors.bottomNavBg,
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white.withValues(alpha: 0.6),
+          enableFeedback: false,
+          showUnselectedLabels: true,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.message),
+              label: 'Chatbot',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.analytics),
+              label: 'Analytics',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.star),
+              label: 'Achievements',
+            ),
+          ],
+        ),
 
-      //FAB
-      floatingActionButton: _routes[selectedIndex] == '/home'
-          ? SpeedDial(
-              icon: Icons.add,
-              iconTheme: const IconThemeData(color: Colors.white),
-              elevation: 0,
-              activeIcon: Icons.close,
-              backgroundColor: const Color.fromARGB(120, 117, 117, 117),
-              spacing: 20,
-              buttonSize: const Size.fromRadius(30),
-              overlayColor: Colors.black,
-              overlayOpacity: 0.4,
-              closeManually: false,
-              shape: const CircleBorder(),
-              children: [
-                SpeedDialChild(
-                  child: const Icon(Icons.camera_alt, color: Colors.white),
-                  label: 'Scan food',
-                  labelStyle: const TextStyle(color: Colors.white),
-                  labelBackgroundColor: Colors.grey[600],
-                  backgroundColor: Colors.grey[600],
-                  onTap: () async {
-                    // Check camera permissions first
-                    var cameraStatus = await Permission.camera.status;
-                    if (!cameraStatus.isGranted) {
-                      cameraStatus = await Permission.camera.request();
-                    }
+        //FAB
+        floatingActionButton: _routes[selectedIndex] == '/home'
+            ? SpeedDial(
+                icon: Icons.add,
+                iconTheme: const IconThemeData(color: Colors.white),
+                elevation: 0,
+                activeIcon: Icons.close,
+                backgroundColor: const Color.fromARGB(120, 117, 117, 117),
+                spacing: 20,
+                buttonSize: const Size.fromRadius(30),
+                overlayColor: Colors.black,
+                overlayOpacity: 0.4,
+                closeManually: false,
+                shape: const CircleBorder(),
+                children: [
+                  SpeedDialChild(
+                    child: const Icon(Icons.camera_alt, color: Colors.white),
+                    label: 'Scan food',
+                    labelStyle: const TextStyle(color: Colors.white),
+                    labelBackgroundColor: Colors.grey[600],
+                    backgroundColor: Colors.grey[600],
+                    onTap: () async {
+                      // Check camera permissions first
+                      var cameraStatus = await Permission.camera.status;
+                      if (!cameraStatus.isGranted) {
+                        cameraStatus = await Permission.camera.request();
+                      }
 
-                    if (cameraStatus.isGranted) {
-                      // Open camera screen and wait for result
-                      final imagePath = await context.push('/camera');
+                      if (cameraStatus.isGranted) {
+                        final imagePath = await context.push('/camera');
 
-                      if (imagePath != null) {
-                        // Handle the captured image
-                        print('Image captured: $imagePath');
+                        if (imagePath != null) {
+                          // Handle the captured image
+                          print('Image captured: $imagePath');
 
-                        // You can now process this image for food recognition
-                        // For now, let's just update the achievement count
-                        final User? user = FirebaseAuth.instance.currentUser;
-                        if (user != null) {
-                          try {
-                            final achievementDoc = FirebaseFirestore.instance
-                                .collection('user_achievements')
-                                .doc(user.uid);
+                          final User? user = FirebaseAuth.instance.currentUser;
+                          if (user != null) {
+                            try {
+                              final achievementDoc = FirebaseFirestore.instance
+                                  .collection('user_achievements')
+                                  .doc(user.uid);
 
-                            final achievementSnapshot =
-                                await achievementDoc.get();
-                            final achievementData =
-                                achievementSnapshot.data() ?? {};
-                            final imageLogs =
-                                achievementData['image_logs'] ?? 0;
+                              final achievementSnapshot =
+                                  await achievementDoc.get();
+                              final achievementData =
+                                  achievementSnapshot.data() ?? {};
+                              final imageLogs =
+                                  achievementData['image_logs'] ?? 0;
 
-                            await achievementDoc.set(
-                                {'image_logs': imageLogs + 1},
-                                SetOptions(merge: true));
+                              await achievementDoc.set(
+                                  {'image_logs': imageLogs + 1},
+                                  SetOptions(merge: true));
 
-                            // Show success message
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Food image captured successfully!')),
-                            );
-                          } catch (e) {
-                            debugPrint('Error updating image logs: $e');
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Food image captured successfully!')),
+                              );
+                            } catch (e) {
+                              debugPrint('Error updating image logs: $e');
+                            }
                           }
                         }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Camera permission is required to scan food')),
+                        );
                       }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Camera permission is required to scan food')),
-                      );
-                    }
-                  },
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.food_bank, color: Colors.white),
-                  label: 'Add food manually',
-                  labelStyle: const TextStyle(color: Colors.white),
-                  labelBackgroundColor: Colors.grey[600],
-                  backgroundColor: Colors.grey[600],
-                  onTap: () => addFoodManually(context),
-                ),
-                SpeedDialChild(
-                  child: const Icon(Icons.search, color: Colors.white),
-                  label: 'Search food',
-                  labelStyle: const TextStyle(color: Colors.white),
-                  labelBackgroundColor: Colors.grey[600],
-                  backgroundColor: Colors.grey[600],
-                  onTap: () async {
-                    await Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => FoodPage()));
-                    refreshHomePage(); // Refresh home page after returning
-                  },
-                ),
-              ],
-            )
-          : null,
-    );
+                    },
+                  ),
+                  SpeedDialChild(
+                    child: const Icon(Icons.food_bank, color: Colors.white),
+                    label: 'Add food manually',
+                    labelStyle: const TextStyle(color: Colors.white),
+                    labelBackgroundColor: Colors.grey[600],
+                    backgroundColor: Colors.grey[600],
+                    onTap: () => addFoodManually(context),
+                  ),
+                  SpeedDialChild(
+                    child: const Icon(Icons.search, color: Colors.white),
+                    label: 'Search food',
+                    labelStyle: const TextStyle(color: Colors.white),
+                    labelBackgroundColor: Colors.grey[600],
+                    backgroundColor: Colors.grey[600],
+                    onTap: () async {
+                      await Navigator.push(context,
+                          MaterialPageRoute(builder: (context) => FoodPage()));
+                      refreshHomePage(); // Refresh home page after returning
+                    },
+                  ),
+                ],
+              )
+            : null,
+      );
+    });
   }
 }

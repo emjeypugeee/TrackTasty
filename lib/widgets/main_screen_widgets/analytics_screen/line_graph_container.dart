@@ -121,7 +121,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
     if (widget.isForecasting) {
       // For forecasting, show past 2 months and next 4 months (total 6 months)
       startDate = DateTime.now().subtract(const Duration(days: 60));
-      _selectedPeriod = '6 months'; // Force 6 months view
+      _selectedPeriod = '6 months';
       debugPrint("📅 Forecasting mode: Loading 60 days of history + forecast");
     } else {
       switch (_selectedPeriod) {
