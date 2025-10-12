@@ -52,8 +52,8 @@ class _SendFeedbackPageState extends State<SendFeedbackPage> {
           'message': _feedbackController.text,
           'timestamp': FieldValue.serverTimestamp(),
           'status': 'new', // new, reviewed, in-progress, resolved
-          'appVersion': '1.0.0', // You can get this from package_info plugin
-          'deviceInfo': 'Unknown', // You can get this from device_info plugin
+          'appVersion': '1.0.0',
+          'deviceInfo': 'Unknown',
         });
 
         ScaffoldMessenger.of(context).showSnackBar(

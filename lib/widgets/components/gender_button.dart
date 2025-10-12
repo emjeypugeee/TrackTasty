@@ -23,8 +23,8 @@ class GenderIcon extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 80,
-        width: 100,
+        height: 100,
+        width: 120,
         decoration: BoxDecoration(
           color: isSelected ? selectedColor : unselectedColor,
           borderRadius: BorderRadius.circular(20), // Perfect circle

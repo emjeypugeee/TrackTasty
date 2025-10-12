@@ -88,7 +88,7 @@ class _Userpreference6 extends State<Userpreference6> {
             barRadius: Radius.circular(5),
           )),
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -118,7 +118,7 @@ class _Userpreference6 extends State<Userpreference6> {
             ),
 
             SizedBox(
-              height: 20,
+              height: 40,
             ),
 
             // ---------------------

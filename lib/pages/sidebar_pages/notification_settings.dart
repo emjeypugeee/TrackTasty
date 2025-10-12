@@ -188,7 +188,6 @@ class _NotificationSettingsState extends State<NotificationSettings> {
   }
 
   Future<void> _scheduleNotifications() async {
-    // Cancel all existing notifications
     await flutterLocalNotificationsPlugin.cancelAll();
 
     if (!_notificationsEnabled) return;
@@ -231,7 +230,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
       );
     }
 
-    // ADD MORE NOTIFICATION HERE IN CASE
+    // ADD MORE NOTIFICATION HERE IN THE FUTURE
   }
 
   Future<void> _scheduleDailyNotification({

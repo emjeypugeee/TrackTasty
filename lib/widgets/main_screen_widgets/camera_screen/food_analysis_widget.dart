@@ -18,7 +18,7 @@ class FoodAnalysisDialog extends StatefulWidget {
 }
 
 class _FoodAnalysisDialogState extends State<FoodAnalysisDialog> {
-  int _selectedSuggestionIndex = 0; // Default to first suggestion
+  int _selectedSuggestionIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -42,14 +42,6 @@ class _FoodAnalysisDialogState extends State<FoodAnalysisDialog> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              // For DEBUGGING purposes, shows the chat of the GEMINI API
-              /*
-              SizedBox(height: 16),
-              Text(
-                widget.analysisResult,
-                style: TextStyle(color: Colors.white70),
-              ),
-              */
               SizedBox(height: 16),
               Text(
                 'Meal Suggestions:',

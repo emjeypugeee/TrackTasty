@@ -131,7 +131,6 @@ class _FoodPageState extends State<FoodPage> {
         'foods': [],
       };
 
-      // If the document exists, update the data
       if (foodLogDoc.exists && foodLogDoc.data() != null) {
         foodLogData = foodLogDoc.data() as Map<String, dynamic>;
 
@@ -145,7 +144,7 @@ class _FoodPageState extends State<FoodPage> {
         foodLogData['foods'] ??= [];
       }
 
-      // Update total macros with safe conversion
+      // Update total macros
       final calories = _safeToDouble(nutrients['calories'] ?? 0.0);
       final carbs = _safeToDouble(nutrients['carbs'] ?? 0.0);
       final protein = _safeToDouble(nutrients['protein'] ?? 0.0);
@@ -195,7 +194,7 @@ class _FoodPageState extends State<FoodPage> {
     }
   }
 
-  // Helper function to safely convert any numeric type to double
+  // Safely convert any numeric type to double
   double _safeToDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;

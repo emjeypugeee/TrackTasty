@@ -7,16 +7,13 @@ import 'package:image_picker/image_picker.dart';
 
 class GeminiApiService {
   final String apiKey = dotenv.env['GEMINI_API_KEY']!;
-  // Updated endpoint - try different model names
   static const String baseUrl =
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent";
 
-  // Method to analyze a food image from a file
+  // Analyze a food image from a file
   Future<Map<String, dynamic>> analyzeFoodImage(File imageFile) async {
     // Add API key to URL
     var url = Uri.parse('$baseUrl?key=$apiKey');
-
-    // Read image as bytes and convert to base64
     List<int> imageBytes = await imageFile.readAsBytes();
     String base64Image = base64Encode(imageBytes);
 
@@ -64,11 +61,7 @@ class GeminiApiService {
           ]
         }
       ],
-      "generationConfig": {
-        "temperature": 0.1, // Lower temperature for more consistent JSON
-        "topP": 0.8,
-        "topK": 40
-      }
+      "generationConfig": {"temperature": 0.1, "topP": 0.8, "topK": 40}
     };
 
     // Make the POST request
@@ -100,23 +93,19 @@ class GeminiApiService {
           if (parts != null && parts.isNotEmpty) {
             final text = parts[0]['text'];
             if (text != null) {
-              // Clean the text - remove any markdown code blocks
               String cleanText =
                   text.replaceAll('```json', '').replaceAll('```', '').trim();
 
-              // Try to parse the JSON
               dynamic parsedJson = jsonDecode(cleanText);
 
               // Handle different response formats
               if (parsedJson is Map<String, dynamic>) {
-                // Case 3: No food detected
                 if (parsedJson['is_food'] == false) {
                   return null;
                 }
                 // Convert single map to list for consistency
                 return [parsedJson];
               } else if (parsedJson is List<dynamic>) {
-                // Cases 1 & 2: Food suggestions or nutrition label data
                 return parsedJson;
               }
             }

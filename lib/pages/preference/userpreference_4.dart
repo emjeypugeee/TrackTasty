@@ -81,9 +81,41 @@ class _Userpreference4 extends State<Userpreference4> {
 
   //saving user height, weight and goalweight
   Future<void> saveUserGoal() async {
-    final height = double.tryParse(heightController.text);
-    final weight = double.tryParse(weightController.text);
-    final goalWeight = double.tryParse(goalWeightController.text);
+    double? height;
+    double? weight;
+    double? goalWeight;
+
+    // Parse height based on measurement system
+    if (heightController.text.isNotEmpty) {
+      if (isMetric) {
+        // Metric: simple decimal parsing
+        height = double.tryParse(heightController.text);
+      } else {
+        // Imperial: handle feet'inches format
+        final value = heightController.text.trim().replaceAll('"', '');
+
+        if (value.contains("'")) {
+          final parts = value.split("'");
+          if (parts.length == 2 && parts[1].isNotEmpty) {
+            final feet = double.tryParse(parts[0]) ?? 0;
+            final inches = double.tryParse(parts[1]) ?? 0;
+            height = (feet * 12) + inches; // Convert to total inches
+          }
+        } else {
+          // Plain inches format
+          height = double.tryParse(value);
+        }
+      }
+    }
+
+    // Parse weight and goal weight
+    if (weightController.text.isNotEmpty) {
+      weight = double.tryParse(weightController.text);
+    }
+
+    if (goalWeightController.text.isNotEmpty) {
+      goalWeight = double.tryParse(goalWeightController.text);
+    }
 
     final provider =
         Provider.of<RegistrationDataProvider>(context, listen: false);
@@ -96,10 +128,45 @@ class _Userpreference4 extends State<Userpreference4> {
     );
   }
 
-  void _convertUnits() {
+  void _convertUnits(int index) {
+    // Check if the user is actually changing the unit system
+    bool newIsMetric = index == 1;
+
+    // If the user is clicking the same unit that's already selected, do nothing
+    if (newIsMetric == isMetric) {
+      return;
+    }
+
+    final hadFocus = _heightFocusNode.hasFocus;
+
+    setState(() {
+      for (int i = 0; i < _selectedUnits.length; i++) {
+        _selectedUnits[i] = i == index;
+      }
+      _isMetric = newIsMetric;
+      isMetric = newIsMetric;
+
+      // Only convert if the unit system actually changed
+      _performUnitConversion();
+    });
+
+    if (hadFocus) {
+      _heightFocusNode.unfocus();
+
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted) {
+          _heightFocusNode.requestFocus();
+        }
+      });
+    }
+
+    debugPrint(isMetric ? "Using Metric" : "Using US");
+  }
+
+  void _performUnitConversion() {
     // Height conversion logic
     if (heightController.text.isNotEmpty) {
-      if (!isMetric) {
+      if (isMetric) {
         // Convert from Imperial (in) to Metric (cm)
         double totalInches = 0;
         final value = heightController.text.trim().replaceAll('"', '');
@@ -131,7 +198,7 @@ class _Userpreference4 extends State<Userpreference4> {
       }
     }
 
-    // Weight conversion logic (unchanged)
+    // Weight conversion logic
     if (weightController.text.isNotEmpty) {
       if (!isMetric) {
         // Convert from Pounds (lbs) to Kilograms (kg)
@@ -143,6 +210,21 @@ class _Userpreference4 extends State<Userpreference4> {
         final kg = double.tryParse(weightController.text) ?? 0;
         final lbs = kg * 2.20462;
         weightController.text = lbs.toStringAsFixed(1);
+      }
+    }
+
+    // Goal Weight conversion logic
+    if (goalWeightController.text.isNotEmpty) {
+      if (!isMetric) {
+        // Convert from Pounds (lbs) to Kilograms (kg)
+        final lbs = double.tryParse(goalWeightController.text) ?? 0;
+        final kg = lbs * 0.453592;
+        goalWeightController.text = kg.toStringAsFixed(1);
+      } else {
+        // Convert from Kilograms (kg) to Pounds (lbs)
+        final kg = double.tryParse(goalWeightController.text) ?? 0;
+        final lbs = kg * 2.20462;
+        goalWeightController.text = lbs.toStringAsFixed(1);
       }
     }
   }
@@ -177,7 +259,7 @@ class _Userpreference4 extends State<Userpreference4> {
           )),
 
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Form(
           key: _formKey,
           child: Column(
@@ -224,44 +306,19 @@ class _Userpreference4 extends State<Userpreference4> {
                         children: [
                           ToggleButtons(
                             onPressed: (int index) {
-                              final hadFocus = _heightFocusNode.hasFocus;
-
-                              // 1. Immediately update the state
-                              setState(() {
-                                for (int i = 0;
-                                    i < _selectedUnits.length;
-                                    i++) {
-                                  _selectedUnits[i] = i == index;
-                                }
-                                _isMetric = _selectedUnits[1];
-                                isMetric = _selectedUnits[1];
-
-                                _convertUnits();
-                              });
-
-                              // 2. Force keyboard refresh if field was focused
-                              if (hadFocus) {
-                                // Unfocus and refocus with a small delay
-                                _heightFocusNode.unfocus();
-
-                                // Using a 50ms delay seems to be the sweet spot for reliability
-                                Future.delayed(const Duration(milliseconds: 50),
-                                    () {
-                                  if (mounted) {
-                                    _heightFocusNode.requestFocus();
-                                  }
-                                });
-                              }
-
-                              debugPrint(
-                                  isMetric ? "Using Metric" : "Using US");
+                              _convertUnits(
+                                  index); // Use the updated conversion function
                             },
                             borderRadius:
                                 const BorderRadius.all(Radius.circular(8)),
                             selectedBorderColor: AppColors.secondaryColor,
+                            borderColor: Colors
+                                .white, // White border for unselected buttons
+                            borderWidth: 1, // Border width
                             selectedColor: Colors.white,
                             fillColor: AppColors.primaryColor,
-                            color: Colors.red[400],
+                            color: Colors
+                                .white, // White text for unselected buttons
                             constraints: const BoxConstraints(
                               minHeight: 40.0,
                               minWidth: 80.0,
@@ -317,10 +374,8 @@ class _Userpreference4 extends State<Userpreference4> {
                                   _weightFocusNode.requestFocus();
                                 },
                                 inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r"[0-9\']")),
+                                  _HeightInputFormatter(isMetric: isMetric),
                                   LengthLimitingTextInputFormatter(6),
-                                  _MacroInputFormatter(),
                                 ],
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -339,7 +394,7 @@ class _Userpreference4 extends State<Userpreference4> {
                                       final parts = value.split("'");
                                       if (parts.length != 2 ||
                                           parts[1].isEmpty) {
-                                        return 'Use format: feet\'inches (e.g. 5\'3)';
+                                        return 'Use format: feet\'inches (e.g. 5\'11)';
                                       }
 
                                       final feet =
@@ -358,16 +413,11 @@ class _Userpreference4 extends State<Userpreference4> {
                                       totalInches = double.tryParse(value) ?? 0;
                                     }
 
-                                    // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
-                                    final regex =
-                                        RegExp(r'^\d{1,3}(\.\d{0,2})?$');
+                                    // Updated regex to be more permissive for validation
+                                    final regex = RegExp(
+                                        r"^(\d{1,2}\'\d{1,2}(\.\d{1,2})?|\d{1,3}(\.\d{1,2})?)$");
                                     if (!regex.hasMatch(value)) {
-                                      return 'Invalid format';
-                                    }
-
-                                    // Validate total length
-                                    if (value.length > 6) {
-                                      return 'Max 6 chars';
+                                      return 'Use format: feet\'inches (e.g. 5\'11) or inches only';
                                     }
 
                                     if (totalInches < 20 || totalInches > 120) {
@@ -603,6 +653,41 @@ class _Userpreference4 extends State<Userpreference4> {
   }
 }
 
+class _HeightInputFormatter extends TextInputFormatter {
+  final bool isMetric;
+
+  _HeightInputFormatter({required this.isMetric});
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    if (isMetric) {
+      // Allow only numbers and one decimal point for metric
+      if (RegExp(r'^\d*\.?\d*$').hasMatch(newValue.text)) {
+        return newValue;
+      }
+    } else {
+      // Allow numbers, one apostrophe, and one decimal point for imperial
+      final apostropheCount = '\''.allMatches(newValue.text).length;
+      final decimalCount = '.'.allMatches(newValue.text).length;
+
+      if (apostropheCount <= 1 &&
+          decimalCount <= 1 &&
+          RegExp(r"^[\d\'.]*$").hasMatch(newValue.text)) {
+        return newValue;
+      }
+    }
+
+    return oldValue;
+  }
+}
+
 class _MacroInputFormatter extends TextInputFormatter {
   final RegExp _validFormat = RegExp(r'^\d{0,3}(\.\d{0,2})?$');
 
@@ -611,17 +696,14 @@ class _MacroInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    // Allow empty value
     if (newValue.text.isEmpty) {
       return newValue;
     }
 
-    // Check if the new value matches our valid format
     if (_validFormat.hasMatch(newValue.text)) {
       return newValue;
     }
 
-    // If not valid, return the old value
     return oldValue;
   }
 }

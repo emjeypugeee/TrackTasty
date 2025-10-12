@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
-  // Future to fetch user details
+  // Get user details
   Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
     final User? currentUser = FirebaseAuth.instance.currentUser;
     return await FirebaseFirestore.instance
@@ -19,7 +19,7 @@ class ProfilePage extends StatelessWidget {
         .get();
   }
 
-  // Future to fetch user achievements
+  // Get user achievements
   Future<Map<String, dynamic>> getUserAchievements() async {
     final User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return {};
@@ -37,7 +37,7 @@ class ProfilePage extends StatelessWidget {
     }
   }
 
-  // Future to fetch weight data
+  // Get weight data
   Future<Map<String, dynamic>> getUserWeightData() async {
     final User? currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -49,7 +49,7 @@ class ProfilePage extends StatelessWidget {
     }
 
     try {
-      // Get user details to check measurement system
+      // Get measurement system
       final userDoc = await FirebaseFirestore.instance
           .collection("Users")
           .doc(currentUser.email)
@@ -58,7 +58,7 @@ class ProfilePage extends StatelessWidget {
       final measurementSystem =
           userDoc.data()?['measurementSystem'] ?? 'Metric';
 
-      // Get all weight logs for the user, ordered by date
+      // Get all weight logs of the user
       final querySnapshot = await FirebaseFirestore.instance
           .collection("weight_history")
           .where('userId', isEqualTo: currentUser.uid)
@@ -101,22 +101,18 @@ class ProfilePage extends StatelessWidget {
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         future: getUserDetails(),
         builder: (context, snapshot) {
-          // If data is loading
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           }
 
-          // If user is not logged in
           if (FirebaseAuth.instance.currentUser == null) {
             return Center(child: Text("Please log in to view profile"));
           }
 
-          // If there's an error
           if (snapshot.hasError) {
             return Center(child: Text("Error loading profile"));
           }
 
-          // If data is available
           if (snapshot.hasData && snapshot.data!.exists) {
             var userData = snapshot.data!.data();
             String username = userData?['username'] ?? "Unknown User";
@@ -129,7 +125,7 @@ class ProfilePage extends StatelessWidget {
               // If it's a simple year or date
               joinedDate = DateTime(joinedDateRaw);
             } else {
-              joinedDate = DateTime.now(); // Fallback to current date
+              joinedDate = DateTime.now();
             }
             int dayStreak;
             int highestDayStreak;
@@ -167,7 +163,7 @@ class ProfilePage extends StatelessWidget {
                       final String measurementSystem =
                           weightData['measurementSystem'] ?? 'Metric';
 
-                      // Define achievement data
+                      // ACHIEVEMENT DATA
                       final List<Map<String, dynamic>> achievementList = [
                         {
                           'id': 'daily_tracker',

@@ -33,7 +33,7 @@ class _ForgetpasswordPageState extends State<ForgetpasswordPage> {
         ),
         leading: BackButton(
           color: AppColors.backButton,
-          onPressed: () => context.pop(), // Use GoRouter's pop
+          onPressed: () => context.pop(),
         ),
       ),
       body: Center(
@@ -74,7 +74,7 @@ class _ForgetpasswordPageState extends State<ForgetpasswordPage> {
                 ),
                 const SizedBox(height: 5),
                 MyTextfield(
-                  hintText: 'Value',
+                  hintText: 'Please enter a valid email.',
                   obscureText: false,
                   controller: emailController,
                   validator: (value) {
@@ -102,8 +102,7 @@ class _ForgetpasswordPageState extends State<ForgetpasswordPage> {
                                     content: Text('Password reset email sent!'),
                                     behavior: SnackBarBehavior.floating,
                                     backgroundColor: AppColors.snackBarBgSaved,
-                                    duration:
-                                        Duration(seconds: 3), // Add duration
+                                    duration: Duration(seconds: 3),
                                   ),
                                 );
                                 context.push('/login');
@@ -115,8 +114,7 @@ class _ForgetpasswordPageState extends State<ForgetpasswordPage> {
                                   content: Text(e.code),
                                   behavior: SnackBarBehavior.floating,
                                   backgroundColor: AppColors.snackBarBgError,
-                                  duration:
-                                      Duration(seconds: 3), // Add duration
+                                  duration: Duration(seconds: 3),
                                 ));
                               }
                             } catch (e) {
@@ -126,8 +124,7 @@ class _ForgetpasswordPageState extends State<ForgetpasswordPage> {
                                   content: Text('Failed to send reset email.'),
                                   behavior: SnackBarBehavior.floating,
                                   backgroundColor: AppColors.snackBarBgError,
-                                  duration:
-                                      Duration(seconds: 3), // Add duration
+                                  duration: Duration(seconds: 3),
                                 ));
                               }
                             } finally {

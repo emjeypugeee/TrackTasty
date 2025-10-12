@@ -112,9 +112,7 @@ class _CameraFoodInputSheet extends State<CameraFoodInputSheet> {
                   children: [
                     MyButtons(
                       text: 'Take a photo',
-                      onTap: () {
-                        // Add your upload logic here
-                      },
+                      onTap: () {},
                     ),
 
                     const SizedBox(
@@ -124,9 +122,7 @@ class _CameraFoodInputSheet extends State<CameraFoodInputSheet> {
                     // Take photo button
                     MyButtons(
                       text: 'Upload a photo',
-                      onTap: () {
-                        // Add your camera logic here
-                      },
+                      onTap: () {},
                     ),
                   ],
                 ),

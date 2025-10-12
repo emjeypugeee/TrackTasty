@@ -16,7 +16,7 @@ class Userpreference2 extends StatefulWidget {
 }
 
 class _Userpreference2 extends State<Userpreference2> {
-  int selectedIndex = -1; // Track selected button (-1 means no selection)
+  int selectedIndex = -1;
 
   //selectable acitvity button values
   final List<Map<String, String>> activityLevels = [
@@ -91,7 +91,7 @@ class _Userpreference2 extends State<Userpreference2> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Column(
           children: [
             Expanded(
@@ -160,7 +160,7 @@ class _Userpreference2 extends State<Userpreference2> {
                     size: 16,
                   ),
                   SizedBox(width: 50),
-                  // Next button (expanded to fill remaining space)
+                  // Next button
                   Expanded(
                     child: MyButtons(
                       text: 'Next',

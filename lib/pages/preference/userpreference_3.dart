@@ -16,7 +16,7 @@ class Userpreference3 extends StatefulWidget {
 }
 
 class _Userpreference3 extends State<Userpreference3> {
-  int selectedIndex = -1; // Track selected button (-1 means no selection)
+  int selectedIndex = -1;
 
   //selectable goal button values
   final List<Map<String, String>> activityLevels = [
@@ -58,7 +58,7 @@ class _Userpreference3 extends State<Userpreference3> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFF121212),
-      //linear percent indicator?
+      //linear percent indicator
       appBar: AppBar(
           automaticallyImplyLeading: false,
           backgroundColor: Color(0xFF121212),
@@ -72,7 +72,7 @@ class _Userpreference3 extends State<Userpreference3> {
             ),
           )),
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Column(
           children: [
             Expanded(

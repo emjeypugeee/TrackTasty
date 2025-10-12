@@ -10,7 +10,7 @@ class MealContainer extends StatelessWidget {
   final double fat;
   final String serving;
   final void Function()? onPressed;
-  final bool isLoading; // Add this parameter
+  final bool isLoading;
 
   const MealContainer({
     super.key,
@@ -22,7 +22,7 @@ class MealContainer extends StatelessWidget {
     required this.carbs,
     required this.fat,
     required this.serving,
-    this.isLoading = false, // Default to false
+    this.isLoading = false,
   });
 
   @override

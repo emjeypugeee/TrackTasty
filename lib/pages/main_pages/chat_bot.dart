@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:fitness/provider/user_provider.dart';
+import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/meal_suggestion_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/chat_bot_widgets/recipe_container.dart';
 import 'package:flutter/material.dart';
@@ -29,16 +30,13 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   bool _showResetButton = false;
   bool isMetric = false;
 
-  // For temporary profile update message
   bool _showProfileUpdate = false;
   Timer? _profileUpdateTimer;
 
-  // Text field height management
   final double _minTextFieldHeight = 56.0;
   final double _maxTextFieldHeight = 120.0;
   double _currentTextFieldHeight = 56.0;
 
-  // Nutrition data state
   Map<String, dynamic>? _nutritionData;
   Map<String, dynamic>? _userGoals;
 
@@ -85,10 +83,8 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       _showProfileUpdate = true;
     });
 
-    // Cancel existing timer if any
     _profileUpdateTimer?.cancel();
 
-    // Set timer to hide the message after 3 seconds
     _profileUpdateTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
@@ -172,7 +168,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Reset conversation but keep the MacroExpert introduction
+  // Reset conversation
   Future<void> _resetConversation() async {
     final introMessageIndex = _messages.indexWhere((msg) =>
         msg["role"] == "assistant" &&
@@ -296,7 +292,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   void _addWelcomeMessage() {
     _messages.add({
       "role": "assistant",
-      "content": ":wave: Hi! I'm your Macro Tracking Assistant!\n\n"
+      "content": "Hi! I'm your Macro Tracking Assistant!\n\n"
           "I can help you with:\n"
           "• Provide nutritional information of a food\n"
           "• Tracking meals and nutrients\n"
@@ -336,7 +332,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       debugPrint("USER DATA REFRESHED: $_currentUserData");
       debugPrint("USER GOALS REFRESHED: $_userGoals");
 
-      // Show temporary profile update instead of adding to messages
       _showRefreshConfirmation();
     } catch (e) {
       debugPrint('ERROR REFRESHING USER DATA: $e');
@@ -353,20 +348,20 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // Method to get last 10 conversations for reporting
-  List<Map<String, dynamic>> _getLast10Conversations() {
-    // Filter out system messages and get last 10 user-assistant exchanges
+  // Method to get last 20 conversations for reporting
+  List<Map<String, dynamic>> _getLast20Conversations() {
     final conversationMessages = _messages
         .where((msg) =>
             msg["role"] == "user" ||
             msg["role"] == "nutritional_info" ||
             msg["role"] == "recipe" ||
-            msg["role"] == "meal_suggestion")
+            msg["role"] == "meal_suggestion" ||
+            msg["role"] == "error")
         .toList();
 
-    // Return the last 10 messages or all if less than 10
-    return conversationMessages.length > 10
-        ? conversationMessages.sublist(conversationMessages.length - 10)
+    // Return the last 20 messages or all if less than 20
+    return conversationMessages.length > 20
+        ? conversationMessages.sublist(conversationMessages.length - 20)
         : conversationMessages;
   }
 
@@ -376,7 +371,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
     if (user == null) return;
 
     try {
-      // Get package info with error handling
       String appVersion = '1.0.0';
       try {
         appVersion = '1.0.0';
@@ -404,8 +398,8 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         deviceInfoString = 'Unknown';
       }
 
-      // Get last 10 conversations
-      final history = _getLast10Conversations();
+      // Get last 20 conversations
+      final history = _getLast20Conversations();
 
       await FirebaseFirestore.instance.collection('feedback').add({
         'userId': user.uid,
@@ -509,11 +503,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                               style: TextStyle(color: Colors.white)),
                         ),
                         DropdownMenuItem(
-                          value: 'feature_request',
-                          child: Text('Feature Request',
-                              style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
                           value: 'other',
                           child: Text('Other',
                               style: TextStyle(color: Colors.white)),
@@ -553,11 +542,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                         });
                       },
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Note: Last 10 conversations will be included for debugging.',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                    ),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -574,7 +558,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
+                              backgroundColor: AppColors.primaryColor,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
@@ -693,7 +677,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
             "• Fat: ${_nutritionData?['totalFat'] ?? 0}/${_userGoals?['fatGoal'] ?? 70}g "
             "(${remainingFat > 0 ? '$remainingFat g remaining' : '${-remainingFat}g over'})",
         "id": tempMessageId, // Add unique ID for identification
-        "isTemporary": true, // Mark as temporary
+        "isTemporary": true,
       });
 
       // Save the conversation after adding system message
@@ -705,10 +689,8 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
-            // Find and remove the temporary message by its ID
             _messages.removeWhere((msg) => msg["id"] == tempMessageId);
           });
-          // Save the conversation after removing the temporary message
           _saveConversation();
         }
       });
@@ -718,7 +700,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   // Parsing JSON response
   Map<String, dynamic> _parseMixedResponse(String content) {
     try {
-      // First, try to parse the entire content as JSON
       final jsonData = jsonDecode(content);
       if (jsonData is List) {
         return {
@@ -756,7 +737,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         }
       }
     } catch (e) {
-      // If not pure JSON, look for JSON objects within text
       final jsonPattern = r'\{.*?\}';
       final matches = RegExp(jsonPattern, multiLine: true).allMatches(content);
 
@@ -853,7 +833,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
       --------------------------------------------------
       ''');
 
-      // Convert history to the correct type (Map<String, String>)
       final List<Map<String, String>> history = _messages
           .sublist(1, _messages.length - 1)
           .where((msg) =>
@@ -890,7 +869,6 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         fatGoal: _userGoals?['fatGoal'] ?? 70,
       ).timeout(const Duration(seconds: 30));
 
-      // Parse for JSON meals + normal text
       final parsedResponse = _parseMixedResponse(aiMessage);
 
       // Debug print for chatbot output
@@ -901,7 +879,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
 
       debugPrint(aiMessage);
 
-      // Add meal suggestions if any
+      // Add meal suggestions
       if (parsedResponse['meals'].isNotEmpty) {
         for (final meal in parsedResponse['meals']) {
           setState(() {
@@ -913,7 +891,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         }
       }
 
-      // Add recipes if any
+      // Add recipes
       if (parsedResponse['recipes'].isNotEmpty) {
         for (final recipe in parsedResponse['recipes']) {
           setState(() {
@@ -936,7 +914,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         }
       }
 
-      // Add text response if exists
+      // Add text response
       if (parsedResponse['text'].isNotEmpty) {
         setState(() {
           _messages
@@ -980,7 +958,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
         });
       });
 
-      // Save the conversation after adding error message
+      // Save the conversation
       _saveConversation();
     } finally {
       setState(() => _isLoading = false);
@@ -1125,7 +1103,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                       }
                     }
 
-                    // Add handling for nutritional info
+                    // Handling for nutritional info
                     if (isNutritionalInfo) {
                       try {
                         final infoData =

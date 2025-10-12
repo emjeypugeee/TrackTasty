@@ -60,7 +60,6 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
     // Get Sunday of the current week
     _endDate = _startDate.add(Duration(days: 6));
 
-    // Normalize to start of day for proper comparison
     _startDate = DateTime(_startDate.year, _startDate.month, _startDate.day);
     _endDate =
         DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59, 999);
@@ -71,12 +70,10 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
 
   void _navigateTimeRange(bool forward) {
     setState(() {
-      // Move the current week reference by 7 days
       _currentWeek = forward
           ? _currentWeek.add(Duration(days: 7))
           : _currentWeek.subtract(Duration(days: 7));
 
-      // Recalculate the week boundaries
       _updateWeekRange();
 
       debugPrint(
@@ -127,7 +124,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
             "   📅 Initialized date: ${DateFormat('EEE yyyy-MM-dd').format(normalizedDate)}");
       }
 
-      // Process the data from Firestore
+      // Process the data from Firebase
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final timestamp = data['date'] as Timestamp;
@@ -160,7 +157,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
       final average = count > 0 ? total / count : (widget.calorieGoal ?? 0);
       debugPrint("📊 Weekly average calories: $average");
 
-      // Prepare data for the chart - ensure all 7 days are included in correct order
+      // Prepare data for the chart
       _calorieData = weekDays.map((date) => dailyCalories[date]!).toList();
       _dayLabels =
           weekDays.map((date) => DateFormat('E').format(date)).toList();
@@ -226,7 +223,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
 
     for (int i = 0; i < 7; i++) {
       final date = monday.add(Duration(days: i));
-      forecastData.add(avgCalories); // Use averageCalories for all days
+      forecastData.add(avgCalories);
       forecastLabels.add(DateFormat('E').format(date));
       debugPrint(
           "   📅 ${DateFormat('E').format(date)}: $avgCalories calories");
@@ -251,8 +248,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
       ),
       child: Column(
         children: [
-          if (!widget
-              .isForecasting) // Only show date range and navigation when not forecasting
+          if (!widget.isForecasting)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -277,7 +273,7 @@ class _BarGraphContainerState extends State<BarGraphContainer> {
               ],
             )
           else
-            SizedBox(height: 10), // Add some spacing when forecasting
+            SizedBox(height: 10),
           SizedBox(
             height: 200,
             child: _isLoading

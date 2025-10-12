@@ -66,12 +66,12 @@ class _MainScreenState extends State<MainScreen> {
         key: homePageKey,
         onEditMeal: (context, existingFood) {
           debugPrint('editFoodManually callback triggered');
-          editFoodManually(context, existingFood); // Call your actual method
+          editFoodManually(context, existingFood);
         },
       ),
-      const ChatBot(), // Make sure this uses AutomaticKeepAliveClientMixin
-      AnalyticsPage(), // Replace with your actual analytics page
-      ProfilePage(), // Replace with your actual achievements page
+      const ChatBot(),
+      AnalyticsPage(),
+      ProfilePage(),
     ];
   }
 
@@ -132,7 +132,7 @@ class _MainScreenState extends State<MainScreen> {
               '${user.uid}_${today.year}-${today.month}-${today.day}';
 
           try {
-            // Fetch existing food log for today or create a new one
+            // Get existing food log for today or create a new one
             final foodLogDoc = await FirebaseFirestore.instance
                 .collection('food_logs')
                 .doc(foodLogId)
@@ -205,7 +205,6 @@ class _MainScreenState extends State<MainScreen> {
   //
   void editFoodManually(
       BuildContext context, Map<String, dynamic> existingFood) {
-    // Use the safeToDouble function as it's good practice
     double? safeToDouble(dynamic value) {
       if (value == null) return null;
       if (value is double) return value;
@@ -225,7 +224,6 @@ class _MainScreenState extends State<MainScreen> {
       onSubmit: (updatedMealData) async {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          // Use the original food's logged time to find the correct day
           final originalLoggedTime = existingFood['loggedTime'] as Timestamp;
           final originalDate = originalLoggedTime.toDate();
           final foodLogId =
@@ -242,14 +240,12 @@ class _MainScreenState extends State<MainScreen> {
               final foods =
                   List<Map<String, dynamic>>.from(foodLogData['foods'] ?? []);
 
-              // Find the exact food item to update using ONLY the loggedTime
               final index = foods.indexWhere((f) {
                 final fTime = f['loggedTime'] as Timestamp;
                 return fTime == originalLoggedTime;
               });
 
               if (index != -1) {
-                // Convert all values to double for consistent math
                 final updatedCalories =
                     (updatedMealData['calories'] as num).toDouble();
                 final updatedProtein =
@@ -346,7 +342,7 @@ class _MainScreenState extends State<MainScreen> {
           iconTheme: IconThemeData(color: Colors.white),
           title: Image.asset(
             'lib/images/Tracktasty-logo-long.png',
-            height: 30, // Adjust height as needed
+            height: 30,
             fit: BoxFit.contain,
           ),
           centerTitle: true,
@@ -356,12 +352,6 @@ class _MainScreenState extends State<MainScreen> {
           index: selectedIndex,
           children: _screens, // This preserves the state of all screens
         ),
-        /*body: _routes[selectedIndex] == '/home'
-            ? HomePage(
-                key: homePageKey,
-                onEditMeal:
-                    editFoodManually) // Render HomePage when on the home route
-            : widget.child,*/
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: selectedIndex,
           onTap: (index) {
@@ -422,15 +412,12 @@ class _MainScreenState extends State<MainScreen> {
                       }
 
                       if (cameraStatus.isGranted) {
-                        // Open camera screen and wait for result
                         final imagePath = await context.push('/camera');
 
                         if (imagePath != null) {
                           // Handle the captured image
                           print('Image captured: $imagePath');
 
-                          // You can now process this image for food recognition
-                          // For now, let's just update the achievement count
                           final User? user = FirebaseAuth.instance.currentUser;
                           if (user != null) {
                             try {

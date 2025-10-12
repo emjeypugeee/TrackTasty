@@ -16,7 +16,6 @@ class Userpreference5 extends StatefulWidget {
 }
 
 class _Userpreference5 extends State<Userpreference5> {
-  //means no selection
   int selectedIndex = -1;
 
   //selectable button values
@@ -76,7 +75,7 @@ class _Userpreference5 extends State<Userpreference5> {
             barRadius: Radius.circular(5),
           )),
       body: Padding(
-        padding: const EdgeInsets.all(25.0),
+        padding: const EdgeInsets.fromLTRB(25.0, 5.0, 25.0, 25.0),
         child: Column(
           children: [
             Expanded(
@@ -112,7 +111,7 @@ class _Userpreference5 extends State<Userpreference5> {
                       ),
                     ),
                     SizedBox(
-                      height: 70,
+                      height: 40,
                     ),
 
                     Column(

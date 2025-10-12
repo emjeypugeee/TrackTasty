@@ -26,7 +26,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   List<Map<String, dynamic>> _weightHistory = [];
   List<Map<String, dynamic>> _calorieHistory = [];
 
-  // Future to fetch user details
+  // Get user details
   Future<DocumentSnapshot<Map<String, dynamic>>> getUserDetails() async {
     return await FirebaseFirestore.instance
         .collection("Users")
@@ -45,7 +45,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           .collection('weight_history')
           .where('userId', isEqualTo: currentUser!.uid)
           .orderBy('date', descending: true)
-          .limit(5) // Get latest 5 entries to ensure we have data
+          .limit(5) // Get latest 5 entries
           .get();
 
       debugPrint("✅ Found ${snapshot.docs.length} weight entries");
@@ -74,7 +74,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     if (currentUser == null) return;
 
     try {
-      // Get date range: from 8 days ago to yesterday (exclude today)
+      // Get date range from 8 days ago to yesterday
       final today = DateTime.now();
       final eightDaysAgo = today.subtract(Duration(days: 8));
       final yesterday = today.subtract(Duration(days: 1));
@@ -120,7 +120,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     debugPrint("   - Weight history entries: ${_weightHistory.length}");
     debugPrint("   - Calorie history entries: ${_calorieHistory.length}");
 
-    // Calculate average daily calories from last 7 days
+    // Calculate average daily calories based on collected data
     double averageCalories = 0;
     if (_calorieHistory.isNotEmpty) {
       final totalCalories =
@@ -143,7 +143,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     debugPrint("   - Calorie review: $calorieReview");
     debugPrint("   - Weight review: $weightReview");
 
-    // Combine both reviews
     return "$calorieReview$weightReview";
   }
 
@@ -152,11 +151,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     double effectiveCurrentWeight = currentWeight;
     double? previousWeight;
 
-    // Use latest weight from history if available
     if (weightHistory.isNotEmpty) {
       effectiveCurrentWeight = weightHistory.first['weight'];
 
-      // Get the 2nd most recent weight if available
       if (weightHistory.length >= 2) {
         previousWeight = weightHistory[1]['weight'];
       }
@@ -177,7 +174,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       return "Log your current weight to start tracking progress.";
     }
 
-    // Compare with goal
     final currentDifference = effectiveCurrentWeight - goalWeight;
     final absoluteCurrentDifference = currentDifference.abs();
 
@@ -339,12 +335,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           future: getUserDetails(),
           builder: (context, snapshot) {
-            // Waiting...
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
             }
 
-            // If there's an error
             if (snapshot.hasError) {
               return Center(
                   child: Text("Error loading profile",
@@ -472,7 +466,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               );
             }
 
-            //return if no user found
             return Center(child: Text("User not found"));
           }),
     );

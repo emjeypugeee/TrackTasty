@@ -311,8 +311,7 @@ class _EditFoodPreferencePageState extends State<EditFoodPreferencePage> {
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 4.0, horizontal: 20.0),
                     tileColor: selectedAllergies[allergyTitle] ?? false
-                        ? AppColors.primaryColor
-                            .withValues(alpha: 0.2) // Highlight color
+                        ? AppColors.primaryColor.withValues(alpha: 0.2)
                         : Colors.transparent,
                     value: selectedAllergies[allergyTitle] ?? false,
                     onChanged: (bool? value) {

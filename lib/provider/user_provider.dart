@@ -38,16 +38,14 @@ class UserProvider extends ChangeNotifier {
     final user = _auth.currentUser;
     if (user != null && user.email != null) {
       try {
-        // 1. Write to the database
         await _firestore.collection("Users").doc(user.email!).set({
           'username': newUsername,
         }, SetOptions(merge: true));
 
-        // 2. Immediately update local state
         if (_userData != null) {
           _userData!['username'] = newUsername;
         }
-        notifyListeners(); // This will trigger UI updates
+        notifyListeners(); // Update UI
 
         return true;
       } catch (e) {

@@ -98,7 +98,7 @@ class _MealsContainerState extends State<MealsContainer> {
                 children: [
                   // Meal name and serving size with flexible width
                   Flexible(
-                    flex: 8, // Allocate 70% of the row's width
+                    flex: 8,
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -115,7 +115,6 @@ class _MealsContainerState extends State<MealsContainer> {
                                       : 20,
                             ),
                           ),
-                          // Serving info beside the food name (inside scroll)
                           if (widget.servingSize.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(left: 8),
@@ -131,7 +130,7 @@ class _MealsContainerState extends State<MealsContainer> {
                       ),
                     ),
                   ),
-                  // Popup menu with fixed alignment
+                  // Popup menu
                   if (_isToday)
                     IconButton(
                       icon: Icon(Icons.more_vert,
@@ -139,8 +138,7 @@ class _MealsContainerState extends State<MealsContainer> {
                       onPressed: () => _showMenu(context),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      alignment: Alignment
-                          .center, // Align the icon to the center of the row
+                      alignment: Alignment.center,
                     ),
                 ],
               ),

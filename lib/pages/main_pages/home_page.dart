@@ -44,7 +44,6 @@ class _HomePageState extends State<HomePage> {
 
   // Nutrition data state
   Map<String, dynamic>? _nutritionData;
-  // bool _isLoading = true;
   StreamSubscription<QuerySnapshot>? _foodLogSubscription;
 
   // Streak data
@@ -110,7 +109,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadNutritionData() async {
     final user = FirebaseAuth.instance.currentUser;
 
-    // Cancel previous subscription
     _foodLogSubscription?.cancel();
 
     _foodLogSubscription = FirebaseFirestore.instance
@@ -163,7 +161,7 @@ class _HomePageState extends State<HomePage> {
         DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
     final today = DateTime(now.year, now.month, now.day);
 
-    // Don't show review for today or future dates
+    // Don't show review for today
     if (selectedDate.isAfter(today) || selectedDate.isAtSameMomentAs(today)) {
       return '';
     }
@@ -192,11 +190,9 @@ class _HomePageState extends State<HomePage> {
     final totalCarbs = (nutritionData['totalCarbs'] ?? 0).toDouble();
     final totalFat = (nutritionData['totalFat'] ?? 0).toDouble();
 
-    // Define thresholds (20% deviation from goal)
     final lowThreshold = 0.8;
     final highThreshold = 1.2;
 
-    // Check each macro and generate appropriate messages
     final List<String> issues = [];
 
     // Calories check
@@ -239,7 +235,6 @@ class _HomePageState extends State<HomePage> {
           DateTime.now().millisecondsSinceEpoch % balancedMessages.length];
     }
 
-    // Select one random issue to focus on
     final randomIssue =
         issues[DateTime.now().millisecondsSinceEpoch % issues.length];
 
@@ -267,7 +262,6 @@ class _HomePageState extends State<HomePage> {
       double totalCarbs,
       double totalFat,
       List<String> userAllergies) {
-    // Helper function to filter meal suggestions based on allergies
     List<String> getAllergySafeSuggestions(
         List<String> suggestions, List<String> allergies) {
       final allergyKeywords = {
@@ -318,15 +312,15 @@ class _HomePageState extends State<HomePage> {
           final keywords = allergyKeywords[allergy] ?? [];
           for (final keyword in keywords) {
             if (lowerSuggestion.contains(keyword)) {
-              return false; // Exclude if contains allergen
+              return false;
             }
           }
         }
-        return true; // Include if no allergens found
+        return true;
       }).toList();
     }
 
-    // Get safe suggestions or fallback messages
+    // Get safe suggestions
     List<String> getSafeSuggestions(List<String> suggestions) {
       final safeSuggestions =
           getAllergySafeSuggestions(suggestions, userAllergies);
@@ -483,9 +477,6 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 20),
               _buildProgressReviewSection(),
 
-              const SizedBox(height: 20),
-              if (_isTodaySelected()) _buildStreakDisplay(),
-
               /*
                *  +++++++++++++++++
                *  MEALS LOG SECTION
@@ -519,23 +510,21 @@ class _HomePageState extends State<HomePage> {
         if (userSnapshot.hasError ||
             !userSnapshot.hasData ||
             !userSnapshot.data!.exists) {
-          return const SizedBox(); // Hide if no user data
+          return const SizedBox();
         }
 
         if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(); // Hide while loading
+          return const SizedBox();
         }
 
         final userData = userSnapshot.data!.data() as Map<String, dynamic>;
         final reviewMessage =
             _getProgressReview(userData, _nutritionData ?? {});
 
-        // Don't show anything if no message or for today's date
         if (reviewMessage.isEmpty) {
           return const SizedBox();
         }
 
-        // Determine bubble color based on message type
         Color bubbleColor;
         Color borderColor;
         Color iconColor;
@@ -675,9 +664,7 @@ class _HomePageState extends State<HomePage> {
           .doc(FirebaseAuth.instance.currentUser?.email)
           .snapshots(),
       builder: (context, userSnapshot) {
-        // Handle connection errors with retry functionality
         if (userSnapshot.hasError) {
-          // Check if it's a network error
           final error = userSnapshot.error;
           if (error is FirebaseException &&
               (error.code == 'unavailable' || error.code == 'network-error')) {
@@ -803,7 +790,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Helper method to check if today is selected
   bool _isTodaySelected() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -814,11 +800,11 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildStreakDisplay() {
     if (_isLoadingStreak) {
-      return const SizedBox(); // Don't show anything while loading
+      return const SizedBox();
     }
 
     if (_currentStreak == 0) {
-      return const SizedBox(); // Don't show if no streak
+      return const SizedBox();
     }
 
     // Determine colors and message based on streak length
@@ -865,7 +851,6 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          // Fire emojis on top
           Text(
             fireEmojis,
             style: const TextStyle(fontSize: 20),
@@ -946,12 +931,10 @@ class _HomePageState extends State<HomePage> {
           builder: (context, snapshot) {
             // Handle connection errors with retry functionality
             if (snapshot.hasError) {
-              // Check if it's a network error
               final error = snapshot.error;
               if (error is FirebaseException &&
                   (error.code == 'unavailable' ||
                       error.code == 'network-error')) {
-                // Retry after 3 seconds
                 Future.delayed(const Duration(seconds: 3), () {
                   if (mounted) {
                     _loadNutritionData(); // Retry loading data
@@ -1002,7 +985,6 @@ class _HomePageState extends State<HomePage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // Rest of the existing code remains the same...
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),
@@ -1105,7 +1087,6 @@ class _HomePageState extends State<HomePage> {
 
         // Find the food item to delete using a more flexible comparison
         final index = foods.indexWhere((f) {
-          // Convert all values to the same data type for comparison
           final fCalories = (f['calories'] is int)
               ? f['calories']
               : (f['calories'] as num).toInt();
