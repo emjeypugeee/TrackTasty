@@ -193,6 +193,10 @@ class _MealsContainerState extends State<MealsContainer> {
         offset.dx + renderBox.size.width,
         offset.dy + renderBox.size.height,
       ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      color: AppColors.containerBg, // Set the background color here
       items: [
         PopupMenuItem<String>(
           value: 'edit',
@@ -200,7 +204,10 @@ class _MealsContainerState extends State<MealsContainer> {
             children: [
               Icon(Icons.edit, size: 20, color: Colors.blue),
               const SizedBox(width: 8),
-              const Text('Edit'),
+              const Text(
+                'Edit',
+                style: TextStyle(color: AppColors.primaryText),
+              ),
             ],
           ),
         ),
@@ -210,7 +217,10 @@ class _MealsContainerState extends State<MealsContainer> {
             children: [
               Icon(Icons.delete, size: 20, color: Colors.red),
               const SizedBox(width: 8),
-              const Text('Delete'),
+              const Text(
+                'Delete',
+                style: TextStyle(color: AppColors.primaryText),
+              ),
             ],
           ),
         ),

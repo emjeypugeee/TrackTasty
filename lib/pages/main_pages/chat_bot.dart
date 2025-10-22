@@ -46,9 +46,12 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    _initializeUserData();
     _loadNutritionData();
     _loadConversationHistory();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeUserData();
+    });
 
     // Listen to text changes to adjust height
     _messageController.addListener(_adjustTextFieldHeight);
@@ -1229,6 +1232,7 @@ class _ChatBotState extends State<ChatBot> with AutomaticKeepAliveClientMixin {
                           autofocus: false,
                           style: const TextStyle(color: Colors.white),
                           maxLines: null, // Allow unlimited lines
+                          enableInteractiveSelection: true,
                           decoration: InputDecoration(
                             hintText: "Type a message...",
                             hintStyle: TextStyle(color: Colors.grey[400]),

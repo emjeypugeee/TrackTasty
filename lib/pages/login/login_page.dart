@@ -5,6 +5,7 @@ import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/helper/helper_function.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginPage extends StatefulWidget {
@@ -239,6 +240,9 @@ class _LoginPageState extends State<LoginPage> {
                     onFieldSubmitted: (_) {
                       _passwordFocusNode.requestFocus();
                     },
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(80),
+                    ],
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter a valid email address';
@@ -266,6 +270,9 @@ class _LoginPageState extends State<LoginPage> {
                     controller: passwordController,
                     focusNode: _passwordFocusNode,
                     textInputAction: TextInputAction.done,
+                    inputFormatters: [
+                      LengthLimitingTextInputFormatter(64),
+                    ],
                     onFieldSubmitted: (_) {
                       if (_formKey.currentState!.validate()) {
                         // Proceed with login if all fields are valid

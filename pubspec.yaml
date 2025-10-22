@@ -47,6 +47,7 @@ dependencies:
   image_picker: ^1.1.2
   lottie: ^3.3.1
   intl: ^0.20.2
+  mailer: ^6.0.1
   http: ^1.4.0
   flutter_dotenv: ^5.2.1
   riverpod: ^2.6.1
@@ -67,6 +68,7 @@ dependencies:
   camera: ^0.11.2
   path_provider: ^2.1.5
   path: ^1.9.1
+  emailjs: ^4.0.0
 
 
 dev_dependencies:
@@ -86,6 +88,9 @@ flutter_launcher_icons:
   ios: true
   image_path: "lib/images/launcher_ic.png"
   min_sdk_android: 21
+
+android_notification_icons:
+  image_path: 'lib/images/launcher_ic.png'
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

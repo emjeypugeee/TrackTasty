@@ -60,9 +60,12 @@ class _HomePageState extends State<HomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    Provider.of<UserProvider>(context, listen: true);
-    _loadNutritionData();
-    _loadStreakData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadNutritionData();
+        _loadStreakData();
+      }
+    });
   }
 
   @override

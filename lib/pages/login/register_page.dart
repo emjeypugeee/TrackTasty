@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:emailjs/emailjs.dart' as emailjs;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/model/user_data_models.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
@@ -9,6 +11,7 @@ import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/terms_conditions_widget.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:fitness/provider/registration_data_provider.dart';
@@ -24,74 +27,89 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage>
     with WidgetsBindingObserver {
   bool _isLoading = false;
-  bool _emailSent = false;
-  bool _emailVerified = false;
+  bool _otpSent = false;
+  bool _otpVerified = false;
   bool _agreeToTerms = false;
-  Timer? _emailCheckTimer;
-  User? _temporaryUser;
+  Timer? _otpExpiryTimer;
+  Timer? _resendCooldownTimer;
+  int _remainingSeconds = 0;
+  String? _generatedOTP;
+  DateTime? _otpExpiryTime;
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _otpController = TextEditingController();
 
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _confirmPasswordFocusNode = FocusNode();
+  final _otpFocusNode = FocusNode();
+
+  // EmailJS Configuration - Replace with your actual credentials
+  static const String _emailJSServiceID = 'service_wyk93ov';
+  static const String _emailJSTemplateID = 'template_ufj8t6e';
+  static const String _emailJSPublicKey = 'CeaO7hVFAPoSU6sRw';
+  static const String _emailJSPrivateKey = 'NQ-S89CddcgVIO1aNv7BR';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadSavedData();
-    _checkForExistingVerification();
+    _resetAllState();
+    _loadUserData();
+    _initializeEmailJS();
   }
 
-  void _loadSavedData() {
+  Future<void> _initializeEmailJS() async {
+    try {
+      // Initialize EmailJS with your credentials
+      emailjs.init(
+        emailjs.Options(
+          publicKey: _emailJSPublicKey,
+          privateKey: _emailJSPrivateKey,
+          limitRate: emailjs.LimitRate(
+            // Set the limit rate for the application
+            id: 'app',
+            // Allow 1 request per 10s
+            throttle: 10000,
+          ),
+        ),
+      );
+      debugPrint('(REGISTER PAGE) EmailJS initialized successfully');
+    } catch (error) {
+      debugPrint('(REGISTER PAGE) Failed to initialize EmailJS: $error');
+    }
+  }
+
+  void _loadUserData() {
     final provider =
         Provider.of<RegistrationDataProvider>(context, listen: false);
-    // Check if there's any saved email in the provider
-    if (provider.userData.email != null) {
-      _emailController.text = provider.userData.email!;
-    }
+    provider.loadFromPreferences();
+    final userData = provider.userData;
+
+    debugPrint("Loaded User Data: ${userData.toMap()}");
   }
 
-  void _checkForExistingVerification() async {
-    // Check if user was in the middle of verification process
-    final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('pendingVerificationEmail');
+  void _resetAllState() {
+    _emailController.clear();
+    _passwordController.clear();
+    _confirmPasswordController.clear();
+    _otpController.clear();
 
-    if (email != null) {
-      try {
-        final password = prefs.getString('pendingVerificationPassword');
-        if (password != null) {
-          final userCredential = await FirebaseAuth.instance
-              .signInWithEmailAndPassword(email: email, password: password);
+    _isLoading = false;
+    _otpSent = false;
+    _otpVerified = false;
+    _agreeToTerms = false;
+    _generatedOTP = null;
+    _otpExpiryTime = null;
+    _remainingSeconds = 0;
 
-          if (userCredential.user != null) {
-            await userCredential.user!.reload();
-            if (userCredential.user!.emailVerified) {
-              setState(() {
-                _emailSent = true;
-                _emailVerified = true;
-                _temporaryUser = userCredential.user;
-                _emailController.text = email;
-              });
-            } else {
-              setState(() {
-                _emailSent = true;
-                _temporaryUser = userCredential.user;
-                _emailController.text = email;
-              });
-              _startEmailVerificationCheck(userCredential.user!);
-            }
-          }
-        }
-      } catch (e) {
-        await prefs.remove('pendingVerificationEmail');
-        await prefs.remove('pendingVerificationPassword');
-      }
-    }
+    _otpExpiryTimer?.cancel();
+    _resendCooldownTimer?.cancel();
+    _otpExpiryTimer = null;
+    _resendCooldownTimer = null;
   }
 
   @override
@@ -99,25 +117,25 @@ class _RegisterPageState extends State<RegisterPage>
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _otpController.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
-    _emailCheckTimer?.cancel();
+    _otpFocusNode.dispose();
+    _otpExpiryTimer?.cancel();
+    _resendCooldownTimer?.cancel();
+
     WidgetsBinding.instance.removeObserver(this);
-    _cleanupUnverifiedAccount();
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      // App is going to background or being terminated
-      _cleanupUnverifiedAccount();
-    }
+  // OTP Generation and Management
+  String _generateOTP() {
+    final random = Random();
+    return (100000 + random.nextInt(900000)).toString(); // 6-digit OTP
   }
 
-  Future<void> _sendVerificationEmail() async {
+  Future<void> _sendOTP() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_agreeToTerms) {
@@ -128,137 +146,282 @@ class _RegisterPageState extends State<RegisterPage>
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          'pendingVerificationEmail', _emailController.text.trim());
-      await prefs.setString(
-          'pendingVerificationPassword', _passwordController.text.trim());
+      final email = _emailController.text.trim();
 
-      final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      // Check if user already exists with completed registration
+      final userDoc =
+          await FirebaseFirestore.instance.collection("Users").doc(email).get();
 
-      final provider =
-          Provider.of<RegistrationDataProvider>(context, listen: false);
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final hasDailyCalories = userData?['dailyCalories'] != null;
 
-      await userCredential.user!.sendEmailVerification();
+        if (hasDailyCalories) {
+          setState(() => _isLoading = false);
+          _showError(
+              'An account with this email already exists. Please sign in instead.');
+          return;
+        }
+      }
 
-      setState(() {
-        _emailSent = true;
-        _isLoading = false;
-        _temporaryUser = userCredential.user;
+      // Generate and store OTP
+      _generatedOTP = _generateOTP();
+      _otpExpiryTime =
+          DateTime.now().add(Duration(minutes: 10)); // 10-minute expiry
+
+      // Store OTP in Firestore
+      await FirebaseFirestore.instance
+          .collection('otpVerifications')
+          .doc(email)
+          .set({
+        'otp': _generatedOTP,
+        'expiresAt': Timestamp.fromDate(_otpExpiryTime!),
+        'email': email,
+        'createdAt': FieldValue.serverTimestamp(),
+        'attempts': 0,
       });
 
-      _showSuccess('Verification email sent. Please check your inbox.');
-      _startEmailVerificationCheck(userCredential.user!);
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        await _handleExistingUser();
-      } else {
-        await _cleanupUnverifiedAccount();
-        _showError('Error sending verification email: ${e.message}');
-        setState(() => _isLoading = false);
-      }
+      // Send OTP via EmailJS
+      await _sendOTPEmail(email, _generatedOTP!);
+
+      setState(() {
+        _otpSent = true;
+        _isLoading = false;
+      });
+
+      _startOTPExpiryTimer();
+      _startResendCooldown();
+
+      _showSuccess('OTP sent to your email address. It expires in 10 minutes.');
     } catch (e) {
-      await _cleanupUnverifiedAccount();
-      _showError('Error: $e');
+      _showError('Error sending OTP: $e');
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _handleExistingUser() async {
+  Future<void> _sendOTPEmail(String email, String otp) async {
     try {
-      // Try to sign in with the provided credentials
-      final userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      // EmailJS template parameters
+      final templateParams = {
+        'to_email': email,
+        'otp_code': otp,
+        'expiry_minutes': '10',
+        'app_name': 'TrackTasty',
+        'current_year': DateTime.now().year.toString(),
+      };
+
+      // Send email using EmailJS
+      await emailjs.send(
+        _emailJSServiceID,
+        _emailJSTemplateID,
+        templateParams,
+        const emailjs.Options(
+          publicKey: _emailJSPublicKey,
+          privateKey: _emailJSPrivateKey,
+        ),
       );
 
-      // Store credentials for later retrieval
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          'pendingVerificationEmail', _emailController.text.trim());
-      await prefs.setString(
-          'pendingVerificationPassword', _passwordController.text.trim());
-
-      // Check if email is already verified
-      await userCredential.user!.reload();
-      if (userCredential.user!.emailVerified) {
-        setState(() {
-          _emailSent = true;
-          _emailVerified = true;
-          _isLoading = false;
-          _temporaryUser = userCredential.user;
-        });
-        _showSuccess(
-            'Email already verified. You can now complete registration.');
-      } else {
-        // Resend verification email
-        await userCredential.user!.sendEmailVerification();
-
-        setState(() {
-          _emailSent = true;
-          _isLoading = false;
-          _temporaryUser = userCredential.user;
-        });
-
-        _showSuccess('Verification email resent. Please check your inbox.');
-        _startEmailVerificationCheck(userCredential.user!);
-      }
-    } on FirebaseAuthException catch (e) {
-      _showError('Error: ${e.message}');
-      setState(() => _isLoading = false);
+      debugPrint('OTP email sent successfully to $email');
+    } catch (error) {
+      debugPrint('Failed to send OTP email: $error');
+      // If email fails, show OTP in dialog as fallback
+      _showOTPDialog(otp);
+      throw Exception('Failed to send email: $error');
     }
   }
 
-  void _startEmailVerificationCheck(User user) {
-    _emailCheckTimer?.cancel();
-    _emailCheckTimer =
-        Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        await user.reload();
-        final updatedUser = FirebaseAuth.instance.currentUser;
-
-        if (updatedUser != null && updatedUser.emailVerified) {
-          timer.cancel();
-          setState(() {
-            _emailVerified = true;
-          });
-          _showSuccess('Email verified! You can now complete registration.');
-        }
-      } catch (e) {
-        timer.cancel();
-      }
-    });
+  void _showOTPDialog(String otp) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.containerBg,
+        title: Text(
+          'OTP Verification',
+          style: TextStyle(color: AppColors.primaryText),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Email service temporarily unavailable. Here is your OTP:',
+              style: TextStyle(color: AppColors.primaryText),
+            ),
+            SizedBox(height: 16),
+            Text(
+              otp,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
+                letterSpacing: 2,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'This OTP expires in 10 minutes.',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'OK',
+              style: TextStyle(color: AppColors.primaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _registerUser() async {
-    if (!_emailVerified || _temporaryUser == null) {
-      _showError('Please verify your email before proceeding.');
+  Future<void> _verifyOTP() async {
+    if (_otpController.text.isEmpty) {
+      _showError('Please enter the OTP');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      await _temporaryUser!.reload();
-      final updatedUser = FirebaseAuth.instance.currentUser;
+      final email = _emailController.text.trim();
+      final enteredOTP = _otpController.text.trim();
 
-      if (updatedUser == null || !updatedUser.emailVerified) {
-        _showError('Email not verified. Please verify your email first.');
+      // Get OTP document from Firestore
+      final otpDoc = await FirebaseFirestore.instance
+          .collection('otpVerifications')
+          .doc(email)
+          .get();
+
+      if (!otpDoc.exists) {
+        _showError('OTP not found. Please request a new OTP.');
         setState(() => _isLoading = false);
         return;
       }
 
-      await _createUserDocument(updatedUser);
-      await _saveInitialWeight(updatedUser.uid);
+      final otpData = otpDoc.data()!;
+      final storedOTP = otpData['otp'] as String;
+      final expiresAt = (otpData['expiresAt'] as Timestamp).toDate();
+      final attempts = otpData['attempts'] as int;
 
+      // Check if OTP has expired
+      if (DateTime.now().isAfter(expiresAt)) {
+        await otpDoc.reference.delete();
+        _showError('OTP has expired. Please request a new one.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Check attempt limit
+      if (attempts >= 5) {
+        await otpDoc.reference.delete();
+        _showError('Too many failed attempts. Please request a new OTP.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Verify OTP
+      if (enteredOTP == storedOTP) {
+        // OTP verified successfully
+        await otpDoc.reference.delete();
+
+        setState(() {
+          _otpVerified = true;
+          _isLoading = false;
+        });
+
+        _otpExpiryTimer?.cancel();
+        _showSuccess('Email verified successfully!');
+      } else {
+        // Increment failed attempts
+        await otpDoc.reference.update({
+          'attempts': FieldValue.increment(1),
+        });
+
+        final remainingAttempts = 5 - (attempts + 1);
+        _showError('Invalid OTP. $remainingAttempts attempts remaining.');
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      _showError('Error verifying OTP: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _startOTPExpiryTimer() {
+    _otpExpiryTimer?.cancel();
+    _otpExpiryTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_otpExpiryTime == null) {
+        timer.cancel();
+        return;
+      }
+
+      final now = DateTime.now();
+      final difference = _otpExpiryTime!.difference(now);
+
+      if (difference.isNegative) {
+        setState(() {
+          _remainingSeconds = 0;
+          _otpSent = false;
+        });
+        timer.cancel();
+        _showError('OTP has expired. Please request a new one.');
+      } else {
+        setState(() {
+          _remainingSeconds = difference.inSeconds;
+        });
+      }
+    });
+  }
+
+  void _startResendCooldown() {
+    setState(() => _remainingSeconds = 60); // 1 minute cooldown
+
+    _resendCooldownTimer?.cancel();
+    _resendCooldownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_remainingSeconds <= 0) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() => _remainingSeconds--);
+    });
+  }
+
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _registerUser() async {
+    if (!_otpVerified) {
+      _showError('Please verify your email with OTP before proceeding.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      // Create user account in Firebase Auth
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      await _createUserDocument(userCredential.user!);
+      await _saveInitialWeight(userCredential.user!.uid);
+
+      // Clear any temporary data
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('pendingVerificationEmail');
-      await prefs.remove('pendingVerificationPassword');
 
       if (!mounted) return;
 
@@ -266,13 +429,17 @@ class _RegisterPageState extends State<RegisterPage>
           Provider.of<RegistrationDataProvider>(context, listen: false);
       provider.reset();
 
-      // Clear the temporary user reference after successful registration
-      _temporaryUser = null;
+      _resetAllState();
 
       context.go('/home');
       _showSuccess('Account created successfully!');
-    } on FirebaseException catch (e) {
-      _showError('Registration failed: ${e.message}');
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        _showError(
+            'An account with this email already exists. Please sign in instead.');
+      } else {
+        _showError('Registration failed: ${e.message}');
+      }
       setState(() => _isLoading = false);
     } catch (e) {
       _showError('Registration failed: $e');
@@ -283,10 +450,12 @@ class _RegisterPageState extends State<RegisterPage>
   Future<void> _createUserDocument(User user) async {
     final provider =
         Provider.of<RegistrationDataProvider>(context, listen: false);
+    provider.loadFromPreferences();
     final userData = provider.userData;
 
     await FirebaseFirestore.instance.collection("Users").doc(user.email).set({
       'email': user.email,
+      'userId': user.uid,
       'username': userData.username,
       'age': userData.age,
       'gender': userData.gender,
@@ -312,6 +481,7 @@ class _RegisterPageState extends State<RegisterPage>
       'profileImage': null,
       'agreedToTerms': true,
       'termsAgreementDate': DateTime.now(),
+      'emailVerified': true,
     });
   }
 
@@ -331,6 +501,7 @@ class _RegisterPageState extends State<RegisterPage>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
+    debugPrint(message);
   }
 
   void _showSuccess(String message) {
@@ -364,7 +535,7 @@ class _RegisterPageState extends State<RegisterPage>
       children: [
         Checkbox(
           value: _agreeToTerms,
-          onChanged: _emailSent
+          onChanged: _otpSent
               ? null
               : (value) {
                   setState(() {
@@ -375,9 +546,9 @@ class _RegisterPageState extends State<RegisterPage>
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         AbsorbPointer(
-          absorbing: _emailSent,
+          absorbing: _otpSent,
           child: GestureDetector(
-            onTap: _emailSent
+            onTap: _otpSent
                 ? null
                 : () {
                     setState(() {
@@ -421,33 +592,50 @@ class _RegisterPageState extends State<RegisterPage>
     );
   }
 
-  Future<void> _cleanupUnverifiedAccount() async {
-    // Only cleanup if we have a temporary user that hasn't been verified
-    if (_temporaryUser != null && !_emailVerified) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final storedEmail = prefs.getString('pendingVerificationEmail');
-
-        if (storedEmail == _temporaryUser!.email) {
-          await _temporaryUser!.delete();
-
-          await prefs.remove('pendingVerificationEmail');
-          await prefs.remove('pendingVerificationPassword');
-
-          debugPrint('Unverified account deleted: ${_temporaryUser!.email}');
-        }
-      } catch (e) {
-        debugPrint('Error cleaning up unverified account: $e');
-      } finally {
-        _temporaryUser = null;
-      }
-    }
+  Widget _buildOTPField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Verification Code',
+            style: TextStyle(color: AppColors.primaryText)),
+        const SizedBox(height: 5),
+        MyTextfield(
+          controller: _otpController,
+          focusNode: _otpFocusNode,
+          hintText: "Enter 6-digit OTP",
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) {
+            _otpFocusNode.unfocus();
+          },
+          validator: (value) {
+            if (value?.isEmpty ?? true) return 'Enter OTP';
+            if (value!.length != 6) return 'OTP must be 6 digits';
+            return null;
+          },
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(6),
+          ],
+          obscureText: false,
+        ),
+        if (_remainingSeconds > 0 && _otpSent && !_otpVerified) ...[
+          const SizedBox(height: 8),
+          Text(
+            'OTP expires in: ${_formatTime(_remainingSeconds)}',
+            style: TextStyle(
+              color: _remainingSeconds < 60 ? Colors.orange : Colors.green,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   void _showExitConfirmation() {
     final router = GoRouter.of(context);
 
-    if (_temporaryUser != null && !_emailVerified) {
+    if (_otpSent && !_otpVerified) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -457,7 +645,7 @@ class _RegisterPageState extends State<RegisterPage>
             style: TextStyle(color: AppColors.primaryText),
           ),
           content: const Text(
-            'Your account is not yet verified. If you leave now, your unverified account will be deleted and you\'ll need to start over.',
+            'Your email verification is in progress. If you leave now, you\'ll need to start over.',
             style: TextStyle(color: AppColors.primaryText),
           ),
           actions: [
@@ -469,9 +657,9 @@ class _RegisterPageState extends State<RegisterPage>
               ),
             ),
             TextButton(
-              onPressed: () async {
+              onPressed: () {
                 Navigator.of(context).pop();
-                await _cleanupUnverifiedAccount();
+                _resetAllState();
                 router.go('/preference7');
               },
               child: const Text('Leave',
@@ -481,6 +669,7 @@ class _RegisterPageState extends State<RegisterPage>
         ),
       );
     } else {
+      _resetAllState();
       router.go('/preference7');
     }
   }
@@ -523,16 +712,20 @@ class _RegisterPageState extends State<RegisterPage>
                             _buildConfirmPasswordField(),
                             const SizedBox(height: 20),
                             _buildTermsCheckbox(),
+                            if (_otpSent && !_otpVerified) ...[
+                              const SizedBox(height: 20),
+                              _buildOTPField(),
+                            ],
                           ],
                         ),
                       ),
                       const SizedBox(height: 20),
-                      if (!_emailSent)
+                      if (!_otpSent)
                         MyButtons(
-                          text: "Send Verification Email",
-                          onTap: _sendVerificationEmail,
+                          text: "Send Verification OTP",
+                          onTap: _sendOTP,
                         ),
-                      if (_emailSent && !_emailVerified) ...[
+                      if (_otpSent && !_otpVerified) ...[
                         const SizedBox(height: 20),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -540,20 +733,59 @@ class _RegisterPageState extends State<RegisterPage>
                             color: Colors.grey[850],
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            "A verification email has been sent to your email address. Please verify your email to continue.",
-                            style: TextStyle(color: Colors.white),
-                            textAlign: TextAlign.center,
-                            softWrap: true,
+                          child: Column(
+                            children: [
+                              const Text(
+                                "A 6-digit OTP has been sent to your email address.",
+                                style: TextStyle(color: Colors.white),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Please check your inbox and enter the code above.",
+                                style: TextStyle(
+                                  color: Colors.orange[300],
+                                  fontSize: 12,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
                         MyButtons(
-                          text: "Resend Verification Email",
-                          onTap: _sendVerificationEmail,
+                          text: "Verify OTP",
+                          onTap: _verifyOTP,
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: _remainingSeconds > 0 ? null : _sendOTP,
+                          child: Text(
+                            _remainingSeconds > 0
+                                ? 'Resend OTP (${_formatTime(_remainingSeconds)})'
+                                : 'Resend OTP',
+                            style: TextStyle(
+                              color: _remainingSeconds > 0
+                                  ? Colors.grey
+                                  : AppColors.primaryColor,
+                            ),
+                          ),
                         ),
                       ],
-                      if (_emailVerified) ...[
+                      if (_otpVerified) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green[800],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "Email verified successfully!",
+                            style: TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                         const SizedBox(height: 20),
                         MyButtons(
                           text: "Create Account",
@@ -581,6 +813,10 @@ class _RegisterPageState extends State<RegisterPage>
           hintText: "Enter a valid email address",
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          enabled: !_otpSent,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(80),
+          ],
           onFieldSubmitted: (_) {
             _passwordFocusNode.requestFocus();
           },
@@ -607,16 +843,21 @@ class _RegisterPageState extends State<RegisterPage>
           controller: _passwordController,
           focusNode: _passwordFocusNode,
           showVisibilityIcon: true,
-          hintText: "Enter your password (6+ characters)",
+          hintText: "Enter your password (8+ characters)",
           textInputAction: TextInputAction.next,
+          enabled: !_otpSent,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(64),
+          ],
           onFieldSubmitted: (_) {
             _confirmPasswordFocusNode.requestFocus();
           },
           obscureText: true,
           validator: (value) {
             if (value?.isEmpty ?? true) return 'Enter your password';
-            if (value!.length < 6)
-              return 'Password must be at least 6 characters';
+            if (value!.length < 8) {
+              return 'Password must be at least 8 characters';
+            }
             return null;
           },
         ),
@@ -638,6 +879,10 @@ class _RegisterPageState extends State<RegisterPage>
           hintText: "Confirm Password",
           obscureText: true,
           textInputAction: TextInputAction.done,
+          enabled: !_otpSent,
+          inputFormatters: [
+            LengthLimitingTextInputFormatter(64),
+          ],
           onFieldSubmitted: (_) {
             _confirmPasswordFocusNode.unfocus();
           },

@@ -90,7 +90,7 @@ class _Userpreference3 extends State<Userpreference3> {
                     SizedBox(height: 5),
 
                     Text(
-                      'Now, we need to know your goal. This information, combined with your age, gender, and activity level, will help us create a personalized nutrition plan just for you.',
+                      'Now, we need to know your goal in using the application. This information, combined with your age, gender, and activity level, will help us create a personalized nutrition plan just for you.',
                       style: TextStyle(color: Colors.grey),
                     ),
 

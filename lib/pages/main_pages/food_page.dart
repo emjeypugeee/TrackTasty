@@ -111,6 +111,29 @@ class _FoodPageState extends State<FoodPage> {
     }
     _lastPressed = now;
 
+    // Show loading snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Adding ${food['food_name']} to your food log...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+
+        duration: Duration(seconds: 3), // Show for 3 seconds minimum
+      ),
+    );
+
     final user = FirebaseAuth.instance.currentUser;
     final today = DateTime.now();
     final foodLogId = '${user?.uid}_${today.year}-${today.month}-${today.day}';
@@ -178,16 +201,22 @@ class _FoodPageState extends State<FoodPage> {
             isImageLog: false,
             context: context);
 
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${food['food_name']} saved successfully!'),
+            backgroundColor: AppColors.snackBarBgSaved,
           ),
         );
         Navigator.pop(context); // Close food page and return to home
       } catch (e) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving food: $e'),
+            backgroundColor: AppColors.snackBarBgError,
           ),
         );
       }
