@@ -64,8 +64,87 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   // Editing username
-  void _showEditUsernameDialog(BuildContext context) {
-    TextEditingController usernameController = TextEditingController();
+  void _showEditUsernameDialog(BuildContext context) async {
+    final userProvider = context.read<UserProvider>();
+
+    // Fetch current user data first
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUser.email)
+          .get();
+
+      final currentUsername = userDoc.data()?['username']?.toString() ?? '';
+
+      TextEditingController usernameController =
+          TextEditingController(text: currentUsername);
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.containerBg,
+            title: Center(
+              child: Text(
+                'Change your username:',
+                style: TextStyle(color: AppColors.primaryText),
+              ),
+            ),
+            content: MyTextfield(
+              hintText: 'Nickname:',
+              obscureText: false,
+              controller: usernameController,
+            ),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: CustomTextButton(
+                      title: 'Back',
+                      onTap: () => Navigator.pop(context),
+                      size: 20,
+                    ),
+                  ),
+                  Expanded(
+                    child: MyButtons(
+                      text: 'Save',
+                      onTap: () async {
+                        bool success = await userProvider
+                            .updateUsername(usernameController.text);
+                        if (success && context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Nickname updated successfully!')),
+                          );
+                          refreshHomePage();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching username: $e");
+      // Show dialog with empty field if fetch fails
+      if (context.mounted) {
+        _showUsernameDialogWithController(context, TextEditingController());
+      }
+    }
+  }
+
+// Helper method to show dialog with controller
+  void _showUsernameDialogWithController(
+      BuildContext context, TextEditingController controller) {
     final userProvider = context.read<UserProvider>();
 
     showDialog(
@@ -74,14 +153,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
         backgroundColor: AppColors.containerBg,
         title: Center(
           child: Text(
-            'Change your nickname:',
+            'Change your username:',
             style: TextStyle(color: AppColors.primaryText),
           ),
         ),
         content: MyTextfield(
           hintText: 'Nickname:',
           obscureText: false,
-          controller: usernameController,
+          controller: controller,
         ),
         actions: [
           Row(
@@ -98,8 +177,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 child: MyButtons(
                   text: 'Save',
                   onTap: () async {
-                    bool success = await userProvider
-                        .updateUsername(usernameController.text);
+                    bool success =
+                        await userProvider.updateUsername(controller.text);
                     if (success && context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -942,7 +1021,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
-                    'Edit Username',
+                    'Update Username',
                     style:
                         TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
@@ -951,7 +1030,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
-                    'Edit Goals',
+                    'Update Goals',
                     style:
                         TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
@@ -960,7 +1039,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
-                    'Edit Food Preference',
+                    'Update Food Preference',
                     style:
                         TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),
@@ -973,7 +1052,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 ListTile(
                   leading: Icon(Icons.edit),
                   title: Text(
-                    'Edit Weight',
+                    'Update Weight',
                     style:
                         TextStyle(color: AppColors.primaryText, fontSize: 14),
                   ),

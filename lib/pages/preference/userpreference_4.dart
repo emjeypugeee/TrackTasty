@@ -31,7 +31,7 @@ class _Userpreference4 extends State<Userpreference4> {
   final TextEditingController weightController = TextEditingController();
   final TextEditingController goalWeightController = TextEditingController();
 
-  bool _isMetric = false;
+  bool _isMetric = true;
   final FocusNode _heightFocusNode = FocusNode();
   final FocusNode _weightFocusNode = FocusNode();
   final FocusNode _goalWeightFocusNode = FocusNode();
@@ -200,7 +200,7 @@ class _Userpreference4 extends State<Userpreference4> {
 
     // Weight conversion logic
     if (weightController.text.isNotEmpty) {
-      if (!isMetric) {
+      if (isMetric) {
         // Convert from Pounds (lbs) to Kilograms (kg)
         final lbs = double.tryParse(weightController.text) ?? 0;
         final kg = lbs * 0.453592;
@@ -215,7 +215,7 @@ class _Userpreference4 extends State<Userpreference4> {
 
     // Goal Weight conversion logic
     if (goalWeightController.text.isNotEmpty) {
-      if (!isMetric) {
+      if (isMetric) {
         // Convert from Pounds (lbs) to Kilograms (kg)
         final lbs = double.tryParse(goalWeightController.text) ?? 0;
         final kg = lbs * 0.453592;
@@ -360,7 +360,7 @@ class _Userpreference4 extends State<Userpreference4> {
                               child: MyTextfield(
                                 hintText: isMetric
                                     ? 'Height (50-300 cm)'
-                                    : 'Height (e.g., 5\'11" or 20-120 in)',
+                                    : 'Height (e.g., 5\'11 or 20-120 in)',
                                 obscureText: false,
                                 controller: heightController,
                                 suffixText: isMetric ? 'cm' : 'in',

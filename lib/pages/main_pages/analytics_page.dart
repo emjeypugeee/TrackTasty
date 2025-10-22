@@ -177,80 +177,67 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final currentDifference = effectiveCurrentWeight - goalWeight;
     final absoluteCurrentDifference = currentDifference.abs();
 
-    // Analyze progress between two most recent weights if available
-    String progressAnalysis = "";
+    // Combine both analyses into one connected message
+    String combinedAnalysis = "";
+
     if (previousWeight != null) {
       final weightChange = effectiveCurrentWeight - previousWeight;
       final absoluteWeightChange = weightChange.abs();
 
-      if (goal == "lose") {
+      if (goal == "Mild Lose Weight" || goal == "Lose Weight") {
         if (weightChange < 0) {
-          progressAnalysis =
-              " Amazing progress! You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. This shows your consistency is paying off!";
+          combinedAnalysis =
+              "Great progress! You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg and have ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go. Keep up this momentum!";
         } else if (weightChange > 0) {
-          progressAnalysis =
-              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Remember that weight fluctuations are normal, but consistent gains might slow your progress toward your goal.";
+          combinedAnalysis =
+              "You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg recently, but with ${absoluteCurrentDifference.toStringAsFixed(1)}kg left to your goal, you can get back on track by staying consistent.";
         } else {
-          progressAnalysis =
-              " Your weight has remained stable since your last measurement. Sometimes maintaining is a win too!";
+          combinedAnalysis =
+              "Your weight is holding steady with ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go. Maintaining consistency is a great foundation for progress.";
         }
-      } else if (goal == "gain") {
+      } else if (goal == "Mild Gain Weight" || goal == "Gain Weight") {
         if (weightChange > 0) {
-          progressAnalysis =
-              " Fantastic work! You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Your dedication to building mass is showing results!";
+          combinedAnalysis =
+              "Excellent work! You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg and have ${absoluteCurrentDifference.toStringAsFixed(1)}kg left to reach your goal.";
         } else if (weightChange < 0) {
-          progressAnalysis =
-              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg since your last measurement. Don't get discouraged - muscle building takes time and consistent effort.";
+          combinedAnalysis =
+              "You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg recently, but with ${absoluteCurrentDifference.toStringAsFixed(1)}kg still to gain, keep focusing on your nutrition to build momentum.";
         } else {
-          progressAnalysis =
-              " Your weight has remained stable since your last measurement. Stay patient and trust the process!";
+          combinedAnalysis =
+              "Your weight is stable with ${absoluteCurrentDifference.toStringAsFixed(1)}kg left to gain. Stay patient and trust the process.";
         }
-      } else if (goal == "maintain") {
+      } else if (goal == "Maintain Weight") {
         if (absoluteWeightChange < 0.5) {
-          progressAnalysis =
-              " Excellent maintenance! Your weight is staying right where you want it.";
+          combinedAnalysis =
+              "Perfect maintenance! You're staying consistent and just ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your target weight.";
         } else if (weightChange > 0) {
-          progressAnalysis =
-              " You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg. Small adjustments now can help you get back to your maintenance range easily.";
+          combinedAnalysis =
+              "You've gained ${absoluteWeightChange.toStringAsFixed(1)}kg and are now ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your target. Small adjustments will help you return to your maintenance range.";
         } else {
-          progressAnalysis =
-              " You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg. A slight course correction will help you maintain your target weight.";
+          combinedAnalysis =
+              "You've lost ${absoluteWeightChange.toStringAsFixed(1)}kg and are ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your goal. A slight course correction will get you back on track.";
         }
-      }
-    }
-
-    // Compare current weight with goal
-    String goalAnalysis = "";
-    if (goal == "lose" && currentDifference > 0) {
-      if (absoluteCurrentDifference < 2) {
-        goalAnalysis =
-            "You're doing incredible work! Just ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go until you reach your weight loss goal.";
-      } else {
-        goalAnalysis =
-            "You're making progress toward your weight loss goal with ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go. Every small step counts!";
-      }
-    } else if (goal == "gain" && currentDifference < 0) {
-      if (absoluteCurrentDifference < 2) {
-        goalAnalysis =
-            "You're so close to your weight gain goal - only ${absoluteCurrentDifference.toStringAsFixed(1)}kg left! Your consistency is really showing.";
-      } else {
-        goalAnalysis =
-            "You're on your way to gaining ${absoluteCurrentDifference.toStringAsFixed(1)}kg to reach your goal. Keep fueling your body properly!";
-      }
-    } else if (goal == "maintain") {
-      if (absoluteCurrentDifference < 1) {
-        goalAnalysis =
-            "Perfect maintenance! You're right where you want to be. This level of consistency is what long-term success looks like.";
-      } else {
-        goalAnalysis =
-            "You're ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your maintenance goal. Small, consistent adjustments will get you right back on track.";
       }
     } else {
-      goalAnalysis =
-          "Congratulations! You've reached your weight goal. Now the real work begins - maintaining this amazing achievement!";
+      // No previous weight data - use simple goal analysis
+      if ((goal == "Mild Lose Weight" || goal == "Lose Weight") &&
+          currentDifference > 0) {
+        combinedAnalysis =
+            "You're making progress toward your weight loss goal with ${absoluteCurrentDifference.toStringAsFixed(1)}kg to go. Every step counts!";
+      } else if ((goal == "Mild Gain Weight" || goal == "Gain Weight") &&
+          currentDifference < 0) {
+        combinedAnalysis =
+            "You're on your way to gaining ${absoluteCurrentDifference.toStringAsFixed(1)}kg to reach your goal. Keep fueling your progress!";
+      } else if (goal == "Maintain Weight") {
+        combinedAnalysis =
+            "You're ${absoluteCurrentDifference.toStringAsFixed(1)}kg from your maintenance goal. Consistent efforts will keep you on track.";
+      } else {
+        combinedAnalysis =
+            "Congratulations! You've reached your weight goal. Amazing achievement!";
+      }
     }
 
-    return goalAnalysis + progressAnalysis;
+    return combinedAnalysis;
   }
 
   String _analyzeCalorieConsistency(
@@ -439,6 +426,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         BarGraphContainer(
                           calorieGoal:
                               userData?['dailyCalories']?.toDouble() ?? 2000,
+                          fatGoal: userData?['fatsGram']?.toDouble() ?? 65,
+                          carbsGoal: userData?['carbsGram']?.toDouble() ?? 250,
+                          proteinGoal:
+                              userData?['proteinGram']?.toDouble() ?? 150,
                           isForecasting: isForecastingEnabled,
                           forecastData: forecastData,
                         ),

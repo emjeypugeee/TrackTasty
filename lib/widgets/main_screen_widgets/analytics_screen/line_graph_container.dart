@@ -397,18 +397,39 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipItems: (List<LineBarSpot> touchedSpots) {
                       return touchedSpots.map((spot) {
+                        final spotIndex = spot.spotIndex;
+                        final barIndex = spot.barIndex;
+
+                        // Check if this is forecast data
                         final isForecast = widget.isForecasting &&
-                            _forecastSpots.contains(
-                                spot); // Check if the point is forecasted
+                            barIndex == 2 && // Forecast data is at index 2
+                            _forecastSpots.isNotEmpty;
 
-                        // Calculate the actual date for the data point
-                        final startDate = widget.isForecasting
-                            ? DateTime.now().subtract(const Duration(days: 60))
-                            : DateTime.now()
-                                .subtract(Duration(days: _getMaxX().toInt()));
+                        DateTime date;
+                        String dateText;
 
-                        final date =
-                            startDate.add(Duration(days: spot.x.toInt()));
+                        if (isForecast) {
+                          // For forecast data, calculate date from x-value
+                          final startDate =
+                              DateTime.now().subtract(const Duration(days: 60));
+                          date = startDate.add(Duration(days: spot.x.toInt()));
+                          dateText = DateFormat('MMM d, y').format(date);
+                        } else if (barIndex == 0 &&
+                            spotIndex < _weightDates.length) {
+                          // For actual weight data, use the stored date from Firebase
+                          date = _weightDates[spotIndex];
+                          dateText = DateFormat('MMM d, y').format(date);
+                        } else {
+                          // For goal line or other data, calculate date from x-value
+                          final startDate = widget.isForecasting
+                              ? DateTime.now()
+                                  .subtract(const Duration(days: 60))
+                              : DateTime.now()
+                                  .subtract(Duration(days: _getMaxX().toInt()));
+                          date = startDate.add(Duration(days: spot.x.toInt()));
+                          dateText = DateFormat('MMM d, y').format(date);
+                        }
+
                         // Calculate BMI
                         final bmi = _calculateBMI(spot.y);
                         final bmiCategory = _getBMICategory(bmi);
@@ -416,7 +437,7 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
                         return LineTooltipItem(
                           '${spot.y.toStringAsFixed(1)} ${isMetric ? 'kg' : 'lbs'}\n'
                           'BMI: ${bmi.toStringAsFixed(1)} ($bmiCategory)\n'
-                          '${DateFormat('MMM d, y').format(date)}'
+                          '$dateText'
                           '${isForecast ? ' (forecasted)' : ''}',
                           TextStyle(
                             color: isForecast
@@ -571,18 +592,44 @@ class _LineGraphContainerState extends State<LineGraphContainer> {
   }
 
   double _getMinY() {
-    if (_weightHistory.isEmpty) return widget.goalWeight * 0.9;
-    final minWeight =
-        _weightHistory.map((spot) => spot.y).reduce((a, b) => a < b ? a : b);
-    return (minWeight * 0.95)
-        .clamp(widget.goalWeight * 0.8, widget.goalWeight * 1.2);
+    double minWeight = widget.goalWeight;
+
+    // Consider weight history
+    if (_weightHistory.isNotEmpty) {
+      final historyMin =
+          _weightHistory.map((spot) => spot.y).reduce((a, b) => a < b ? a : b);
+      minWeight = minWeight < historyMin ? minWeight : historyMin;
+    }
+
+    // Consider forecast data
+    if (widget.isForecasting && _forecastSpots.isNotEmpty) {
+      final forecastMin =
+          _forecastSpots.map((spot) => spot.y).reduce((a, b) => a < b ? a : b);
+      minWeight = minWeight < forecastMin ? minWeight : forecastMin;
+    }
+
+    // Add some padding (5% below the minimum value)
+    return minWeight * 0.95;
   }
 
   double _getMaxY() {
-    if (_weightHistory.isEmpty) return widget.goalWeight * 1.1;
-    final maxWeight =
-        _weightHistory.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
-    return (maxWeight * 1.05)
-        .clamp(widget.goalWeight * 0.8, widget.goalWeight * 1.2);
+    double maxWeight = widget.goalWeight;
+
+    // Consider weight history
+    if (_weightHistory.isNotEmpty) {
+      final historyMax =
+          _weightHistory.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
+      maxWeight = maxWeight > historyMax ? maxWeight : historyMax;
+    }
+
+    // Consider forecast data
+    if (widget.isForecasting && _forecastSpots.isNotEmpty) {
+      final forecastMax =
+          _forecastSpots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
+      maxWeight = maxWeight > forecastMax ? maxWeight : forecastMax;
+    }
+
+    // Add some padding (5% above the maximum value)
+    return maxWeight * 1.05;
   }
 }

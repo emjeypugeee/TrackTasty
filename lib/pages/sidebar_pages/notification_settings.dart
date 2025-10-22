@@ -6,6 +6,8 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationSettings extends StatefulWidget {
   const NotificationSettings({super.key});
@@ -21,21 +23,26 @@ class _NotificationSettingsState extends State<NotificationSettings> {
   // Notification settings state
   bool _notificationsEnabled = true;
   bool _mealRemindersEnabled = true;
-  bool _goalRemindersEnabled = true;
-  bool _streakRemindersEnabled = true;
-  bool _weeklySummaryEnabled = true;
+  bool _macroTrackingEnabled = true;
+  bool _weightRemindersEnabled = true;
   bool _educationalTipsEnabled = true;
-  bool _chatbotCheckinsEnabled = true;
   bool _progressRemindersEnabled = true;
+  bool _calorieAlertsEnabled = true;
 
   // Meal times
   TimeOfDay _breakfastTime = const TimeOfDay(hour: 8, minute: 0);
   TimeOfDay _lunchTime = const TimeOfDay(hour: 12, minute: 30);
   TimeOfDay _dinnerTime = const TimeOfDay(hour: 19, minute: 0);
 
-  // Weekly reminder day
-  int _weeklyReminderDay = 6;
-  TimeOfDay _weeklyReminderTime = const TimeOfDay(hour: 10, minute: 0);
+  // Progress check time
+  TimeOfDay _progressCheckTime = const TimeOfDay(hour: 19, minute: 0);
+
+  // Weekly weight log reminder day
+  int _weeklyWeightLogDay = 0; // Sunday
+  TimeOfDay _weeklyWeightLogTime = const TimeOfDay(hour: 9, minute: 0);
+
+  // Educational tips time
+  TimeOfDay _educationalTipsTime = const TimeOfDay(hour: 17, minute: 0);
 
   // SharedPreferences instance
   SharedPreferences? _prefs;
@@ -66,7 +73,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     tz.initializeTimeZones();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('launcher_icon');
 
     const InitializationSettings initializationSettings =
         InitializationSettings(
@@ -80,16 +87,14 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     setState(() {
       _notificationsEnabled = _prefs?.getBool('notificationsEnabled') ?? true;
       _mealRemindersEnabled = _prefs?.getBool('mealRemindersEnabled') ?? true;
-      _goalRemindersEnabled = _prefs?.getBool('goalRemindersEnabled') ?? true;
-      _streakRemindersEnabled =
-          _prefs?.getBool('streakRemindersEnabled') ?? true;
-      _weeklySummaryEnabled = _prefs?.getBool('weeklySummaryEnabled') ?? true;
+      _macroTrackingEnabled = _prefs?.getBool('macroTrackingEnabled') ?? true;
+      _weightRemindersEnabled =
+          _prefs?.getBool('weightRemindersEnabled') ?? true;
       _educationalTipsEnabled =
           _prefs?.getBool('educationalTipsEnabled') ?? true;
-      _chatbotCheckinsEnabled =
-          _prefs?.getBool('chatbotCheckinsEnabled') ?? true;
       _progressRemindersEnabled =
           _prefs?.getBool('progressRemindersEnabled') ?? true;
+      _calorieAlertsEnabled = _prefs?.getBool('calorieAlertsEnabled') ?? true;
 
       // Load times
       _breakfastTime = TimeOfDay(
@@ -107,11 +112,21 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         minute: _prefs?.getInt('dinnerTime_minute') ?? 0,
       );
 
-      _weeklyReminderDay = _prefs?.getInt('weeklyReminderDay') ?? 6;
+      _progressCheckTime = TimeOfDay(
+        hour: _prefs?.getInt('progressCheckTime_hour') ?? 19,
+        minute: _prefs?.getInt('progressCheckTime_minute') ?? 0,
+      );
 
-      _weeklyReminderTime = TimeOfDay(
-        hour: _prefs?.getInt('weeklyReminderTime_hour') ?? 10,
-        minute: _prefs?.getInt('weeklyReminderTime_minute') ?? 0,
+      _weeklyWeightLogDay = _prefs?.getInt('weeklyWeightLogDay') ?? 0;
+
+      _weeklyWeightLogTime = TimeOfDay(
+        hour: _prefs?.getInt('weeklyWeightLogTime_hour') ?? 9,
+        minute: _prefs?.getInt('weeklyWeightLogTime_minute') ?? 0,
+      );
+
+      _educationalTipsTime = TimeOfDay(
+        hour: _prefs?.getInt('educationalTipsTime_hour') ?? 17,
+        minute: _prefs?.getInt('educationalTipsTime_minute') ?? 0,
       );
     });
   }
@@ -120,13 +135,12 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     try {
       await _prefs?.setBool('notificationsEnabled', _notificationsEnabled);
       await _prefs?.setBool('mealRemindersEnabled', _mealRemindersEnabled);
-      await _prefs?.setBool('goalRemindersEnabled', _goalRemindersEnabled);
-      await _prefs?.setBool('streakRemindersEnabled', _streakRemindersEnabled);
-      await _prefs?.setBool('weeklySummaryEnabled', _weeklySummaryEnabled);
+      await _prefs?.setBool('macroTrackingEnabled', _macroTrackingEnabled);
+      await _prefs?.setBool('weightRemindersEnabled', _weightRemindersEnabled);
       await _prefs?.setBool('educationalTipsEnabled', _educationalTipsEnabled);
-      await _prefs?.setBool('chatbotCheckinsEnabled', _chatbotCheckinsEnabled);
       await _prefs?.setBool(
           'progressRemindersEnabled', _progressRemindersEnabled);
+      await _prefs?.setBool('calorieAlertsEnabled', _calorieAlertsEnabled);
 
       // Save times
       await _prefs?.setInt('breakfastTime_hour', _breakfastTime.hour);
@@ -135,10 +149,18 @@ class _NotificationSettingsState extends State<NotificationSettings> {
       await _prefs?.setInt('lunchTime_minute', _lunchTime.minute);
       await _prefs?.setInt('dinnerTime_hour', _dinnerTime.hour);
       await _prefs?.setInt('dinnerTime_minute', _dinnerTime.minute);
-      await _prefs?.setInt('weeklyReminderDay', _weeklyReminderDay);
-      await _prefs?.setInt('weeklyReminderTime_hour', _weeklyReminderTime.hour);
+      await _prefs?.setInt('progressCheckTime_hour', _progressCheckTime.hour);
       await _prefs?.setInt(
-          'weeklyReminderTime_minute', _weeklyReminderTime.minute);
+          'progressCheckTime_minute', _progressCheckTime.minute);
+      await _prefs?.setInt('weeklyWeightLogDay', _weeklyWeightLogDay);
+      await _prefs?.setInt(
+          'weeklyWeightLogTime_hour', _weeklyWeightLogTime.hour);
+      await _prefs?.setInt(
+          'weeklyWeightLogTime_minute', _weeklyWeightLogTime.minute);
+      await _prefs?.setInt(
+          'educationalTipsTime_hour', _educationalTipsTime.hour);
+      await _prefs?.setInt(
+          'educationalTipsTime_minute', _educationalTipsTime.minute);
 
       // Schedule notifications based on new settings
       _scheduleNotifications();
@@ -200,6 +222,8 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         body:
             'Don\'t forget to log your breakfast to stay on track with your goals.',
         time: _breakfastTime,
+        channelId: 'meal_reminders',
+        channelName: 'Meal Reminders',
       );
 
       _scheduleDailyNotification(
@@ -207,6 +231,8 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         title: 'Lunch Time! 🥗',
         body: 'What are you having for lunch? Log it to track your macros.',
         time: _lunchTime,
+        channelId: 'meal_reminders',
+        channelName: 'Meal Reminders',
       );
 
       _scheduleDailyNotification(
@@ -215,22 +241,114 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         body:
             'Complete your day by logging your dinner and reviewing your progress.',
         time: _dinnerTime,
+        channelId: 'meal_reminders',
+        channelName: 'Meal Reminders',
       );
     }
 
-    // Schedule weekly reminder
-    if (_weeklySummaryEnabled) {
-      _scheduleWeeklyNotification(
+    // Schedule macro tracking notifications
+    if (_macroTrackingEnabled) {
+      _scheduleDailyNotification(
         id: 4,
-        title: 'Weekly Progress Report',
+        title: 'Macro Check-in 📊',
         body:
-            'Check out your weekly progress and see how you\'re doing on your goals!',
-        day: _weeklyReminderDay,
-        time: _weeklyReminderTime,
+            'How are your macros looking today? Check your protein, carbs, and fats.',
+        time: const TimeOfDay(hour: 16, minute: 0),
+        channelId: 'macro_tracking',
+        channelName: 'Macro Tracking',
       );
     }
 
-    // ADD MORE NOTIFICATION HERE IN THE FUTURE
+    // Schedule progress notifications (check if user hasn't logged food today)
+    if (_progressRemindersEnabled) {
+      _scheduleDailyNotification(
+        id: 6,
+        title: 'Daily Log Reminder 📝',
+        body: 'Don\'t forget to log your meals today to maintain your streak!',
+        time: _progressCheckTime,
+        channelId: 'progress_reminders',
+        channelName: 'Progress Reminders',
+      );
+    }
+
+    // Schedule educational tips
+    if (_educationalTipsEnabled) {
+      _scheduleDailyNotification(
+        id: 7,
+        title: 'Nutrition Tip 💡',
+        body: _getRandomEducationalTip(),
+        time: _educationalTipsTime,
+        channelId: 'educational_tips',
+        channelName: 'Educational Tips',
+      );
+    }
+
+    // Schedule weekly weight log reminder
+    if (_weightRemindersEnabled) {
+      _scheduleWeeklyNotification(
+        id: 8,
+        title: 'Weekly Weight Log ⚖️',
+        body: 'Time to log your weekly weight to track your progress!',
+        day: _weeklyWeightLogDay,
+        time: _weeklyWeightLogTime,
+        channelId: 'weight_reminders',
+        channelName: 'Weight Reminders',
+      );
+    }
+  }
+
+  String _getRandomEducationalTip() {
+    final tips = [
+      'Did you know? Protein helps build and repair tissues - aim for 1.6-2.2g per kg of body weight!',
+      'Tip: Drinking water before meals can help with portion control and hydration.',
+      'Healthy fats like avocados and nuts are essential for hormone production and brain health.',
+      'Fiber-rich foods help with digestion and keep you feeling full longer. Aim for 25-30g daily!',
+      'Complex carbs like whole grains provide sustained energy throughout the day.',
+      'Meal timing: Eating protein with each meal helps maintain muscle mass and keeps you full.',
+      'Hydration tip: Your body needs about 30-35ml of water per kg of body weight daily.',
+      'Did you know? Sleep affects your hunger hormones - aim for 7-9 hours per night!',
+    ];
+    return tips[DateTime.now().day % tips.length];
+  }
+
+  Future<void> _checkAndSendProgressNotification() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('user_achievements')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final lastLoggedDate =
+            userDoc.data()?['last_logged_date'] as Timestamp?;
+        final today = DateTime.now();
+        final todayStart = DateTime(today.year, today.month, today.day);
+
+        if (lastLoggedDate == null ||
+            lastLoggedDate.toDate().isBefore(todayStart)) {
+          // User hasn't logged today
+          await flutterLocalNotificationsPlugin.show(
+            106,
+            'Daily Log Reminder 📝',
+            'You haven\'t logged any food today. Keep your streak going!',
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'progress_reminders',
+                'Progress Reminders',
+                channelDescription: 'Reminders to log your daily progress',
+                importance: Importance.defaultImportance,
+                priority: Priority.defaultPriority,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking progress: $e');
+    }
   }
 
   Future<void> _scheduleDailyNotification({
@@ -238,6 +356,8 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     required String title,
     required String body,
     required TimeOfDay time,
+    required String channelId,
+    required String channelName,
   }) async {
     final now = DateTime.now();
     final scheduledTime = DateTime(
@@ -258,11 +378,11 @@ class _NotificationSettingsState extends State<NotificationSettings> {
       title,
       body,
       tz.TZDateTime.from(scheduledDateTime, tz.local),
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          'meal_reminders',
-          'Meal Reminders',
-          channelDescription: 'Reminders to log your meals',
+          channelId,
+          channelName,
+          channelDescription: 'Channel for $channelName',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -278,6 +398,8 @@ class _NotificationSettingsState extends State<NotificationSettings> {
     required String body,
     required int day,
     required TimeOfDay time,
+    required String channelId,
+    required String channelName,
   }) async {
     final now = DateTime.now();
     final currentWeekday = now.weekday;
@@ -297,11 +419,11 @@ class _NotificationSettingsState extends State<NotificationSettings> {
       title,
       body,
       tz.TZDateTime.from(scheduledTime, tz.local),
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          'weekly_reminders',
-          'Weekly Reminders',
-          channelDescription: 'Weekly progress reports and reminders',
+          channelId,
+          channelName,
+          channelDescription: 'Channel for $channelName',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -312,42 +434,96 @@ class _NotificationSettingsState extends State<NotificationSettings> {
   }
 
   Future<void> _selectTime(
-      BuildContext context, bool isMealTime, int mealType) async {
+      BuildContext context, bool isMealTime, int selectionType) async {
+    TimeOfDay initialTime;
+
+    switch (selectionType) {
+      case 0: // Breakfast
+        initialTime = _breakfastTime;
+        break;
+      case 1: // Lunch
+        initialTime = _lunchTime;
+        break;
+      case 2: // Dinner
+        initialTime = _dinnerTime;
+        break;
+      case 3: // Weekly Weight Log
+        initialTime = _weeklyWeightLogTime;
+        break;
+      case 4: // Progress Check
+        initialTime = _progressCheckTime;
+        break;
+      case 5: // Educational Tips
+        initialTime = _educationalTipsTime;
+        break;
+      default:
+        initialTime = const TimeOfDay(hour: 12, minute: 0);
+    }
+
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: isMealTime
-          ? (mealType == 0
-              ? _breakfastTime
-              : (mealType == 1 ? _lunchTime : _dinnerTime))
-          : _weeklyReminderTime,
+      initialTime: initialTime,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primaryColor,
+              onPrimary: Colors.white,
+              surface: AppColors.containerBg,
+              onSurface: AppColors.primaryText,
+            ),
+            dialogTheme: DialogTheme(
+              backgroundColor: AppColors.containerBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryColor,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
       setState(() {
-        if (isMealTime) {
-          if (mealType == 0) {
+        switch (selectionType) {
+          case 0:
             _breakfastTime = picked;
-          } else if (mealType == 1) {
+            break;
+          case 1:
             _lunchTime = picked;
-          } else {
+            break;
+          case 2:
             _dinnerTime = picked;
-          }
-        } else {
-          _weeklyReminderTime = picked;
+            break;
+          case 3:
+            _weeklyWeightLogTime = picked;
+            break;
+          case 4:
+            _progressCheckTime = picked;
+            break;
+          case 5:
+            _educationalTipsTime = picked;
+            break;
         }
       });
       await _saveNotificationSettings();
     }
   }
 
-  void _selectWeeklyReminderDay() {
+  void _selectWeeklyWeightLogDay() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: AppColors.containerBg,
           title: Text(
-            'Select Day for Weekly Reminder',
+            'Select Day for Weekly Weight Log',
             style: TextStyle(color: AppColors.primaryText),
           ),
           content: SizedBox(
@@ -372,7 +548,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                   ),
                   onTap: () {
                     setState(() {
-                      _weeklyReminderDay = index;
+                      _weeklyWeightLogDay = index;
                     });
                     Navigator.of(context).pop();
                     _saveNotificationSettings();
@@ -384,6 +560,19 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         );
       },
     );
+  }
+
+  void _resetToDefaultTimes() {
+    setState(() {
+      _breakfastTime = const TimeOfDay(hour: 8, minute: 0);
+      _lunchTime = const TimeOfDay(hour: 12, minute: 30);
+      _dinnerTime = const TimeOfDay(hour: 19, minute: 0);
+      _weeklyWeightLogTime = const TimeOfDay(hour: 9, minute: 0);
+      _progressCheckTime = const TimeOfDay(hour: 19, minute: 0);
+      _educationalTipsTime = const TimeOfDay(hour: 17, minute: 0);
+      _weeklyWeightLogDay = 0; // Sunday
+    });
+    _saveNotificationSettings();
   }
 
   @override
@@ -432,25 +621,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
             ),
             const Divider(),
 
-            /* TEST NOTIF BUTTON
-            if (_notificationsEnabled) ...[
-              MyButtons(
-                text: '🔔 Send Test Notification',
-                onTap: _sendTestNotification,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Use this button to test if notifications are working:',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              const Divider(),
-            ],*/
+            const SizedBox(height: 10),
 
             // Meal Reminders Section
             Text(
@@ -497,75 +668,53 @@ class _NotificationSettingsState extends State<NotificationSettings> {
             ],
             const Divider(),
 
-            // Goal Reminders
+            // Macro Tracking
             SwitchListTile(
               activeColor: AppColors.primaryColor,
               title: Text(
-                'Goal Progress Reminders',
+                'Macro Tracking Reminders',
                 style: TextStyle(color: AppColors.primaryText),
               ),
               subtitle: Text(
-                'Get notified when you reach milestones',
+                'Get reminders to check your protein, carbs, and fats',
                 style: TextStyle(color: AppColors.secondaryText),
               ),
-              value: _goalRemindersEnabled,
+              value: _macroTrackingEnabled,
               onChanged: _notificationsEnabled
                   ? (value) {
                       setState(() {
-                        _goalRemindersEnabled = value;
+                        _macroTrackingEnabled = value;
                       });
                       _saveNotificationSettings();
                     }
                   : null,
             ),
 
-            // Streak Reminders
+            // Weekly Weight Log
             SwitchListTile(
               activeColor: AppColors.primaryColor,
               title: Text(
-                'Streak Reminders',
+                'Weekly Weight Log Reminder',
                 style: TextStyle(color: AppColors.primaryText),
               ),
               subtitle: Text(
-                'Celebrate your logging streaks',
+                'Get reminded to log your weekly weight',
                 style: TextStyle(color: AppColors.secondaryText),
               ),
-              value: _streakRemindersEnabled,
+              value: _weightRemindersEnabled,
               onChanged: _notificationsEnabled
                   ? (value) {
                       setState(() {
-                        _streakRemindersEnabled = value;
+                        _weightRemindersEnabled = value;
                       });
                       _saveNotificationSettings();
                     }
                   : null,
             ),
-
-            // Weekly Summary
-            SwitchListTile(
-              activeColor: AppColors.primaryColor,
-              title: Text(
-                'Weekly Progress Report',
-                style: TextStyle(color: AppColors.primaryText),
-              ),
-              subtitle: Text(
-                'Get a summary of your weekly progress',
-                style: TextStyle(color: AppColors.secondaryText),
-              ),
-              value: _weeklySummaryEnabled,
-              onChanged: _notificationsEnabled
-                  ? (value) {
-                      setState(() {
-                        _weeklySummaryEnabled = value;
-                      });
-                      _saveNotificationSettings();
-                    }
-                  : null,
-            ),
-            if (_weeklySummaryEnabled && _notificationsEnabled) ...[
+            if (_weightRemindersEnabled && _notificationsEnabled) ...[
               ListTile(
                 title: Text(
-                  'Weekly Reminder Day',
+                  'Weekly Weight Log Day',
                   style: TextStyle(color: AppColors.primaryText),
                 ),
                 trailing: Text(
@@ -577,51 +726,28 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                     'Thu',
                     'Fri',
                     'Sat'
-                  ][_weeklyReminderDay],
+                  ][_weeklyWeightLogDay],
                   style: TextStyle(color: AppColors.primaryText),
                 ),
-                onTap: _selectWeeklyReminderDay,
+                onTap: _selectWeeklyWeightLogDay,
               ),
               _buildTimeSetting(
-                'Weekly Reminder Time',
-                _weeklyReminderTime,
+                'Weekly Weight Log Time',
+                _weeklyWeightLogTime,
                 3,
-                isMealTime: false,
               ),
             ],
             const Divider(),
-
-            // Educational Tips
-            SwitchListTile(
-              activeColor: AppColors.primaryColor,
-              title: Text(
-                'Educational Tips',
-                style: TextStyle(color: AppColors.primaryText),
-              ),
-              subtitle: Text(
-                'Receive helpful nutrition tips',
-                style: TextStyle(color: AppColors.secondaryText),
-              ),
-              value: _educationalTipsEnabled,
-              onChanged: _notificationsEnabled
-                  ? (value) {
-                      setState(() {
-                        _educationalTipsEnabled = value;
-                      });
-                      _saveNotificationSettings();
-                    }
-                  : null,
-            ),
 
             // Progress Notifications
             SwitchListTile(
               activeColor: AppColors.primaryColor,
               title: Text(
-                'Progress Notifications',
+                'Daily Log Reminders',
                 style: TextStyle(color: AppColors.primaryText),
               ),
               subtitle: Text(
-                'Get notified when you\'re behind on your goals',
+                'Get notified if you haven\'t logged food today',
                 style: TextStyle(color: AppColors.secondaryText),
               ),
               value: _progressRemindersEnabled,
@@ -634,20 +760,68 @@ class _NotificationSettingsState extends State<NotificationSettings> {
                     }
                   : null,
             ),
+            if (_progressRemindersEnabled && _notificationsEnabled) ...[
+              _buildTimeSetting(
+                'Progress Check Time',
+                _progressCheckTime,
+                4,
+              ),
+            ],
 
-            const SizedBox(height: 20),
-            /*MyButtons(
-              text: 'Save Settings',
-              onTap: _saveNotificationSettings,
-            ),*/
+            // Educational Tips
+            SwitchListTile(
+              activeColor: AppColors.primaryColor,
+              title: Text(
+                'Educational Nutrition Tips',
+                style: TextStyle(color: AppColors.primaryText),
+              ),
+              subtitle: Text(
+                'Receive helpful nutrition and fitness tips',
+                style: TextStyle(color: AppColors.secondaryText),
+              ),
+              value: _educationalTipsEnabled,
+              onChanged: _notificationsEnabled
+                  ? (value) {
+                      setState(() {
+                        _educationalTipsEnabled = value;
+                      });
+                      _saveNotificationSettings();
+                    }
+                  : null,
+            ),
+            if (_educationalTipsEnabled && _notificationsEnabled) ...[
+              _buildTimeSetting(
+                'Educational Tips Time',
+                _educationalTipsTime,
+                5,
+              ),
+            ],
+
+            const Divider(),
+
+            if (_notificationsEnabled) ...[
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: _resetToDefaultTimes,
+                  child: Text(
+                    'Reset to Default Times',
+                    style: TextStyle(
+                      color: AppColors.primaryColor,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTimeSetting(String title, TimeOfDay time, int mealType,
-      {bool isMealTime = true}) {
+  Widget _buildTimeSetting(String title, TimeOfDay time, int selectionType) {
     return ListTile(
       title: Text(
         title,
@@ -657,7 +831,7 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         _formatTimeOfDay(time),
         style: TextStyle(color: AppColors.primaryText),
       ),
-      onTap: () => _selectTime(context, isMealTime, mealType),
+      onTap: () => _selectTime(context, true, selectionType),
     );
   }
 
