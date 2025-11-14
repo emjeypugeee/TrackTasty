@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:fitness/provider/user_provider.dart';
+import 'package:fitness/utils/achievement_utils.dart';
+import 'package:fitness/utils/macro_warning_utils.dart';
+import 'package:fitness/utils/goal_achievement_utils.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/circular_nutrition_progres.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/meals_container.dart';
 import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
 import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/widgets/main_screen_widgets/profile_screen/goal_celebration_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -46,6 +50,8 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _nutritionData;
   StreamSubscription<QuerySnapshot>? _foodLogSubscription;
 
+  bool _isGoalObjectivesExpanded = false;
+
   // Streak data
   int _currentStreak = 0;
   int _highestStreak = 0;
@@ -55,6 +61,30 @@ class _HomePageState extends State<HomePage> {
     _loadNutritionData();
     _loadStreakData();
     setState(() {});
+  }
+
+  // Refresh all data - similar to profile page
+  Future<void> _refreshData(BuildContext context) async {
+    debugPrint("🔄 Refreshing home page data...");
+
+    // Force refresh by triggering rebuild
+    if (mounted) {
+      setState(() {});
+    }
+
+    // Reload nutrition and streak data
+    await _loadNutritionData();
+    await _loadStreakData();
+
+    // Add a small delay to ensure data is reloaded
+    await Future.delayed(Duration(milliseconds: 500));
+
+    // Force rebuild again
+    if (mounted) {
+      setState(() {});
+    }
+
+    debugPrint("✅ Home page data refreshed");
   }
 
   @override
@@ -464,39 +494,86 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            children: [
-              // Calendar Section
-              _buildCalendarSection(),
+      body: RefreshIndicator(
+        onRefresh: () => _refreshData(context),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                // Calendar Section
+                _buildCalendarSection(),
 
-              // nutrition progress bar section
-              const SizedBox(height: 20),
-              _buildNutritionProgressSection(),
+                // nutrition progress bar section
+                const SizedBox(height: 20),
+                _buildNutritionProgressSection(),
 
-              // Progress Review Section
-              const SizedBox(height: 20),
-              _buildProgressReviewSection(),
+                // Goal Objectives Section
+                const SizedBox(height: 20),
+                _buildGoalObjectivesSection(),
 
-              /*
-               *  +++++++++++++++++
-               *  MEALS LOG SECTION
-               *  +++++++++++++++++
-               */
-              const SizedBox(height: 20),
-              const Row(
-                children: [
-                  Text(
-                    'Meals:',
-                    textAlign: TextAlign.start,
-                    style: TextStyle(color: Colors.white, fontSize: 35),
-                  ),
-                ],
-              ),
-              _buildMealsList(),
-            ],
+                // Progress Review Section
+                const SizedBox(height: 10),
+                _buildProgressReviewSection(),
+
+                // // TEST BUTTON
+                // ElevatedButton(
+                //   onPressed: () => MacroWarningUtils.testWarningDialog(context),
+                //   child: Text('Test Warning'),
+                // ),
+
+                // ElevatedButton(
+                //   onPressed: () {
+                //     final testAchievement = {
+                //       'goalType': 'Lose Weight',
+                //       'initialWeight': 70.0,
+                //       'goalWeight': 65.0,
+                //       'achievedWeight': 64.5,
+                //       'measurementSystem': 'Metric',
+                //       'isAchieved': true,
+                //     };
+
+                //     showDialog(
+                //       context: context,
+                //       builder: (context) => GoalCelebrationDialog(
+                //           achievementData: testAchievement),
+                //     );
+                //   },
+                //   child: Text('Test Goal Achievement'),
+                // ),
+
+                // ElevatedButton(
+                //   onPressed: () {
+                //     // Test with different streak values
+                //     final testStreakDays =
+                //         7; // You can change this to test different milestones (1, 7, 30, 60, 90, 100, etc.)
+
+                //     AchievementUtils.showStreakCelebrationDialog(
+                //       context,
+                //       testStreakDays,
+                //     );
+                //   },
+                //   child: Text('Test Streak Celebration'),
+                // ),
+
+                /*
+                 *  +++++++++++++++++
+                 *  MEALS LOG SECTION
+                 *  +++++++++++++++++
+                 */
+                const SizedBox(height: 10),
+                const Row(
+                  children: [
+                    Text(
+                      'Meals:',
+                      textAlign: TextAlign.start,
+                      style: TextStyle(color: Colors.white, fontSize: 35),
+                    ),
+                  ],
+                ),
+                _buildMealsList(),
+              ],
+            ),
           ),
         ),
       ),
@@ -905,6 +982,361 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  //
+  // OBJECTIVES SECTION
+  //
+  Widget _buildGoalObjectivesSection() {
+    // Only show on the most recent date (today)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+
+    if (selected != today) {
+      return const SizedBox();
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('user_achievements')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+          return const SizedBox();
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final achievementData = snapshot.data!.data() as Map<String, dynamic>;
+        final goalAchievements =
+            achievementData['goal_achievements'] as List<dynamic>? ?? [];
+
+        // Find the latest unachieved goal
+        Map<String, dynamic>? currentGoal;
+        for (final achievement in goalAchievements) {
+          final goal = achievement as Map<String, dynamic>;
+          final isAchieved = goal['isAchieved'] == true;
+
+          if (!isAchieved) {
+            currentGoal = goal;
+            break;
+          }
+        }
+
+        // If no current goal or it's achieved, don't show the section
+        if (currentGoal == null) {
+          return const SizedBox();
+        }
+
+        final foodLogsSinceGoal = currentGoal['foodLogsSinceGoal'] ?? 0;
+        final weightChangesSinceGoal =
+            currentGoal['weightChangesSinceGoal'] ?? 0;
+        final goalType = currentGoal['goalType'] ?? '';
+        final goalWeight = currentGoal['goalWeight'] ?? 0;
+        final initialWeight = currentGoal['initialWeight'] ?? 0;
+        final measurementSystem = currentGoal['measurementSystem'] ?? 'Metric';
+        final unit = measurementSystem == 'Metric' ? 'kg' : 'lbs';
+
+        // Calculate progress percentages
+        final foodLogsProgress = (foodLogsSinceGoal / 7).clamp(0.0, 1.0);
+        final weightChangesProgress =
+            (weightChangesSinceGoal / 2).clamp(0.0, 1.0);
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue.withOpacity(0.5), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header - Clickable to expand/collapse
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isGoalObjectivesExpanded = !_isGoalObjectivesExpanded;
+                  });
+                },
+                child: Row(
+                  children: [
+                    Icon(Icons.flag, color: Colors.blue, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Goal Objectives',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      _isGoalObjectivesExpanded
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                      color: Colors.blue,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Collapsed view - only show when not expanded
+              if (!_isGoalObjectivesExpanded) ...[
+                const SizedBox(height: 8),
+                // Quick progress overview
+                Row(
+                  children: [
+                    // Food logs progress
+                    _buildMiniProgressIndicator(
+                      current: foodLogsSinceGoal,
+                      total: 7,
+                      color: Colors.green,
+                      icon: Icons.restaurant,
+                    ),
+                    const SizedBox(width: 16),
+                    // Weight changes progress
+                    _buildMiniProgressIndicator(
+                      current: weightChangesSinceGoal,
+                      total: 2,
+                      color: Colors.orange,
+                      icon: Icons.monitor_weight,
+                    ),
+                    const Spacer(),
+                    // Goal info
+                    Flexible(
+                      child: Text(
+                        '$goalType: $goalWeight$unit',
+                        style: TextStyle(
+                          color: Colors.grey[300],
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Expanded view - show all details
+              if (_isGoalObjectivesExpanded) ...[
+                const SizedBox(height: 12),
+
+                // Goal Info
+                SizedBox(
+                  width: double.infinity,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Current Goal: $goalType',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Target: $goalWeight$unit (from $initialWeight$unit)',
+                          style: TextStyle(
+                            color: Colors.grey[300],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Requirements
+                Text(
+                  'Complete these requirements to achieve your goal:',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Food Logs Requirement
+                _buildRequirementItem(
+                  icon: Icons.restaurant,
+                  title: '7 Days of Food Logging',
+                  progress: foodLogsProgress,
+                  current: foodLogsSinceGoal,
+                  total: 7,
+                  color: Colors.green,
+                ),
+                const SizedBox(height: 12),
+
+                // Weight Changes Requirement
+                _buildRequirementItem(
+                  icon: Icons.monitor_weight,
+                  title: '2 Weight Updates',
+                  progress: weightChangesProgress,
+                  current: weightChangesSinceGoal,
+                  total: 2,
+                  color: Colors.orange,
+                ),
+                const SizedBox(height: 8),
+
+                // Status message
+                if (foodLogsSinceGoal >= 7 && weightChangesSinceGoal >= 2)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'All requirements met! Reach your goal weight to achieve this goal.',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Text(
+                    'Keep tracking your meals and weight to meet the requirements!',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper method for mini progress indicators in collapsed view
+  Widget _buildMiniProgressIndicator({
+    required int current,
+    required int total,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          '$current/$total',
+          style: TextStyle(
+            color: current >= total ? Colors.green : Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper method to build requirement items
+  Widget _buildRequirementItem({
+    required IconData icon,
+    required String title,
+    required double progress,
+    required int current,
+    required int total,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              '$current/$total',
+              style: TextStyle(
+                color: current >= total ? Colors.green : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Progress bar
+        Container(
+          height: 6,
+          width: double.infinity, // FIX: Use full width
+          decoration: BoxDecoration(
+            color: Colors.grey[700],
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Stack(
+            children: [
+              // Background
+              Container(
+                height: 6,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[700],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              // Progress
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    height: 6,
+                    width: constraints.maxWidth * progress,
+                    decoration: BoxDecoration(
+                      color: current >= total ? Colors.green : color,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMealsList() {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
@@ -1040,11 +1472,30 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _handleEditMeal(Map<String, dynamic> food) {
+  void _handleEditMeal(Map<String, dynamic> food) async {
     if (widget.onEditMeal != null) {
       widget.onEditMeal!(context, food);
     }
     refreshData();
+
+    // ADD THIS: Check warnings after edit
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final today = DateTime.now();
+      final foodLogId = '${user.uid}_${today.year}-${today.month}-${today.day}';
+      final foodLogDoc = await FirebaseFirestore.instance
+          .collection('food_logs')
+          .doc(foodLogId)
+          .get();
+
+      if (foodLogDoc.exists && mounted) {
+        final foodLogData = foodLogDoc.data() as Map<String, dynamic>;
+        await MacroWarningUtils.checkAndShowMacroWarnings(
+          context,
+          foodLogData,
+        );
+      }
+    }
   }
 
   void _handleDeleteMeal(Map<String, dynamic> food) async {
@@ -1153,9 +1604,6 @@ class _HomePageState extends State<HomePage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Meal deleted successfully')),
           );
-
-          // Refresh the data
-          refreshData();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Meal not found')),

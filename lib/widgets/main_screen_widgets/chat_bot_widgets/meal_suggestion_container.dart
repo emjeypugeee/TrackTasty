@@ -1,5 +1,6 @@
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/utils/achievement_utils.dart';
+import 'package:fitness/utils/macro_warning_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -101,6 +102,11 @@ class _MealSuggestionContainerState extends State<MealSuggestionContainer> {
           isImageLog: false,
           context: context);
 
+      await MacroWarningUtils.checkAndShowMacroWarnings(
+        context,
+        foodLogData,
+      );
+
       setState(() {
         _isAdding = false;
         _isAdded = true;
@@ -110,8 +116,9 @@ class _MealSuggestionContainerState extends State<MealSuggestionContainer> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content:
-                Text('${widget.mealData['meal_name']} added successfully!')),
+          content: Text('${widget.mealData['meal_name']} added successfully!'),
+          backgroundColor: AppColors.snackBarBgSaved,
+        ),
       );
     } catch (e) {
       setState(() => _isAdding = false);

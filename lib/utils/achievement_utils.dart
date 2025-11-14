@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fitness/utils/goal_achievement_utils.dart';
 import 'package:flutter/material.dart';
 
 class AchievementUtils {
@@ -48,8 +49,8 @@ class AchievementUtils {
       }
 
       // Update daily streak and highest streak
-      final streakUpdate =
-          await _updateDailyStreak(achievementDoc, achievementData);
+      final streakUpdate = await _updateDailyStreak(
+          userId, achievementDoc, achievementData, context);
       if (streakUpdate.isNotEmpty) {
         achievementsEarned.add(streakUpdate);
       }
@@ -140,14 +141,23 @@ class AchievementUtils {
   }
 
   static Future<String> _updateDailyStreak(
+    String userId,
     DocumentReference achievementDoc,
     Map<String, dynamic> achievementData,
+    BuildContext context,
   ) async {
     final lastLoggedDate = achievementData['last_logged_date'];
     final currentStreak = achievementData['daily_streak'] ?? 0;
     final highestStreak = achievementData['highest_streak'] ?? 0;
     final today = DateTime.now();
     final yesterday = today.subtract(const Duration(days: 1));
+
+    debugPrint('Checking daily streak...');
+    debugPrint('Last logged date: $lastLoggedDate');
+    debugPrint('Current streak: $currentStreak');
+    debugPrint('Highest streak: $highestStreak');
+
+    String streakUpdate = '';
 
     if (lastLoggedDate == null) {
       // First time logging - start streak at 1
@@ -161,9 +171,16 @@ class AchievementUtils {
         'last_logged_date': Timestamp.fromDate(today)
       }, SetOptions(merge: true));
 
-      debugPrint(
-          'First food log - streak started: $newStreak, highest: $newHighestStreak');
-      return 'Daily streak started!';
+      await GoalAchievementUtils.updateGoalProgress(
+        userId: userId,
+        updateType: 'food_log',
+      );
+
+      debugPrint('First food log - streak started: $newStreak');
+      streakUpdate = 'Daily streak started!';
+
+      // Show celebration for first streak immediately
+      showStreakCelebrationDialog(context, newStreak);
     } else {
       final lastDate = (lastLoggedDate as Timestamp).toDate();
 
@@ -171,15 +188,13 @@ class AchievementUtils {
       if (lastDate.year == today.year &&
           lastDate.month == today.month &&
           lastDate.day == today.day) {
-        // Already logged today, no change to streak
         debugPrint('Already logged today - streak unchanged: $currentStreak');
-        return '';
+        streakUpdate = '';
       }
       // Check if logged yesterday (continuing streak)
       else if (lastDate.year == yesterday.year &&
           lastDate.month == yesterday.month &&
           lastDate.day == yesterday.day) {
-        // Logged yesterday, continue streak
         final newStreak = currentStreak + 1;
         final newHighestStreak =
             newStreak > highestStreak ? newStreak : highestStreak;
@@ -190,53 +205,364 @@ class AchievementUtils {
           'last_logged_date': Timestamp.fromDate(today)
         }, SetOptions(merge: true));
 
-        debugPrint(
-            'Streak continued: $newStreak days, highest: $newHighestStreak');
+        await GoalAchievementUtils.updateGoalProgress(
+          userId: userId,
+          updateType: 'food_log',
+        );
 
-        // Check if this equals or exceeds highest streak
-        if (newStreak >= highestStreak) {
-          return 'Daily streak: $newStreak days! 🏆 New record!';
-        } else {
-          return 'Daily streak: $newStreak days!';
-        }
+        debugPrint('Streak continued: $newStreak days');
+        streakUpdate = 'Daily streak: $newStreak days!';
+
+        // Always show celebration when streak increases (first log today)
+        debugPrint('🎉 Streak increased to: $newStreak days');
+
+        showStreakCelebrationDialog(context, newStreak);
       }
       // Streak broken (missed one or more days)
       else {
-        // Calculate days since last log
-        final daysSinceLastLog = today.difference(lastDate).inDays;
+        final newStreak = 1;
+        final newHighestStreak = highestStreak;
 
-        // If it's been more than 1 day, streak is broken
-        if (daysSinceLastLog > 1) {
-          final newStreak = 1;
-          // Highest streak remains unchanged (it only increases, never decreases)
-          final newHighestStreak = highestStreak;
+        await achievementDoc.set({
+          'daily_streak': newStreak,
+          'highest_streak': newHighestStreak,
+          'last_logged_date': Timestamp.fromDate(today)
+        }, SetOptions(merge: true));
 
-          await achievementDoc.set({
-            'daily_streak': newStreak,
-            'highest_streak': newHighestStreak,
-            'last_logged_date': Timestamp.fromDate(today)
-          }, SetOptions(merge: true));
+        await GoalAchievementUtils.updateGoalProgress(
+          userId: userId,
+          updateType: 'food_log',
+        );
 
-          debugPrint(
-              'Streak broken after $daysSinceLastLog days - reset to 1, highest remains: $newHighestStreak');
-          return 'New streak started!';
-        } else {
-          // This case should not happen due to previous checks, but included for safety
-          final newStreak = 1;
-          final newHighestStreak =
-              newStreak > highestStreak ? newStreak : highestStreak;
-
-          await achievementDoc.set({
-            'daily_streak': newStreak,
-            'highest_streak': newHighestStreak,
-            'last_logged_date': Timestamp.fromDate(today)
-          }, SetOptions(merge: true));
-
-          debugPrint(
-              'Unexpected date scenario - reset to 1, highest: $newHighestStreak');
-          return 'New streak started!';
-        }
+        debugPrint('Streak broken - reset to 1');
+        streakUpdate = 'New streak started!';
+        showStreakCelebrationDialog(context, newStreak);
       }
+    }
+
+    return streakUpdate;
+  }
+
+  static Future<void> showStreakCelebrationDialog(
+    BuildContext context,
+    int streakDays,
+  ) async {
+    debugPrint(
+        '🎊 showStreakCelebrationDialog called! Streak: $streakDays days');
+
+    if (!context.mounted) {
+      debugPrint('❌ Context is not mounted. Cannot show dialog.');
+      return;
+    }
+
+    final celebrationMessage = _getStreakCelebrationMessage(streakDays);
+    final milestoneTitle = _getMilestoneTitle(streakDays);
+    final streakColor = _getStreakColor(streakDays);
+
+    // Delay showing the dialog to ensure the bottom sheet is completely closed
+    Future.delayed(Duration(milliseconds: 100), () {
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          debugPrint('🎉 Displaying streak celebration dialog...');
+          return AlertDialog(
+            backgroundColor: Colors.grey[900],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: streakColor.withOpacity(0.7),
+                width: 3,
+              ),
+            ),
+            title: Center(
+              child: Text(
+                milestoneTitle,
+                style: TextStyle(
+                  color: streakColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Celebration icon
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: streakColor.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _getStreakIcon(streakDays),
+                      size: 60,
+                      color: streakColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Achievement message
+                Text(
+                  celebrationMessage,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                // Streak details
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Current Streak:',
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                          Text(
+                            '$streakDays days',
+                            style: TextStyle(
+                              color: streakColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Milestone:',
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                          Text(
+                            _getMilestoneDescription(streakDays),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Status:',
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                          Text(
+                            _getStreakStatus(streakDays),
+                            style: TextStyle(
+                              color: Colors.greenAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Motivational tip
+                Text(
+                  _getMotivationalTip(streakDays),
+                  style: TextStyle(
+                    color: Colors.grey[300],
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: SizedBox.shrink(),
+                  ),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        debugPrint('🎉 Streak celebration dialog dismissed.');
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.grey[700],
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Keep Going!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            actionsAlignment: MainAxisAlignment.center,
+          );
+        },
+      );
+    });
+  }
+
+  /// Helper method to get milestone description
+  static String _getMilestoneDescription(int streakDays) {
+    if (streakDays == 1) return 'First Day';
+    if (streakDays == 7) return 'One Week';
+    if (streakDays == 30) return 'One Month';
+    if (streakDays == 60) return 'Two Months';
+    if (streakDays == 90) return 'Three Months';
+    if (streakDays == 100) return '100 Days';
+    if (streakDays % 100 == 0) return '${streakDays ~/ 100}00 Days';
+    if (streakDays % 50 == 0) return '${streakDays} Days';
+    return 'Amazing Progress';
+  }
+
+  /// Helper method to get streak status
+  static String _getStreakStatus(int streakDays) {
+    if (streakDays == 1) return 'Getting Started';
+    if (streakDays <= 7) return 'Building Habit';
+    if (streakDays <= 30) return 'Consistent';
+    if (streakDays <= 90) return 'Dedicated';
+    return 'Unstoppable';
+  }
+
+  /// Get randomized celebration message based on streak days
+  static String _getStreakCelebrationMessage(int streakDays) {
+    final messages = <String>[];
+
+    if (streakDays == 1) {
+      messages.addAll([
+        'Amazing start! Your fitness journey begins now! 🚀',
+        'First day down, many more to go! You\'ve got this! 💪',
+        'The first step is always the hardest - great job starting! 🌟'
+      ]);
+    } else if (streakDays == 7) {
+      messages.addAll([
+        'One week strong! You\'re building incredible habits! 📈',
+        '7 days of consistency! You\'re officially unstoppable! 🔥',
+        'A whole week! Your dedication is truly inspiring! ✨'
+      ]);
+    } else if (streakDays == 30) {
+      messages.addAll([
+        'One month of dedication! You\'re a tracking superstar! 🌙',
+        '30 days strong! Your commitment is paying off! 🏆',
+        'A full month! You\'ve turned tracking into a lifestyle! 💫'
+      ]);
+    } else if (streakDays == 60) {
+      messages.addAll([
+        'Two months of consistency! You\'re building legendary habits! ⚡',
+        '60 days strong! Your perseverance is incredible! 🌟',
+        'Two months down! You\'re mastering your nutrition! 🥇'
+      ]);
+    } else if (streakDays == 90) {
+      messages.addAll([
+        'Three months! You\'ve achieved what most only dream of! 🏅',
+        '90 days of excellence! You\'re a tracking champion! 💎',
+        'Quarter year strong! Your transformation is amazing! 🔥'
+      ]);
+    } else if (streakDays == 100) {
+      messages.addAll([
+        '100 days! You\'ve reached elite status! 💯',
+        'Century streak! Your dedication is absolutely phenomenal! 🌈',
+        '100 days strong! You\'re an inspiration to everyone! 🚀'
+      ]);
+    } else if (streakDays % 50 == 0) {
+      messages.addAll([
+        '$streakDays days! You\'re on an incredible journey! 🌟',
+        '$streakDays days strong! Your consistency is remarkable! 💪',
+        '$streakDays days of tracking! You\'re achieving greatness! ✨'
+      ]);
+    } else {
+      // Generic messages for other milestones
+      messages.addAll([
+        '$streakDays days strong! Keep up the amazing work! 🔥',
+        'Incredible! $streakDays days of consistent tracking! 🌟',
+        'Your $streakDays-day streak is absolutely inspiring! 💫'
+      ]);
+    }
+
+    // Return random message
+    return messages[DateTime.now().millisecondsSinceEpoch % messages.length];
+  }
+
+  /// Get milestone title based on streak days
+  static String _getMilestoneTitle(int streakDays) {
+    if (streakDays == 1) return 'Streak Started! 🎉';
+    if (streakDays == 7) return 'Weekly Warrior! 🏆';
+    if (streakDays == 30) return 'Monthly Master! 🌙';
+    if (streakDays == 60) return 'Two-Month Titan! ⚡';
+    if (streakDays == 90) return 'Quarter Champion! 💎';
+    if (streakDays == 100) return 'Century Club! 💯';
+    if (streakDays % 100 == 0) return '${streakDays ~/ 100}00 Days! 🎊';
+    if (streakDays % 50 == 0) return '${streakDays} Days! ✨';
+
+    return 'Streak Milestone! 🎉';
+  }
+
+  /// Get color based on streak length
+  static Color _getStreakColor(int streakDays) {
+    if (streakDays == 1) return Colors.blue;
+    if (streakDays <= 7) return Colors.green;
+    if (streakDays <= 30) return Colors.orange;
+    if (streakDays <= 90) return Colors.red;
+    return Colors.purple;
+  }
+
+  /// Get icon based on streak length
+  static IconData _getStreakIcon(int streakDays) {
+    if (streakDays == 1) return Icons.flag;
+    if (streakDays <= 7) return Icons.local_fire_department;
+    if (streakDays <= 30) return Icons.emoji_events;
+    if (streakDays <= 90) return Icons.workspace_premium;
+    return Icons.auto_awesome;
+  }
+
+  /// Get motivational tip based on streak
+  static String _getMotivationalTip(int streakDays) {
+    if (streakDays == 1) {
+      return 'Tip: Try to log at the same time each day to build a strong habit.';
+    } else if (streakDays <= 7) {
+      return 'Tip: Consistency beats perfection. Keep showing up every day!';
+    } else if (streakDays <= 30) {
+      return 'Tip: Review your weekly progress to see how far you\'ve come.';
+    } else {
+      return 'Tip: You\'ve built a powerful habit. Consider setting new challenges!';
     }
   }
 

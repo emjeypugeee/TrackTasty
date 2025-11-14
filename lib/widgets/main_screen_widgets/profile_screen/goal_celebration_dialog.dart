@@ -1,423 +1,224 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fitness/pages/main_pages/home_page.dart';
-import 'package:fitness/provider/user_provider.dart';
-import 'package:fitness/utils/goal_achievement_utils.dart';
-import 'package:fitness/widgets/components/my_buttons.dart';
-import 'package:fitness/widgets/components/my_textfield.dart';
-import 'package:fitness/theme/app_color.dart';
-import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/about_us_widget.dart';
-import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/faq_widget.dart';
-import 'package:fitness/widgets/main_screen_widgets/bottom_sheet_widgets/terms_conditions_widget.dart';
-import 'package:fitness/widgets/main_screen_widgets/profile_screen/goal_celebration_dialog.dart';
-import 'package:fitness/widgets/text_button.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fitness/provider/user_provider.dart';
+import 'package:fitness/theme/app_color.dart';
+import 'package:fitness/widgets/text_button.dart';
+import 'package:fitness/widgets/components/my_buttons.dart';
 
-class CustomDrawer extends StatefulWidget {
-  const CustomDrawer({super.key});
+class GoalCelebrationDialog extends StatelessWidget {
+  final Map<String, dynamic> achievementData;
 
-  @override
-  State<CustomDrawer> createState() => _CustomDrawerState();
-}
-
-class _CustomDrawerState extends State<CustomDrawer> {
-  // get user data
-  bool isMetric = false;
-  bool isAdmin = false;
-  Future<void> signOutUser() async {
-    await FirebaseAuth.instance.signOut();
-  }
+  const GoalCelebrationDialog({required this.achievementData});
 
   @override
-  void initState() {
-    super.initState();
-    _loadCurrentMeasurement();
-  }
+  Widget build(BuildContext context) {
+    final goalType = achievementData['goalType'];
+    final initialWeight = achievementData['initialWeight'];
+    final goalWeight = achievementData['goalWeight'];
+    final achievedWeight = achievementData['achievedWeight'];
+    final isMetric = achievementData['measurementSystem'] == 'Metric';
+    final unit = isMetric ? 'kg' : 'lbs';
 
-  void refreshHomePage() {
-    if (homePageKey.currentState != null) {
-      homePageKey.currentState!.setState(() {});
-    }
-  }
-
-  Future<void> _loadCurrentMeasurement() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) return;
-
-    final doc = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user.email)
-        .get();
-
-    if (doc.exists) {
-      setState(() {
-        final measurementSystem = doc.data()?['measurementSystem'];
-        debugPrint("User's measurement System: $measurementSystem");
-        isMetric = measurementSystem == "Metric";
-        isAdmin = doc.data()?['isAdmin'] ?? false;
-      });
-    }
-  }
-
-  // Editing username
-  void _showEditUsernameDialog(BuildContext context) async {
-    final userProvider = context.read<UserProvider>();
-
-    // Fetch current user data first
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(currentUser.email)
-          .get();
-
-      final currentUsername = userDoc.data()?['username']?.toString() ?? '';
-
-      TextEditingController usernameController =
-          TextEditingController(text: currentUsername);
-
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: AppColors.containerBg,
-            title: Center(
-              child: Text(
-                'Change your username:',
-                style: TextStyle(color: AppColors.primaryText),
-              ),
-            ),
-            content: MyTextfield(
-              hintText: 'Nickname:',
-              obscureText: false,
-              controller: usernameController,
-            ),
-            actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Expanded(
-                    child: CustomTextButton(
-                      title: 'Back',
-                      onTap: () => Navigator.pop(context),
-                      size: 20,
-                    ),
-                  ),
-                  Expanded(
-                    child: MyButtons(
-                      text: 'Save',
-                      onTap: () async {
-                        bool success = await userProvider
-                            .updateUsername(usernameController.text);
-                        if (success && context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Nickname updated successfully!')),
-                          );
-                          refreshHomePage();
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint("❌ Error fetching username: $e");
-      // Show dialog with empty field if fetch fails
-      if (context.mounted) {
-        _showUsernameDialogWithController(context, TextEditingController());
-      }
-    }
-  }
-
-// Helper method to show dialog with controller
-  void _showUsernameDialogWithController(
-      BuildContext context, TextEditingController controller) {
-    final userProvider = context.read<UserProvider>();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.containerBg,
-        title: Center(
-          child: Text(
-            'Change your username:',
-            style: TextStyle(color: AppColors.primaryText),
+    return AlertDialog(
+      backgroundColor: Colors.grey[900],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: Colors.yellow.withOpacity(0.7),
+          width: 3,
+        ),
+      ),
+      title: Center(
+        child: Text(
+          '🎉 Goal Achieved! 🎉',
+          style: TextStyle(
+            color: Colors.yellow,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
-        content: MyTextfield(
-          hintText: 'Nickname:',
-          obscureText: false,
-          controller: controller,
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Expanded(
-                child: CustomTextButton(
-                  title: 'Back',
-                  onTap: () => Navigator.pop(context),
-                  size: 20,
-                ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Celebration icon
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.yellow.withOpacity(0.2),
+                shape: BoxShape.circle,
               ),
-              Expanded(
-                child: MyButtons(
-                  text: 'Save',
-                  onTap: () async {
-                    bool success =
-                        await userProvider.updateUsername(controller.text);
-                    if (success && context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Nickname updated successfully!')),
-                      );
-                      refreshHomePage();
-                    }
-                  },
-                ),
+              child: Icon(
+                Icons.emoji_events,
+                size: 60,
+                color: Colors.yellow,
               ),
-            ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Achievement message
+          Text(
+            'Congratulations! You have successfully reached your $goalType goal!',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+
+          // Progress details
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Starting Weight:',
+                      style: TextStyle(color: Colors.grey[400]),
+                    ),
+                    Text(
+                      '$initialWeight $unit',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Goal Weight:',
+                      style: TextStyle(color: Colors.grey[400]),
+                    ),
+                    Text(
+                      '$goalWeight $unit',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Achieved Weight:',
+                      style: TextStyle(color: Colors.grey[400]),
+                    ),
+                    Text(
+                      '$achievedWeight $unit',
+                      style: TextStyle(
+                        color: Colors.greenAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Success message
+          Text(
+            'This amazing achievement has been recorded in your profile! Ready for your next challenge?',
+            style: TextStyle(
+              color: Colors.grey[300],
+              fontSize: 14,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
-    );
-  }
-
-  //
-// EDIT WEIGHT DIALOG
-//
-  void _showEditWeightDialog(BuildContext context) async {
-    double screenWidth = MediaQuery.of(context).size.width;
-
-    final formKey = GlobalKey<FormState>();
-    TextEditingController editWeightController = TextEditingController();
-    FocusNode editWeightNode = FocusNode();
-
-    final today = DateTime.now();
-
-    // Fetch current user weight
-    final user = FirebaseAuth.instance.currentUser;
-    double currentWeight = 0.0;
-
-    if (user != null && user.email != null) {
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(user.email)
-            .get();
-
-        if (userDoc.exists) {
-          final userData = userDoc.data();
-          currentWeight = (userData?['weight'] ?? 0.0).toDouble();
-          // Pre-populate the controller with current weight
-          editWeightController.text = currentWeight.toString();
-        }
-      } catch (e) {
-        debugPrint("❌ Error fetching current weight: $e");
-      }
-    }
-
-    Future<bool> saveUserPreferences(double weight) async {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && user.email != null) {
-        await FirebaseFirestore.instance
-            .collection("Users")
-            .doc(user.email)
-            .set({
-          'weight': weight,
-        }, SetOptions(merge: true));
-
-        // Update goal progress for weight changes
-        await GoalAchievementUtils.updateGoalProgress(
-          userId: user.uid,
-          updateType: 'weight_change',
-        );
-
-        await FirebaseFirestore.instance
-            .collection('weight_history')
-            .doc('${user.uid}_${DateFormat('yyyy-MM-dd').format(today)}')
-            .set({
-          'userId': user.uid,
-          'weight': weight,
-          'date': Timestamp.now(),
-        }, SetOptions(merge: true));
-
-        return true;
-      }
-      return false;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: AppColors.containerBg,
-            title: Text(
-              'Update Weight',
-              style: TextStyle(
-                  color: AppColors.primaryText,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 27),
-            ),
-            content: Form(
-              key: formKey,
-              child: SizedBox(
-                width: screenWidth * 1,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Weight:',
-                            style: TextStyle(
-                                color: AppColors.primaryText, fontSize: 20),
-                            textAlign: TextAlign.left,
-                          ),
-                        ],
-                      ),
-                      MyTextfield(
-                        hintText: isMetric
-                            ? 'Weight (20-300 kg)'
-                            : 'Weight (40-660 lbs)',
-                        obscureText: false,
-                        focusNode: editWeightNode,
-                        suffixText: isMetric ? 'kg' : 'lb',
-                        textInputAction: TextInputAction.next,
-                        onFieldSubmitted: (_) {
-                          editWeightNode.unfocus();
-                        },
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r"[0-9\.']")),
-                          LengthLimitingTextInputFormatter(6),
-                          _MacroInputFormatter(),
-                        ],
-                        keyboardType:
-                            TextInputType.numberWithOptions(decimal: true),
-                        controller: editWeightController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your weight';
-                          }
-                          final weight = double.tryParse(value) ?? 0;
-
-                          if (isMetric && (weight < 20 || weight > 300)) {
-                            return 'Weight should be around 20-300 kg';
-                          } else if (!isMetric &&
-                              (weight < 40 || weight > 660)) {
-                            return 'Weight should be around 40-660 lbs';
-                          }
-
-                          final regex = RegExp(r'^\d{1,3}(\.\d{0,2})?$');
-                          if (!regex.hasMatch(value)) {
-                            return 'Invalid format';
-                          }
-
-                          if (value.length > 6) {
-                            return 'Max 6 chars';
-                          }
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: 30),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          Expanded(
-                            child: MyButtons(
-                              text: 'Save',
-                              onTap: () async {
-                                if (formKey.currentState!.validate()) {
-                                  final newWeight = double.tryParse(
-                                          editWeightController.text) ??
-                                      0.0;
-
-                                  // Check for goal achievement FIRST
-                                  final user =
-                                      FirebaseAuth.instance.currentUser;
-                                  Map<String, dynamic>? achievement;
-
-                                  if (user != null) {
-                                    achievement = await GoalAchievementUtils
-                                        .checkGoalAchievement(
-                                      context: context,
-                                      newWeight: newWeight,
-                                    );
-                                  }
-
-                                  // Save weight
-                                  bool success =
-                                      await saveUserPreferences(newWeight);
-
-                                  if (success && context.mounted) {
-                                    if (achievement != null) {
-                                      // Show celebration and close weight dialog when celebration is dismissed
-                                      showDialog(
-                                        context: context,
-                                        barrierDismissible: false,
-                                        builder: (context) =>
-                                            GoalCelebrationDialog(
-                                                achievementData: achievement!),
-                                      ).then((_) {
-                                        // Close weight dialog after celebration is closed
-                                        Navigator.pop(context);
-                                      });
-                                    } else {
-                                      // No achievement, just close weight dialog normally
-                                      Navigator.pop(context);
-                                    }
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Weight updated successfully!')),
-                                    );
-
-                                    refreshHomePage();
-                                    final userProvider =
-                                        context.read<UserProvider>();
-                                    userProvider.notifyListeners();
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _showEditGoalSheet(context);
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.yellow.withOpacity(0.2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  'Set New Goal',
+                  style: TextStyle(
+                    color: Colors.yellow,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
                 ),
               ),
             ),
-          );
-        },
-      ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close celebration dialog
+                  // Navigate to profile page
+                  context.go('/profile');
+
+                  // Force refresh the profile page to show new achievement
+                  final userProvider = context.read<UserProvider>();
+                  userProvider.notifyListeners();
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.grey[700],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  'Celebrate!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+      actionsAlignment: MainAxisAlignment.center,
     );
   }
 
-  //
-  // CHANGE GOAL WEIGHT DIALOG
-  //
   void _showEditGoalSheet(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -451,122 +252,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
             userData['selectedActivityLevel'] ?? 'Sedentary';
         selectedGoal = userData['goal'] ?? 'Maintain Weight';
 
+        // Check if user uses metric system
+        final bool isMetric = userData['measurementSystem'] == 'Metric';
+
         // Track if goal weight field should be enabled
         bool isGoalWeightEnabled = selectedGoal != 'Maintain Weight';
 
         // Create form key for validation
         final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-        // Function to show goal weight suggestions
-        void showGoalWeightSuggestions() {
-          if (weightController.text.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Please enter your current weight first'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-
-          final currentWeight = double.tryParse(weightController.text);
-          if (currentWeight == null) return;
-
-          List<Map<String, dynamic>> suggestions = [];
-
-          if (selectedGoal == 'Lose Weight' ||
-              selectedGoal == 'Mild Lose Weight') {
-            suggestions = [
-              {'label': 'Mild Loss (-5%)', 'value': currentWeight * 0.95},
-              {'label': 'Moderate Loss (-10%)', 'value': currentWeight * 0.90},
-              {
-                'label': 'Significant Loss (-15%)',
-                'value': currentWeight * 0.85
-              },
-            ];
-          } else if (selectedGoal == 'Gain Weight' ||
-              selectedGoal == 'Mild Gain Weight') {
-            suggestions = [
-              {'label': 'Mild Gain (+5%)', 'value': currentWeight * 1.05},
-              {'label': 'Moderate Gain (+10%)', 'value': currentWeight * 1.10},
-              {
-                'label': 'Significant Gain (+15%)',
-                'value': currentWeight * 1.15
-              },
-            ];
-          } else {
-            // For maintain weight, just use the current weight
-            goalWeightController.text = currentWeight.toStringAsFixed(1);
-            return;
-          }
-
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: AppColors.containerBg,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            builder: (context) => Container(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[400],
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Suggested Goal Weights',
-                    style: TextStyle(
-                      color: AppColors.primaryText,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Based on your current weight and goal',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  SizedBox(height: 20),
-                  ...suggestions.map((suggestion) => ListTile(
-                        title: Text(
-                          suggestion['label'],
-                          style: TextStyle(color: AppColors.primaryText),
-                        ),
-                        trailing: Text(
-                          '${suggestion['value'].toStringAsFixed(1)} ${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lb'}',
-                          style: TextStyle(
-                            color: AppColors.secondaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            goalWeightController.text =
-                                suggestion['value'].toStringAsFixed(1);
-                          });
-                          Navigator.pop(context);
-                        },
-                      )),
-                  SizedBox(height: 20),
-                  MyButtons(
-                    text: 'Cancel',
-                    onTap: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
 
         showModalBottomSheet(
           context: context,
@@ -580,6 +273,124 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           builder: (context) => StatefulBuilder(
             builder: (context, setState) {
+              // Function to show goal weight suggestions - MOVED INSIDE StatefulBuilder
+              void showGoalWeightSuggestions() {
+                if (weightController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Please enter your current weight first'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final currentWeight = double.tryParse(weightController.text);
+                if (currentWeight == null) return;
+
+                List<Map<String, dynamic>> suggestions = [];
+
+                if (selectedGoal == 'Lose Weight' ||
+                    selectedGoal == 'Mild Lose Weight') {
+                  suggestions = [
+                    {'label': 'Mild Loss (-5%)', 'value': currentWeight * 0.95},
+                    {
+                      'label': 'Moderate Loss (-10%)',
+                      'value': currentWeight * 0.90
+                    },
+                    {
+                      'label': 'Significant Loss (-15%)',
+                      'value': currentWeight * 0.85
+                    },
+                  ];
+                } else if (selectedGoal == 'Gain Weight' ||
+                    selectedGoal == 'Mild Gain Weight') {
+                  suggestions = [
+                    {'label': 'Mild Gain (+5%)', 'value': currentWeight * 1.05},
+                    {
+                      'label': 'Moderate Gain (+10%)',
+                      'value': currentWeight * 1.10
+                    },
+                    {
+                      'label': 'Significant Gain (+15%)',
+                      'value': currentWeight * 1.15
+                    },
+                  ];
+                } else {
+                  // For maintain weight, just use the current weight
+                  goalWeightController.text = currentWeight.toStringAsFixed(1);
+                  return;
+                }
+
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: AppColors.containerBg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (context) => Container(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Suggested Goal Weights',
+                          style: TextStyle(
+                            color: AppColors.primaryText,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'Based on your current weight and goal',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        SizedBox(height: 20),
+                        ...suggestions.map((suggestion) => ListTile(
+                              title: Text(
+                                suggestion['label'],
+                                style: TextStyle(color: AppColors.primaryText),
+                              ),
+                              trailing: Text(
+                                '${suggestion['value'].toStringAsFixed(1)} ${isMetric ? 'kg' : 'lb'}',
+                                style: TextStyle(
+                                  color: AppColors.secondaryColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  goalWeightController.text =
+                                      suggestion['value'].toStringAsFixed(1);
+                                });
+                                Navigator.pop(context);
+                              },
+                            )),
+                        SizedBox(height: 20),
+                        MyButtons(
+                          text: 'Cancel',
+                          onTap: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               // Function to validate goal weight based on current weight and selected goal
               String? validateGoalWeight(String? value) {
                 if (value == null || value.isEmpty) {
@@ -727,7 +538,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
                               // Weight Field
                               Text(
-                                'Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                                'Weight (${isMetric ? 'kg' : 'lbs'})',
                                 style: TextStyle(
                                     color: AppColors.primaryText, fontSize: 16),
                               ),
@@ -787,7 +598,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      'Goal Weight (${userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'})',
+                                      'Goal Weight (${isMetric ? 'kg' : 'lbs'})',
                                       style: TextStyle(
                                           color: AppColors.primaryText,
                                           fontSize: 16),
@@ -861,7 +672,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
                               // Height Field
                               Text(
-                                'Height (${userData['measurementSystem'] == 'Metric' ? 'cm' : 'inches'})',
+                                'Height (${isMetric ? 'cm' : 'inches'})',
                                 style: TextStyle(
                                     color: AppColors.primaryText, fontSize: 16),
                               ),
@@ -1166,262 +977,6 @@ class _CustomDrawerState extends State<CustomDrawer> {
         );
       }
     });
-  }
-
-  void showEditGoalSheet(BuildContext context) {
-    _showEditGoalSheet(context);
-  }
-
-  //
-  // LOGOUT DIALOG
-  //
-  void _showlogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Expanded(
-                child: CustomTextButton(
-                    title: 'Back',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                    },
-                    size: 20),
-              ),
-              Expanded(
-                child: MyButtons(
-                  text: 'Log out',
-                  onTap: () async {
-                    // Clear chatbot conversation from SharedPreferences
-                    final prefs = await SharedPreferences.getInstance();
-                    const String chatStorageKey = 'chatbot_conversation';
-                    await prefs.remove(chatStorageKey);
-
-                    // log out the user
-                    dialogContext.read<UserProvider>().logout();
-                    Navigator.pop(dialogContext);
-                    context.go('/startup');
-                  },
-                ),
-              ),
-            ],
-          )
-        ],
-        backgroundColor: AppColors.containerBg,
-        title: Center(
-          child: Text(
-            'Log out?',
-            style: TextStyle(color: AppColors.primaryText),
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to log out?',
-          style: TextStyle(
-            color: AppColors.secondaryText,
-          ),
-        ),
-      ),
-    );
-  }
-
-  //
-  // ABOUT US DIALOG
-  //
-  void _showAboutUs(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.containerBg,
-      isScrollControlled: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
-      ),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      builder: (context) => const AboutUsWidget(),
-    );
-  }
-
-  //
-  // T&C DIALOG
-  //
-  void _showTermsAndCondition(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.containerBg,
-      isScrollControlled: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
-      ),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      builder: (context) => const TermsConditionsWidget(),
-    );
-  }
-
-  //
-  // FAQs Section
-  //
-  void _showFAQ(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.containerBg,
-      isScrollControlled: true,
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8,
-      ),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      builder: (context) => const FAQWidget(),
-    );
-  }
-
-  //
-  // SIDE BAR UI
-  //
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: Container(
-        color: AppColors.drawerBg,
-        child: ListView(
-          children: [
-            DrawerHeader(
-              child: Center(
-                child: Image.asset('lib/images/TrackTastyLogo.png'),
-              ),
-            ),
-            ExpansionTile(
-              childrenPadding: EdgeInsets.only(left: 20),
-              leading: Icon(
-                Icons.person,
-                color: AppColors.drawerIcons,
-              ),
-              title: Text(
-                'User Profile',
-                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-              ),
-              children: [
-                ListTile(
-                  leading: Icon(Icons.edit),
-                  title: Text(
-                    'Update Username',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
-                  ),
-                  onTap: () => _showEditUsernameDialog(context),
-                ),
-                ListTile(
-                  leading: Icon(Icons.edit),
-                  title: Text(
-                    'Update Goals',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
-                  ),
-                  onTap: () => _showEditGoalSheet(context),
-                ),
-                ListTile(
-                  leading: Icon(Icons.edit),
-                  title: Text(
-                    'Update Food Preference',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.push(
-                        '/editfoodpreference'); // Navigate to edit food pref page
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.edit),
-                  title: Text(
-                    'Update Weight',
-                    style:
-                        TextStyle(color: AppColors.primaryText, fontSize: 14),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context); // Close drawer first
-                    _showEditWeightDialog(context);
-                  },
-                ),
-              ],
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.feed_outlined,
-                color: AppColors.drawerIcons,
-              ),
-              title: Text(
-                'Terms and Conditions',
-                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-              ),
-              onTap: () => _showTermsAndCondition(context),
-            ),
-            ListTile(
-              leading: Icon(Icons.feedback, color: AppColors.drawerIcons),
-              title: Text(
-                'Feedback',
-                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/feedback'); // Navigate to feedback page
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.notifications, color: AppColors.drawerIcons),
-              title: Text(
-                'Notification Settings',
-                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                context.push(
-                    '/notificationsettings'); // Navigate to notification settings
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.people_rounded, color: AppColors.drawerIcons),
-              title: Text(
-                'About Us',
-                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-              ),
-              onTap: () => _showAboutUs(context),
-            ),
-            ListTile(
-              leading: Icon(Icons.question_mark, color: AppColors.drawerIcons),
-              title: Text(
-                'FAQs',
-                style: TextStyle(color: AppColors.primaryText, fontSize: 16),
-              ),
-              onTap: () => _showFAQ(context),
-            ),
-            SizedBox(height: 20),
-            Divider(),
-            ListTile(
-              leading: Icon(Icons.logout, color: Colors.red),
-              title: Text(
-                'Log Out',
-                style: TextStyle(color: Colors.red, fontSize: 16),
-              ),
-              onTap: () => _showlogout(context),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

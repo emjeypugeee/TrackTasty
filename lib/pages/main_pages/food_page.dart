@@ -2,6 +2,7 @@ import 'dart:ffi';
 
 import 'package:fitness/services/fat_secret_api_service.dart';
 import 'package:fitness/utils/achievement_utils.dart';
+import 'package:fitness/utils/macro_warning_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/main_screen_widgets/food_page_screen/meal_container.dart';
@@ -208,6 +209,11 @@ class _FoodPageState extends State<FoodPage> {
             content: Text('${food['food_name']} saved successfully!'),
             backgroundColor: AppColors.snackBarBgSaved,
           ),
+        );
+
+        await MacroWarningUtils.checkAndShowMacroWarnings(
+          context,
+          foodLogData,
         );
         Navigator.pop(context); // Close food page and return to home
       } catch (e) {
