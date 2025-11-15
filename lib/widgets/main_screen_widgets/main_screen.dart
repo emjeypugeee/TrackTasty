@@ -1,5 +1,6 @@
 import 'package:fitness/pages/main_pages/food_page.dart';
 import 'package:fitness/provider/user_provider.dart';
+import 'package:fitness/utils/macro_warning_utils.dart';
 import 'package:fitness/widgets/main_screen_widgets/custom_drawer.dart';
 import 'package:fitness/widgets/main_screen_widgets/home_screen/food_input_sheet.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   DateTime? _lastPressed;
+  bool _isProcessing = false;
   final List<String> _routes = [
     '/home',
     '/chatbot',
@@ -73,6 +75,61 @@ class _MainScreenState extends State<MainScreen> {
       AnalyticsPage(),
       ProfilePage(),
     ];
+  }
+
+  Future<void> _handleCameraTap(BuildContext context) async {
+    // Check camera permissions first
+    var cameraStatus = await Permission.camera.status;
+    if (!cameraStatus.isGranted) {
+      cameraStatus = await Permission.camera.request();
+    }
+
+    if (cameraStatus.isGranted) {
+      final imagePath = await context.push('/camera');
+
+      if (imagePath != null) {
+        // Handle the captured image
+        debugPrint('Image captured: $imagePath');
+
+        final User? user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          try {
+            final achievementDoc = FirebaseFirestore.instance
+                .collection('user_achievements')
+                .doc(user.uid);
+
+            final achievementSnapshot = await achievementDoc.get();
+            final achievementData = achievementSnapshot.data() ?? {};
+            final imageLogs = achievementData['image_logs'] ?? 0;
+
+            await achievementDoc
+                .set({'image_logs': imageLogs + 1}, SetOptions(merge: true));
+
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Food image captured successfully!')),
+            );
+          } catch (e) {
+            debugPrint('Error updating image logs: $e');
+          }
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Camera permission is required to scan food')),
+      );
+    }
+  }
+
+  void _handleAddFoodTap(BuildContext context) {
+    addFoodManually(context);
+  }
+
+  void _handleSearchFoodTap(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => FoodPage()))
+        .then((_) {
+      refreshHomePage(); // Refresh home page after returning
+    });
   }
 
   //
@@ -191,9 +248,31 @@ class _MainScreenState extends State<MainScreen> {
                 isImageLog: false,
                 context: context);
 
-            Navigator.pop(context);
+            if (Navigator.of(context).canPop()) {
+              Navigator.pop(context);
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    '${mealData['mealName']} added to food log successfully!'),
+                backgroundColor: AppColors.snackBarBgSaved,
+              ),
+            );
+
+            await MacroWarningUtils.checkAndShowMacroWarnings(
+              context,
+              foodLogData,
+            );
           } catch (e) {
             debugPrint('Error saving food log: $e');
+            // Don't pop on error - let user see the error and try again
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error saving food: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         }
       },
@@ -404,57 +483,7 @@ class _MainScreenState extends State<MainScreen> {
                     labelStyle: const TextStyle(color: Colors.white),
                     labelBackgroundColor: Colors.grey[600],
                     backgroundColor: Colors.grey[600],
-                    onTap: () async {
-                      // Check camera permissions first
-                      var cameraStatus = await Permission.camera.status;
-                      if (!cameraStatus.isGranted) {
-                        cameraStatus = await Permission.camera.request();
-                      }
-
-                      if (cameraStatus.isGranted) {
-                        final imagePath = await context.push('/camera');
-
-                        if (imagePath != null) {
-                          // Handle the captured image
-                          print('Image captured: $imagePath');
-
-                          final User? user = FirebaseAuth.instance.currentUser;
-                          if (user != null) {
-                            try {
-                              final achievementDoc = FirebaseFirestore.instance
-                                  .collection('user_achievements')
-                                  .doc(user.uid);
-
-                              final achievementSnapshot =
-                                  await achievementDoc.get();
-                              final achievementData =
-                                  achievementSnapshot.data() ?? {};
-                              final imageLogs =
-                                  achievementData['image_logs'] ?? 0;
-
-                              await achievementDoc.set(
-                                  {'image_logs': imageLogs + 1},
-                                  SetOptions(merge: true));
-
-                              // Show success message
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'Food image captured successfully!')),
-                              );
-                            } catch (e) {
-                              debugPrint('Error updating image logs: $e');
-                            }
-                          }
-                        }
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Camera permission is required to scan food')),
-                        );
-                      }
-                    },
+                    onTap: () => _handleCameraTap(context),
                   ),
                   SpeedDialChild(
                     child: const Icon(Icons.food_bank, color: Colors.white),
@@ -462,7 +491,7 @@ class _MainScreenState extends State<MainScreen> {
                     labelStyle: const TextStyle(color: Colors.white),
                     labelBackgroundColor: Colors.grey[600],
                     backgroundColor: Colors.grey[600],
-                    onTap: () => addFoodManually(context),
+                    onTap: () => _handleAddFoodTap(context),
                   ),
                   SpeedDialChild(
                     child: const Icon(Icons.search, color: Colors.white),
@@ -470,11 +499,7 @@ class _MainScreenState extends State<MainScreen> {
                     labelStyle: const TextStyle(color: Colors.white),
                     labelBackgroundColor: Colors.grey[600],
                     backgroundColor: Colors.grey[600],
-                    onTap: () async {
-                      await Navigator.push(context,
-                          MaterialPageRoute(builder: (context) => FoodPage()));
-                      refreshHomePage(); // Refresh home page after returning
-                    },
+                    onTap: () => _handleSearchFoodTap(context),
                   ),
                 ],
               )

@@ -121,7 +121,9 @@ class _FoodInputSheetState extends State<FoodInputSheet> {
 
       widget.onSubmit(mealData);
 
-      Future.delayed(const Duration(milliseconds: 500), () {
+      // Remove the Future.delayed that calls Navigator.pop
+      // Let the onSubmit callback handle closing the sheet
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           setState(() {
             _isSubmitting = false;

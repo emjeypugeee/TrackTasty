@@ -229,6 +229,109 @@ class _Userpreference4 extends State<Userpreference4> {
     }
   }
 
+  // Show goal weight suggestions based on current weight and goal
+  void _showGoalWeightSuggestions() {
+    if (weightController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter your current weight first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final currentWeight = double.tryParse(weightController.text);
+    if (currentWeight == null) return;
+
+    List<Map<String, dynamic>> suggestions = [];
+
+    if (_goal == 'Lose Weight' || _goal == 'Mild Lose Weight') {
+      suggestions = [
+        {'label': 'Mild Loss (-5%)', 'value': currentWeight * 0.95},
+        {'label': 'Moderate Loss (-10%)', 'value': currentWeight * 0.90},
+        {'label': 'Significant Loss (-15%)', 'value': currentWeight * 0.85},
+      ];
+    } else if (_goal == 'Gain Weight' || _goal == 'Mild Gain Weight') {
+      suggestions = [
+        {'label': 'Mild Gain (+5%)', 'value': currentWeight * 1.05},
+        {'label': 'Moderate Gain (+10%)', 'value': currentWeight * 1.10},
+        {'label': 'Significant Gain (+15%)', 'value': currentWeight * 1.15},
+      ];
+    } else {
+      // For maintain weight, just use the current weight
+      goalWeightController.text = currentWeight.toStringAsFixed(1);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Color(0xFF1E1E1E),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Suggested Goal Weights',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Based on your current weight and goal',
+              style: TextStyle(color: Colors.grey),
+            ),
+            SizedBox(height: 20),
+            ...suggestions.map((suggestion) => ListTile(
+                  title: Text(
+                    suggestion['label'],
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  trailing: Text(
+                    '${suggestion['value'].toStringAsFixed(1)} ${isMetric ? 'kg' : 'lb'}',
+                    style: TextStyle(
+                      color: AppColors.secondaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () {
+                    setState(() {
+                      goalWeightController.text =
+                          suggestion['value'].toStringAsFixed(1);
+                    });
+                    Navigator.pop(context);
+                  },
+                )),
+            SizedBox(height: 20),
+            MyButtons(
+              text: 'Cancel',
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     heightController.dispose();
@@ -517,94 +620,100 @@ class _Userpreference4 extends State<Userpreference4> {
                         height: 5,
                       ),
 
-                      //weight goal text field
+                      //weight goal text field with suggest button
                       Row(
                         children: [
                           Expanded(
-                              child: MyTextfield(
-                            hintText: isMetric
-                                ? 'Weight (20-300 kg)'
-                                : 'Weight (40-660 lbs)',
-                            obscureText: false,
-                            suffixText: isMetric ? 'kg' : 'lb',
-                            controller: goalWeightController,
-                            focusNode: _goalWeightFocusNode,
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) {
-                              _goalWeightFocusNode.unfocus();
-                            },
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(6),
-                              _MacroInputFormatter(),
-                            ],
-                            keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your desired weight';
-                              }
-
-                              // Validate the weight input based on the measurement system
-                              final weight = double.tryParse(value) ?? 0;
-                              if (isMetric && (weight < 20 || weight > 300)) {
-                                return 'Weight should be around 20-300 kg';
-                              } else if (!isMetric &&
-                                  (weight < 40 || weight > 660)) {
-                                return 'Weight should be around 40-660 lbs';
-                              }
-
-                              // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
-                              final regex = RegExp(r'^\d{1,3}(\.\d{0,2})?$');
-                              if (!regex.hasMatch(value)) {
-                                return 'Invalid format';
-                              }
-
-                              // Validate total length
-                              if (value.length > 6) {
-                                return 'Max 6 chars';
-                              }
-
-                              // Validate the weight input based on the goal
-                              if (weightController.text.isNotEmpty) {
-                                final goalWeight = double.tryParse(value) ?? 0;
-                                final currentWeight =
-                                    double.tryParse(weightController.text) ?? 0;
-
-                                if (_goal == 'Maintain Weight' &&
-                                    goalWeight != currentWeight) {
-                                  return 'Goal weight should be equal to the current weight for maintenance';
-                                } else if ((_goal == 'Lose Weight' ||
-                                        _goal == 'Mild Lose Weight') &&
-                                    goalWeight >= currentWeight) {
-                                  return 'Goal weight should be less than current weight for weight loss';
-                                } else if ((_goal == 'Gain Weight' ||
-                                        _goal == 'Mild Gain Weight') &&
-                                    goalWeight <= currentWeight) {
-                                  return 'Goal weight should be more than current weight for weight gain';
+                            flex: 7, // 70% width
+                            child: MyTextfield(
+                              hintText: isMetric
+                                  ? 'Weight (20-300 kg)'
+                                  : 'Weight (40-660 lbs)',
+                              obscureText: false,
+                              suffixText: isMetric ? 'kg' : 'lb',
+                              controller: goalWeightController,
+                              focusNode: _goalWeightFocusNode,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) {
+                                _goalWeightFocusNode.unfocus();
+                              },
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                                _MacroInputFormatter(),
+                              ],
+                              keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your desired weight';
                                 }
-                              }
-                              return null;
-                            },
-                          )),
 
-                          /*
-                          OLD CODE FOR WEIGHT UNIT SELECTION
-                          SizedBox(
-                            width: 25,
+                                // Validate the weight input based on the measurement system
+                                final weight = double.tryParse(value) ?? 0;
+                                if (isMetric && (weight < 20 || weight > 300)) {
+                                  return 'Weight should be around 20-300 kg';
+                                } else if (!isMetric &&
+                                    (weight < 40 || weight > 660)) {
+                                  return 'Weight should be around 40-660 lbs';
+                                }
+
+                                // Validate format: 1-3 digits, optional decimal, 0-2 decimal digits
+                                final regex = RegExp(r'^\d{1,3}(\.\d{0,2})?$');
+                                if (!regex.hasMatch(value)) {
+                                  return 'Invalid format';
+                                }
+
+                                // Validate total length
+                                if (value.length > 6) {
+                                  return 'Max 6 chars';
+                                }
+
+                                // Validate the weight input based on the goal
+                                if (weightController.text.isNotEmpty) {
+                                  final goalWeight =
+                                      double.tryParse(value) ?? 0;
+                                  final currentWeight =
+                                      double.tryParse(weightController.text) ??
+                                          0;
+
+                                  if (_goal == 'Maintain Weight' &&
+                                      goalWeight != currentWeight) {
+                                    return 'Goal weight should be equal to the current weight for maintenance';
+                                  } else if ((_goal == 'Lose Weight' ||
+                                          _goal == 'Mild Lose Weight') &&
+                                      goalWeight >= currentWeight) {
+                                    return 'Goal weight should be less than current weight for weight loss';
+                                  } else if ((_goal == 'Gain Weight' ||
+                                          _goal == 'Mild Gain Weight') &&
+                                      goalWeight <= currentWeight) {
+                                    return 'Goal weight should be more than current weight for weight gain';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
                           ),
-                          Container(
-                            width: 70,
-                            decoration: BoxDecoration(
-                              color: Color(0xFFe99797),
-                              borderRadius: BorderRadius.circular(10),
+                          SizedBox(width: 10),
+                          Expanded(
+                            flex: 3, // 30% width
+                            child: ElevatedButton(
+                              onPressed: _showGoalWeightSuggestions,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 15),
+                              ),
+                              child: Text(
+                                'Suggest',
+                                style: TextStyle(fontSize: 14),
+                              ),
                             ),
-                            padding: EdgeInsets.all(15),
-                            child: Center(
-                              child: Text(isMetric ? 'kg' : 'lb'),
-                            ),
-                          )
-                          */
+                          ),
                         ],
                       ),
 

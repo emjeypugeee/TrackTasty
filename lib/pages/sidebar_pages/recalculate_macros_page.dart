@@ -1,8 +1,8 @@
-// recalculate_macros_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/pages/main_pages/home_page.dart';
 import 'package:fitness/provider/user_provider.dart';
+import 'package:fitness/utils/goal_achievement_utils.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/widgets/components/percentage_slider.dart';
@@ -53,6 +53,8 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
   // Form controllers
   TextEditingController weightController = TextEditingController();
   TextEditingController heightController = TextEditingController();
+  TextEditingController goalWeightController =
+      TextEditingController(); // ADD THIS CONTROLLER
   String? selectedGender;
   String? selectedActivityLevel;
   String? selectedGoal;
@@ -78,6 +80,8 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     // Set initial values from userData
     weightController.text = data['weight']?.toString() ?? '';
     heightController.text = data['height']?.toString() ?? '';
+    goalWeightController.text =
+        data['goalWeight']?.toString() ?? ''; // INITIALIZE GOAL WEIGHT
     selectedGender = data['gender'] ?? 'male';
     selectedActivityLevel = data['selectedActivityLevel'] ?? 'Sedentary';
     selectedGoal = data['goal'] ?? 'Maintain Weight';
@@ -85,6 +89,8 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     // Debug: print what we're setting
     debugPrint("Setting weight: ${weightController.text}");
     debugPrint("Setting height: ${heightController.text}");
+    debugPrint(
+        "Setting goal weight: ${goalWeightController.text}"); // DEBUG GOAL WEIGHT
 
     // Set initial macro percentages if they exist
     if (data['carbsPercentage'] != null) {
@@ -231,9 +237,19 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      // Update weight in weight_logs if it has changed
+      // Get current values
       final currentWeight = double.tryParse(weightController.text) ?? 0;
+      final goalWeight =
+          double.tryParse(goalWeightController.text) ?? 0; // GET GOAL WEIGHT
+      final measurementSystem =
+          widget.userData['measurementSystem'] ?? 'Metric';
+
+      // Update weight in weight_logs if it has changed
       final oldWeight = widget.userData['weight'] is double
           ? widget.userData['weight'] as double
           : double.tryParse(widget.userData['weight']?.toString() ?? '0') ?? 0;
@@ -256,7 +272,7 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
         'age': int.tryParse(widget.userData['age']?.toString() ?? '0') ?? 0,
         'weight': currentWeight,
         'height': double.tryParse(heightController.text) ?? 0,
-        'goalWeight': widget.userData['goalWeight'],
+        'goalWeight': goalWeight, // SAVE GOAL WEIGHT
         'gender': selectedGender,
         'selectedActivityLevel': selectedActivityLevel,
         'goal': selectedGoal,
@@ -269,18 +285,40 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
         'proteinGram': proteinGram
       });
 
+      // SAVE THE GOAL TO USER_ACHIEVEMENTS COLLECTION
+      await GoalAchievementUtils.saveUserGoal(
+        userId: user.uid,
+        userEmail: user.email!,
+        goalType: selectedGoal!,
+        goalWeight: goalWeight,
+        currentWeight: currentWeight,
+        measurementSystem: measurementSystem,
+      );
+
+      debugPrint(
+          '✅ Goal saved to user_achievements: $selectedGoal, Goal Weight: $goalWeight');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Macros recalculated successfully!')),
+          const SnackBar(
+              content:
+                  Text('Macros recalculated and goal saved successfully!')),
         );
         context.pop();
         await context.read<UserProvider>().fetchUserData();
       }
     } catch (e) {
+      debugPrint('❌ Error saving user data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving data: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
       }
     }
   }
@@ -311,6 +349,57 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Display user's current goal and goal weight
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(255, 32, 32, 32),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.buttonColor),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Current Goal',
+                            style: TextStyle(
+                              color: AppColors.primaryText,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            selectedGoal ?? 'Maintain Weight',
+                            style: TextStyle(
+                              color: Colors.yellow,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Goal Weight',
+                            style: TextStyle(
+                              color: AppColors.primaryText,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${goalWeightController.text} ${widget.userData['measurementSystem'] == 'Metric' ? 'kg' : 'lbs'}',
+                            style: TextStyle(
+                              color: Colors.yellow,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     // Display calculated macros
                     Center(
                       child: Container(
@@ -479,13 +568,36 @@ class _RecalculateMacrosPageState extends State<RecalculateMacrosPage> {
             const SizedBox(height: 20),
 
             // Save button
-            MyButtons(
-              text: 'Save New Macros',
-              onTap: () async {
-                await _saveUserData();
-                refreshHomePage();
-              },
-            ),
+            isLoading
+                ? Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : MyButtons(
+                    text: 'Save New Macros & Goal',
+                    onTap: () async {
+                      if (goalWeightController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text('Please enter your goal weight')),
+                        );
+                        return;
+                      }
+
+                      final goalWeight =
+                          double.tryParse(goalWeightController.text);
+                      if (goalWeight == null || goalWeight <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Please enter a valid goal weight')),
+                        );
+                        return;
+                      }
+
+                      await _saveUserData();
+                      refreshHomePage();
+                    },
+                  ),
           ],
         ),
       ),

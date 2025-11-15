@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emailjs/emailjs.dart' as emailjs;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fitness/model/user_data_models.dart';
+import 'package:fitness/utils/goal_achievement_utils.dart';
 import 'package:fitness/widgets/components/my_buttons.dart';
 import 'package:fitness/widgets/components/my_textfield.dart';
 import 'package:fitness/theme/app_color.dart';
@@ -418,6 +419,7 @@ class _RegisterPageState extends State<RegisterPage>
 
       await _createUserDocument(userCredential.user!);
       await _saveInitialWeight(userCredential.user!.uid);
+      await _saveGoalWeight(userCredential.user!.uid);
 
       // Clear any temporary data
       final prefs = await SharedPreferences.getInstance();
@@ -483,6 +485,37 @@ class _RegisterPageState extends State<RegisterPage>
       'termsAgreementDate': DateTime.now(),
       'emailVerified': true,
     });
+  }
+
+  // In register_page.dart, update the _saveGoalWeight method:
+
+  Future<void> _saveGoalWeight(String userId) async {
+    final provider =
+        Provider.of<RegistrationDataProvider>(context, listen: false);
+    final userData = provider.userData;
+
+    try {
+      // Ensure we have non-null values with defaults
+      final goalWeight = userData.goalWeight ?? 0.0;
+      final currentWeight = userData.weight ?? 0.0;
+      final goalType = userData.goal ?? 'Maintain Weight';
+      final measurementSystem = userData.measurementSystem ?? 'Metric';
+
+      // Save the goal using GoalAchievementUtils
+      await GoalAchievementUtils.saveUserGoal(
+        userId: userId,
+        userEmail: _emailController.text.trim(),
+        goalType: goalType,
+        goalWeight: goalWeight,
+        currentWeight: currentWeight,
+        measurementSystem: measurementSystem,
+      );
+
+      debugPrint('✅ Goal weight saved successfully: $goalWeight');
+    } catch (e) {
+      debugPrint('❌ Error saving goal weight: $e');
+      // Don't throw here as this shouldn't block registration
+    }
   }
 
   Future<void> _saveInitialWeight(String userId) async {

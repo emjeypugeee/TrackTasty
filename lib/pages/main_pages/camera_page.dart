@@ -9,6 +9,7 @@ import 'package:fitness/services/gemini_api_service.dart';
 import 'package:fitness/theme/app_color.dart';
 import 'package:fitness/theme/scan_line_painter.dart';
 import 'package:fitness/utils/achievement_utils.dart';
+import 'package:fitness/utils/macro_warning_utils.dart';
 import 'package:fitness/widgets/main_screen_widgets/camera_screen/food_analysis_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -405,8 +406,14 @@ class _CameraScreenState extends State<CameraScreen>
         ScaffoldMessenger.of(_key.currentContext!).showSnackBar(
           SnackBar(
             content: Text('${food.mealName} added to food log successfully!'),
+            backgroundColor: AppColors.snackBarBgSaved,
             duration: Duration(seconds: 2),
           ),
+        );
+
+        await MacroWarningUtils.checkAndShowMacroWarnings(
+          _key.currentContext!,
+          foodLogData,
         );
         GoRouter.of(_key.currentContext!).go('/home');
       } else {
